@@ -1,0 +1,14 @@
+{
+  "name": "canonical/empty-paragraph-has-no-children",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        }
+      }
+    ]
+  }
+}

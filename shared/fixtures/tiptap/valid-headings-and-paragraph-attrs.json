@@ -1,0 +1,77 @@
+{
+  "name": "valid/headings-and-paragraph-attrs",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "textAlign": "center"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Title"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Sub"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "level": 3
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Third"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "textAlign": "justify",
+          "lineSpacing": 1.5,
+          "spaceBefore": 6,
+          "spaceAfter": 12.5,
+          "indent": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Spaced"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000005",
+          "lineSpacing": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Double"
+          }
+        ]
+      }
+    ]
+  }
+}

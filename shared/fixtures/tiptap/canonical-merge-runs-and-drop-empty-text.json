@@ -1,0 +1,29 @@
+{
+  "name": "canonical/merge-runs-and-drop-empty-text",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello"
+          },
+          {
+            "type": "text",
+            "text": " world!",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

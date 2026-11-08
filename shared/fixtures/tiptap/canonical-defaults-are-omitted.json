@@ -1,0 +1,91 @@
+{
+  "name": "canonical/defaults-are-omitted",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "x",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000002"
+        },
+        "content": [
+          {
+            "type": "listItem",
+            "attrs": {
+              "id": "00000000-0000-4000-8000-000000000003"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000004"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000005"
+        },
+        "content": [
+          {
+            "type": "tableRow",
+            "attrs": {
+              "id": "00000000-0000-4000-8000-000000000006"
+            },
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000007"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000008"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000009"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000010"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "name": "valid/formatted-text",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Plain "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and ",
+            "marks": [
+              {
+                "type": "italic"
+              },
+              {
+                "type": "underline"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "struck",
+            "marks": [
+              {
+                "type": "textStyle",
+                "attrs": {
+                  "color": "#FF0000"
+                }
+              },
+              {
+                "type": "strike"
+              },
+              {
+                "type": "highlight"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "x2",
+            "marks": [
+              {
+                "type": "textStyle",
+                "attrs": {
+                  "fontKey": "calibri",
+                  "fontSizePt": 11.5
+                }
+              },
+              {
+                "type": "superscript"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "link",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com/a?b=c#d"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "mail",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "mailto:someone@example.com"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

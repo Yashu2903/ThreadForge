@@ -1,0 +1,30 @@
+{
+  "name": "canonical/key-order-and-hard-breaks-survive",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    ]
+  }
+}

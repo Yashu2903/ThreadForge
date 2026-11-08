@@ -13,6 +13,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: [
+      { find: "@threadforge/editor-schema", replacement: fileURLToPath(new URL("../packages/editor-schema/src/index.ts", import.meta.url)) },
       { find: "threadforge-client/document-schema", replacement: client("document-schema.ts") },
       { find: "threadforge-client", replacement: client("index.ts") },
     ],

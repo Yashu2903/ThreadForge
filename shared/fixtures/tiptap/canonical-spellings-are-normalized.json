@@ -1,0 +1,40 @@
+{
+  "name": "canonical/spellings-are-normalized",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-00000000abcd",
+          "lineSpacing": 2,
+          "spaceAfter": 12
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "x",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://Example.com/Path"
+                }
+              },
+              {
+                "type": "textStyle",
+                "attrs": {
+                  "fontSizePt": 12,
+                  "color": "#AABBCC"
+                }
+              },
+              {
+                "type": "highlight"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

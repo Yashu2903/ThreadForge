@@ -1,0 +1,124 @@
+{
+  "name": "valid/nested-lists",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        },
+        "content": [
+          {
+            "type": "listItem",
+            "attrs": {
+              "id": "00000000-0000-4000-8000-000000000002"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000003"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000004"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000005"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "00000000-0000-4000-8000-000000000006"
+                        },
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "a.1"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "bulletList",
+                        "attrs": {
+                          "id": "00000000-0000-4000-8000-000000000007"
+                        },
+                        "content": [
+                          {
+                            "type": "listItem",
+                            "attrs": {
+                              "id": "00000000-0000-4000-8000-000000000008"
+                            },
+                            "content": [
+                              {
+                                "type": "paragraph",
+                                "attrs": {
+                                  "id": "00000000-0000-4000-8000-000000000009"
+                                },
+                                "content": [
+                                  {
+                                    "type": "text",
+                                    "text": "a.1.1"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "attrs": {
+              "id": "00000000-0000-4000-8000-000000000010"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000011"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "b"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000012"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "b continued"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

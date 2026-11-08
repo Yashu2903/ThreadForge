@@ -1,0 +1,118 @@
+{
+  "name": "valid/table-with-header-row",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        },
+        "content": [
+          {
+            "type": "tableRow",
+            "attrs": {
+              "id": "00000000-0000-4000-8000-000000000002"
+            },
+            "content": [
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000003"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000004"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "H1"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000005"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000006"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "H2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "attrs": {
+              "id": "00000000-0000-4000-8000-000000000007"
+            },
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000008"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000009"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000010"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000011"
+                    }
+                  },
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "id": "00000000-0000-4000-8000-000000000012"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "two paragraphs"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

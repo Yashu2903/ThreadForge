@@ -16,6 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "threadforge-client": ["../client/src/index.ts"],
+      "@threadforge/editor-schema": ["../packages/editor-schema/src/index.ts"],
       "threadforge-client/document-schema": ["../client/src/document-schema.ts"]
     }
   },

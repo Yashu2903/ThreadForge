@@ -1,0 +1,44 @@
+{
+  "name": "valid/inline-atoms",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "id": "00000000-0000-4000-8000-000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "line one"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "tab\there"
+          },
+          {
+            "type": "image",
+            "attrs": {
+              "alt": "A diagram",
+              "assetId": "00000000-0000-4000-8000-000000000900",
+              "height": 200,
+              "width": 320
+            }
+          },
+          {
+            "type": "image",
+            "attrs": {
+              "assetId": "00000000-0000-4000-8000-000000000900",
+              "height": 200,
+              "width": 320
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
