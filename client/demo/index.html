@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ThreadForge room client demo</title>
+<!--
+  Minimal demo page. The backend has NO CORS middleware, so this page must be served from the same
+  origin as the API (for example through a dev reverse proxy that serves client/ at / and forwards
+  /rooms and /auth to the backend) and that origin must be listed in TRUSTED_ORIGINS. Sign in
+  first (/auth/login); the browser then sends the session cookie. Build the client first:
+  cd client && npm run build.
+-->
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 16px; max-width: 760px }
+  input, button { font: inherit; padding: 4px 8px }
+  pre { background: #f4f4f4; padding: 8px; overflow: auto; max-height: 260px }
+  @media (prefers-color-scheme: dark) { body { background: #111; color: #eee } pre { background: #222 } }
+</style>
+<h1>Room client demo</h1>
+<p>
+  <input id="room" placeholder="room id" size="38" />
+  <input id="user" placeholder="my user id" size="38" />
+  <button id="go">Connect</button>
+</p>
+<p>
+  <input id="text" placeholder="message" size="40" />
+  <button id="send">Send</button>
+  <select id="avail"><option>available</option><option>busy</option><option>dnd</option></select>
+</p>
+<p id="status">not connected</p>
+<pre id="log"></pre>
+<script type="module">
+  import { RoomClient, browserDeps } from "../dist/index.js";
+  const $ = (id) => document.getElementById(id);
+  let client;
+  $("go").onclick = () => {
+    client?.stop();
+    client = new RoomClient(browserDeps(), {
+      roomId: $("room").value.trim(),
+      userId: $("user").value.trim(),
+      httpBase: location.origin,
+      wsBase: location.origin.replace(/^http/, "ws"),
+    });
+    client.onChange(() => {
+      const s = client.state;
+      $("status").textContent = `${s.status}${s.terminalReason ? ` (${s.terminalReason})` : ""} · cursor ${s.cursor}`
+        + ` · online: ${s.presence.degraded ? "unknown" : s.presence.online.length}`
+        + ` · typing: ${s.typing.degraded ? "unknown" : s.typing.userIds.length}`;
+      $("log").textContent = [...s.messages.values()]
+        .map((m) => `${m.author_display_name}: ${m.is_deleted ? "(deleted)" : m.body}${m.version > 1 ? " (edited)" : ""}`)
+        .join("\n");
+    });
+    client.start();
+  };
+  $("send").onclick = () => client?.sendMessage($("text").value).then(() => ($("text").value = ""));
+  $("text").oninput = () => client?.userTyping();
+  $("avail").onchange = () => client?.setAvailability($("avail").value);
+</script>
