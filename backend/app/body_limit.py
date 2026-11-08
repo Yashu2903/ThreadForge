@@ -34,27 +34,35 @@ class BodySizeLimitMiddleware:
         self,
         app: ASGIApp,
         max_bytes: int = MAX_BODY_BYTES,
-        rules: tuple[tuple[str, re.Pattern[str], int], ...] = (),
+        rules: tuple[
+            tuple[str, re.Pattern[str], int] | tuple[str, re.Pattern[str], int, bool], ...
+        ] = (),
     ) -> None:
         self.app = app
         self.max_bytes = max_bytes
         self.rules = rules
 
-    def limit_for(self, scope: Scope) -> int:
-        for method, pattern, limit in self.rules:
+    def rule_for(self, scope: Scope) -> tuple[int, bool]:
+        """(limit, stream). A STREAMING rule (uploads) does not buffer the body: it is counted as
+        the handler reads it, and the read fails with 413 the moment the limit is passed."""
+        for rule in self.rules:
+            method, pattern, limit = rule[0], rule[1], rule[2]
             if scope.get("method") == method and pattern.fullmatch(scope.get("path", "")):
-                return limit
-        return self.max_bytes
+                return limit, bool(rule[3]) if len(rule) > 3 else False
+        return self.max_bytes, False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        limit = self.limit_for(scope)
+        limit, stream = self.rule_for(scope)
         declared = _content_length(scope)
         if declared is not None and declared > limit:
             await self._reject(scope, send)
+            return
+        if stream:
+            await self.app(scope, _counting(receive, limit), send)
             return
 
         # Read the body ourselves, counting bytes as they arrive.
@@ -99,6 +107,26 @@ class BodySizeLimitMiddleware:
             }
         )
         await send({"type": "http.response.body", "body": payload})
+
+
+def _counting(receive: Receive, limit: int) -> Receive:
+    """Wrap receive() so reading more than `limit` body bytes raises 413 (an AppError, which the
+    application's error handler turns into the usual JSON envelope). Content-Length is not trusted:
+    the bytes actually received are what is counted."""
+    from app.errors import payload_too_large
+
+    total = 0
+
+    async def counted() -> Message:
+        nonlocal total
+        message = await receive()
+        if message["type"] == "http.request":
+            total += len(message.get("body", b""))
+            if total > limit:
+                raise payload_too_large()
+        return message
+
+    return counted
 
 
 def _content_length(scope: Scope) -> int | None:

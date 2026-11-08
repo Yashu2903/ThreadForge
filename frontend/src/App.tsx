@@ -27,7 +27,7 @@ export function App(props: { api?: Api }) {
       .catch((err) => setMe(err instanceof ApiError && err.status === 401 ? "anonymous" : "anonymous"));
   }, [api]);
 
-  if (import.meta.env.DEV && route === "#/playground") return <Playground />;
+  if (import.meta.env.DEV && route.startsWith("#/playground")) return <Playground roomId={/^#\/playground\/([0-9a-f-]{36})$/.exec(route)?.[1]} />;
   if (me === null) return <p role="status" className="centered">Loading…</p>;
   if (me === "anonymous") {
     return (

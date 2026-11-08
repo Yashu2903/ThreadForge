@@ -82,6 +82,7 @@ import {
   resyncBlock,
 } from "./dom";
 import { History, type HistoryOptions } from "./history";
+import { type ImageInput, imageSelection, insertImage, selectedImage, setImageAlt } from "./images";
 import { flatten, inheritMarks } from "./inline";
 import { limitProblem } from "./stats";
 
@@ -134,6 +135,8 @@ export interface FormatState {
   canRedo: boolean;
   readOnly: boolean;
   collapsed: boolean;
+  /** the image the selection covers exactly (selected as a unit), if any */
+  image: { id: string; alt: string; width_px: number; height_px: number } | null;
 }
 
 const DEV = typeof import.meta !== "undefined" && (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
@@ -191,6 +194,7 @@ export class Editor {
     on("copy", (e) => this.onCopy(e as ClipboardEvent, false));
     on("cut", (e) => this.onCopy(e as ClipboardEvent, true));
     on("click", (e) => this.onClick(e as MouseEvent));
+    on("mousedown", (e) => this.onMouseDown(e as MouseEvent));
     on("dragstart", (e) => e.preventDefault());
     on("dragover", (e) => e.preventDefault());
     on("drop", (e) => e.preventDefault());
@@ -368,6 +372,26 @@ export class Editor {
     if (sel && listState(this.doc, sel)) return this.run("list", (d, s) => outdentListItems(d, s));
     return this.changeIndent(-1);
   }
+  /** Insert an uploaded image (an asset id with its size) at the caret, replacing any selection. */
+  insertImage(input: ImageInput): boolean {
+    return this.run("image", (d, s) => insertImage(d, s, input));
+  }
+  setImageAlt(imageId: string, alt: string): boolean {
+    return this.run("image", (d) => setImageAlt(d, imageId, alt));
+  }
+  /** Select an image as a unit (so Backspace/Delete remove it, and its alt text can be edited). */
+  selectImage(imageId: string): void {
+    const sel = imageSelection(this.doc, imageId);
+    if (!sel) return;
+    this.applySelection(sel);
+    this.lastSel = sel;
+    this.markSelectedImage();
+    this.opts.onStateChange?.();
+  }
+  private imageState(sel: Sel): FormatState["image"] {
+    const img = selectedImage(this.doc, sel);
+    return img ? { id: img.id, alt: img.alt ?? "", width_px: img.width_px, height_px: img.height_px } : null;
+  }
   insertTable(rows: number, cols: number, headerRow: boolean): boolean {
     return this.run("table", (d, s) => insertTable(d, s, rows, cols, headerRow));
   }
@@ -421,7 +445,27 @@ export class Editor {
       canRedo: this.history.canRedo,
       readOnly: this.readOnly,
       collapsed: isCollapsed(sel),
+      image: this.imageState(sel),
     };
+  }
+
+  /** Mouse down on an image selects it as a unit (a contenteditable=false atom cannot take a caret). */
+  private onMouseDown(e: MouseEvent): void {
+    const img = (e.target as HTMLElement | null)?.closest?.("img[data-atom=image]") as HTMLElement | null;
+    if (!img || !this.root.contains(img) || this.readOnly || e.button !== 0) return;
+    e.preventDefault();
+    this.root.focus({ preventScroll: true });
+    if (img.dataset.id) this.selectImage(img.dataset.id);
+  }
+
+  /** Mark the selected image in the DOM (presentation only; the model does not know). */
+  private markSelectedImage(): void {
+    const sel = this.currentSelection() ?? this.lastSel;
+    const picked = sel ? selectedImage(this.doc, sel) : null;
+    for (const el of Array.from(this.root.querySelectorAll("img[data-atom=image]"))) {
+      if (picked && (el as HTMLElement).dataset.id === picked.id) el.setAttribute("data-selected", "true");
+      else el.removeAttribute("data-selected");
+    }
   }
 
   private onClick(e: MouseEvent): void {
@@ -446,6 +490,7 @@ export class Editor {
     renderDocument(this.root, doc, prev, this.ctx);
     this.applySelection(sel);
     this.verify(sel);
+    this.markSelectedImage();
   }
 
   /** Run a command result: refuse blocked/over-limit edits, else render, select, record, notify. */
@@ -515,6 +560,7 @@ export class Editor {
       mine.focus.offset === sel.focus.offset;
     if (!same) this.history.seal(); // the user moved the caret: the next keystroke starts a new undo group
     this.lastSel = sel;
+    this.markSelectedImage();
     if (this.typing && !(isCollapsed(sel) && sel.focus.id === this.typing.id && sel.focus.offset === this.typing.offset)) this.typing = null;
     this.opts.onSelectionChange?.(sel);
     this.opts.onStateChange?.();

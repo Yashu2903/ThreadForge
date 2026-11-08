@@ -21,6 +21,9 @@ interface Props {
   revision: number;
   linkOpen: boolean;
   onLinkOpenChange: (open: boolean) => void;
+  /** Upload a chosen file and return the asset (the host knows the room). Omit to hide Insert image. */
+  uploadImage?: (file: File) => Promise<{ id: string; width_px: number; height_px: number }>;
+  onNotice?: (message: string) => void;
 }
 
 const BLOCKS: { value: BlockKind; label: string }[] = [
@@ -31,10 +34,12 @@ const BLOCKS: { value: BlockKind; label: string }[] = [
 ];
 const SPACING = [0, 3, 6, 8, 10, 12, 18, 24, 36, 48, 72];
 
-export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange }: Props) {
+export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadImage, onNotice }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [tableOpen, setTableOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   void revision;
   const s = editor ? editor.formatState() : null;
   const off = !editor || !s || s.readOnly;
@@ -211,6 +216,43 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange }: Props)
         {btn("Link", () => onLinkOpenChange(!linkOpen), { pressed: linkOpen || !!s.link, shortcut: `${mod}+K`, children: "🔗", testid: "tb-link" })}
       </div>
 
+      {(uploadImage || s.image) && (
+        <div className="tb-group image-group" role="group" aria-label="Image">
+          {uploadImage &&
+            btn("Insert image", () => fileInput.current?.click(), {
+              disabled: uploading,
+              children: uploading ? "…" : "🖼",
+              testid: "tb-image",
+            })}
+          {uploadImage && (
+            <input
+              ref={fileInput}
+              type="file"
+              className="sr-only"
+              tabIndex={-1}
+              accept="image/png,image/jpeg,image/webp"
+              data-testid="image-file"
+              aria-label="Choose an image to insert"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file || !editor) return;
+                setUploading(true);
+                try {
+                  const asset = await uploadImage(file);
+                  editor.insertImage({ asset_id: asset.id, width_px: asset.width_px, height_px: asset.height_px });
+                } catch (err) {
+                  onNotice?.(err instanceof Error ? err.message : "The image could not be uploaded.");
+                } finally {
+                  setUploading(false);
+                }
+              }}
+            />
+          )}
+          {s.image && <AltText key={s.image.id} editor={editor!} id={s.image.id} initial={s.image.alt} />}
+        </div>
+      )}
+
       <div className="tb-group" role="group" aria-label="Table">
         {btn("Insert table", () => setTableOpen(!tableOpen), { pressed: tableOpen, children: "▦", testid: "tb-table" })}
         {s.table && (
@@ -234,6 +276,33 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange }: Props)
         </p>
       )}
     </div>
+  );
+}
+
+function AltText(props: { editor: Editor; id: string; initial: string }) {
+  const [value, setValue] = useState(props.initial);
+  const commit = () => value !== props.initial && props.editor.setImageAlt(props.id, value);
+  return (
+    <label className="alt-field">
+      <span className="sr-only">Image description (alt text)</span>
+      <input
+        type="text"
+        data-testid="alt-input"
+        aria-label="Image description (alt text)"
+        placeholder="Describe the image"
+        maxLength={500}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+            props.editor.focus();
+          }
+        }}
+      />
+    </label>
   );
 }
 

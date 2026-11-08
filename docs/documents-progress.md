@@ -11,8 +11,8 @@ Specification: the Part 6 task statement (documents, custom editor, DOCX import,
 | 2 | Frontend shell: room layout, document list and dialogs, minimal chat, capabilities endpoint | **done** |
 | 3 | Editor core: model, renderer, selection mapping, beforeinput, composition, typing, Enter/Backspace/Delete, paste, undo/redo | **done** |
 | 4 | Formatting and structure, toolbar, accessibility | **done** |
-| 5 | Assets and images: pipeline, storage, quotas, editor insert | next |
-| 6 | Saving and conflicts: autosave, serialization, event-driven refresh, conflict UI, read-only, access loss | not started |
+| 5 | Assets and images: pipeline, storage, quotas, editor insert | **done** |
+| 6 | Saving and conflicts: autosave, serialization, event-driven refresh, conflict UI, read-only, access loss | next |
 | 7 | Imports: worker, local upload, conversion, report, isolation, publication | not started |
 | 8 | Google Drive: connection, Picker, import (stub-tested; real verification pending) | not started |
 | 9 | Integration tests, browser tests, documentation, final report | not started |
@@ -129,6 +129,30 @@ Chromium specs pass together.
 Not verified: Safari/WebKit (none installed): the manual checklist covers IME; the toolbar and
 formatting have only been exercised in Chromium and Firefox.
 
+## Checkpoint 5: what is done
+
+Backend: `app/assets_pipeline.py` (signature sniffing, header-first pixel checks, animation refusal,
+EXIF orientation, metadata-free re-encode), `app/storage.py` (opaque keys, atomic put, orphan/temp
+listing), `services/assets.py`, `api/assets.py` (streamed upload, authorized serving), streaming body
+rules in `body_limit.py`, middleware no longer forces `no-store` over a route's own Cache-Control,
+`commands/cleanup_documents.py` (+ document buckets in `cleanup_auth`), settings, error codes.
+Frontend: `editor/images.ts`, editor image API (`insertImage`, `setImageAlt`, `selectImage`,
+click-to-select, `data-selected`), toolbar Insert image + alt text, `Api.upload`, playground
+`#/playground/<roomId>` (dev) so the real upload path can be driven in a browser.
+
+Verified: `tests/test_assets.py` 51 (pipeline: spoofed signatures, polyglots, EXIF/GPS strip and
+orientation, pixel bomb refused without decoding, animated WebP/APNG, transparency; storage keys and
+traversal; routes: permission matrix, content types, 413 by actual bytes incl. lying and chunked,
+quotas, rate limit that refused uploads do not consume, download headers/ETag/304/cross-room/removed
+member, expiry/missing bytes; lifecycle cleanup incl. grace period, re-reference, orphans, temp files,
+the command as a program); vitest 163 (7 image-command tests added); Playwright `editor-images.spec.ts`
+(4, Chromium) against the real API and storage: upload, display from our server, select as a unit,
+alt text, delete, undo, refusal messages, viewer refused.
+
+Not verified / notes: the full backend run is repeated at the end of this checkpoint (see the commit
+message). Pillow 13.0.0. Images in rooms are not yet saved from the room editor (checkpoint 6 wires
+saving); the save path that attaches assets is covered by backend tests.
+
 ## Next step
 
-Checkpoint 5: assets and images (Pillow pipeline, storage adapter, quotas, serving, editor image insert and alt text, cleanup rules).
+Checkpoint 6: saving and conflicts (the editor mounted in rooms for owners/editors, explicit + debounced autosave, one save in flight, conflict UI, event-driven refresh, active-document switching rules, read-only and access loss).

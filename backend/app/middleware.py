@@ -54,7 +54,9 @@ class RequestContextMiddleware:
                 status = message["status"]
                 headers = MutableHeaders(scope=message)
                 headers["X-Request-ID"] = request_id
-                if no_store:
+                if no_store and "cache-control" not in headers:
+                    # private responses default to no-store; a route may set its own (assets
+                    # use "private" plus an ETag so the browser can revalidate)
                     headers["Cache-Control"] = "no-store"
             await send(message)
 

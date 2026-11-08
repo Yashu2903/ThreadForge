@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Api } from "./api";
+import { uploadImage } from "./documents/upload";
 import { canonicalJson, type Json } from "threadforge-client/document-schema";
 import { EditorSurface } from "./editor/EditorSurface";
 import { Toolbar } from "./editor/Toolbar";
@@ -19,7 +21,8 @@ const START: Doc = {
   ],
 };
 
-export function Playground() {
+export function Playground({ roomId }: { roomId?: string }) {
+  const api = useMemo(() => new Api(), []);
   const editorRef = useRef<Editor | null>(null);
   const [json, setJson] = useState(() => canonicalJson(START as unknown as Json));
   const [notice, setNotice] = useState("");
@@ -34,12 +37,20 @@ export function Playground() {
       <div className="row-actions">
         <button onClick={() => setRenders((n) => n + 1)}>Re-render React ({renders})</button>
       </div>
-      <Toolbar editor={editor} revision={revision} linkOpen={linkOpen} onLinkOpenChange={setLinkOpen} />
+      <Toolbar
+        editor={editor}
+        revision={revision}
+        linkOpen={linkOpen}
+        onLinkOpenChange={setLinkOpen}
+        onNotice={setNotice}
+        uploadImage={roomId ? (file) => uploadImage(api, roomId, file) : undefined}
+      />
       <p role="status" data-testid="notice">
         {notice}
       </p>
       <EditorSurface
         initialDocument={START}
+        assetUrl={roomId ? (id) => `/rooms/${roomId}/assets/${id}` : undefined}
         onReady={(editor) => {
           editorRef.current = editor;
           setEditor(editor);

@@ -43,6 +43,22 @@ export class Api {
     return this.request<T>(method, path, json, {});
   }
 
+  /** Send raw bytes (an image upload) with the CSRF token; returns the parsed JSON answer. */
+  async upload<T>(path: string, body: Blob, contentType: string): Promise<ApiResponse<T>> {
+    for (const force of [false, true]) {
+      const res = await this.doFetch(`${this.base}${path}`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": await this.token(force), "Content-Type": contentType },
+        credentials: "include",
+        body,
+      });
+      if (res.ok) return { status: res.status, body: (await res.json()) as T, headers: res.headers };
+      const error = await toError(res);
+      if (error.code !== "csrf_failed" || force) throw error;
+    }
+    throw new ApiError(0, "unreachable", "unreachable");
+  }
+
   private async token(force = false): Promise<string> {
     if (this.csrf && !force) return this.csrf;
     const res = await this.doFetch(`${this.base}/auth/csrf`, { credentials: "include" });

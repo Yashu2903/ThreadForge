@@ -553,6 +553,8 @@ export class RoomClient {
         const members = await this.withRetries(gen, () => this.fetchAllMembers(gen));
         if (gen !== this.generation) return;
         this.state.members = members;
+        const me = members.find((m) => m.user_id === this.opts.userId);
+        if (me) this.state.role = me.role; // a role change for me (member_role_changed) is visible at once
       }
       if (roomDirty) {
         const room = await this.withRetries(gen, async () => {

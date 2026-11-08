@@ -148,6 +148,17 @@ class Settings(BaseSettings):
     typing_expiry_seconds: float = 5.0
     typing_state_min_interval_seconds: float = 0.5  # at most 2 typing_state frames/s per room
 
+    # Part 6: image assets and storage.
+    storage_path: str = "./data/storage"  # shared by the API and the workers
+    asset_max_upload_bytes: int = 10 * 1024 * 1024
+    asset_max_pixels: int = 25_000_000
+    asset_room_quota_bytes: int = 200 * 1024 * 1024
+    asset_max_per_room: int = 1000
+    asset_uploads_per_minute: int = 30  # per user per room
+    asset_processing_concurrency: int = 2  # image decodes at once, per API process
+    asset_pending_ttl_hours: int = 24  # a pending asset nobody saved is deleted after this
+    asset_unreferenced_grace_days: int = 7  # an asset a save dropped is deleted after this
+
     # Part 6: Google Drive import (a SEPARATE authorization from login). If any of these is missing
     # the feature is simply unavailable and GET /capabilities says not_configured.
     google_drive_client_id: str = ""
@@ -463,6 +474,22 @@ class Settings(BaseSettings):
         ):
             if value < 1:
                 problems.append(f"{name} must be at least 1.")
+        for name, value in (
+            ("ASSET_MAX_UPLOAD_BYTES", self.asset_max_upload_bytes),
+            ("ASSET_MAX_PIXELS", self.asset_max_pixels),
+            ("ASSET_ROOM_QUOTA_BYTES", self.asset_room_quota_bytes),
+            ("ASSET_MAX_PER_ROOM", self.asset_max_per_room),
+            ("ASSET_UPLOADS_PER_MINUTE", self.asset_uploads_per_minute),
+            ("ASSET_PROCESSING_CONCURRENCY", self.asset_processing_concurrency),
+            ("ASSET_PENDING_TTL_HOURS", self.asset_pending_ttl_hours),
+            ("ASSET_UNREFERENCED_GRACE_DAYS", self.asset_unreferenced_grace_days),
+        ):
+            if value < 1:
+                problems.append(f"{name} must be at least 1.")
+        if self.asset_room_quota_bytes < self.asset_max_upload_bytes:
+            problems.append("ASSET_ROOM_QUOTA_BYTES must be at least ASSET_MAX_UPLOAD_BYTES.")
+        if not self.storage_path.strip():
+            problems.append("STORAGE_PATH must be set.")
         if not 1 <= self.document_max_list_depth <= 3:
             problems.append("DOCUMENT_MAX_LIST_DEPTH must be between 1 and 3.")
         if self.document_save_body_limit_bytes < self.document_max_serialized_bytes:
@@ -562,6 +589,30 @@ def load_cleanup_settings() -> tuple[str, int]:
     if loaded.outbox_processed_retention_days < 0:
         raise ConfigError("OUTBOX_PROCESSED_RETENTION_DAYS must be 0 or more.")
     return loaded.database_url.get_secret_value(), loaded.outbox_processed_retention_days
+
+
+class _DocumentCleanupSettings(BaseSettings):
+    """What `cleanup_documents` needs: the database and the storage/lifecycle settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+    )
+    database_url: SecretStr
+    storage_path: str = "./data/storage"
+    asset_pending_ttl_hours: int = 24
+    asset_unreferenced_grace_days: int = 7
+
+
+def load_document_cleanup_settings() -> _DocumentCleanupSettings:
+    try:
+        loaded = _DocumentCleanupSettings()  # type: ignore[call-arg]
+    except ValidationError:
+        raise ConfigError("DATABASE_URL: must be set (see .env.example).") from None
+    if loaded.asset_pending_ttl_hours < 1 or loaded.asset_unreferenced_grace_days < 1:
+        raise ConfigError(
+            "ASSET_PENDING_TTL_HOURS and ASSET_UNREFERENCED_GRACE_DAYS must be at least 1."
+        )
+    return loaded
 
 
 def load_database_url() -> str:

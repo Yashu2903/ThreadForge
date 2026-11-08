@@ -32,7 +32,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import ConfigError, load_cleanup_settings
 from app.db import create_engine_from_url, create_sessionmaker
-from app.models import MessageWriteBucket, OIDCLoginAttempt, OutboxEntry, Session
+from app.models import (
+    DocumentWriteBucket,
+    MessageWriteBucket,
+    OIDCLoginAttempt,
+    OutboxEntry,
+    Session,
+)
 
 log = logging.getLogger("threadforge.cleanup")
 
@@ -45,6 +51,7 @@ BUCKET_RETENTION_HOURS = 24
 _ATTEMPTS = OIDCLoginAttempt.__table__
 _SESSIONS = Session.__table__
 _BUCKETS = MessageWriteBucket.__table__
+_DOC_WINDOWS = DocumentWriteBucket.__table__
 _OUTBOX = OutboxEntry.__table__
 
 
@@ -53,6 +60,7 @@ class CleanupResult:
     login_attempts: int
     sessions: int
     message_write_buckets: int = 0
+    document_write_buckets: int = 0
     outbox_processed: int = 0
 
 
@@ -137,6 +145,12 @@ async def cleanup_auth(
         _BUCKETS.c.window_start < func.now() - timedelta(hours=BUCKET_RETENTION_HOURS),
         batch_size,
     )
+    document_windows = await _delete_ctid_batches(
+        sessionmaker,
+        _DOC_WINDOWS,
+        _DOC_WINDOWS.c.window_start < func.now() - timedelta(hours=BUCKET_RETENTION_HOURS),
+        batch_size,
+    )
     # ONLY processed rows past retention: pending/processing work and failed rows (an operator's
     # to-do list) are never touched, and neither are the room_events they reference.
     outbox_processed = await _delete_ctid_batches(
@@ -150,6 +164,7 @@ async def cleanup_auth(
         login_attempts=attempts,
         sessions=sessions,
         message_write_buckets=buckets,
+        document_write_buckets=document_windows,
         outbox_processed=outbox_processed,
     )
 
@@ -208,7 +223,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(
         f"deleted {result.login_attempts} login attempts and {result.sessions} sessions; "
-        f"deleted {result.message_write_buckets} message write buckets; "
+        f"deleted {result.message_write_buckets} message write buckets and "
+        f"{result.document_write_buckets} document write buckets; "
         f"deleted {result.outbox_processed} processed outbox rows"
     )
     return 0

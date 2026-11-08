@@ -6,6 +6,7 @@ Run with:  uvicorn app.main:create_app --factory --no-access-log --no-proxy-head
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api import (
+    assets,
     auth,
     capabilities,
     documents,
@@ -28,6 +30,7 @@ from app.api import (
     rooms,
     sync,
 )
+from app.assets_pipeline import configure_pillow
 from app.body_limit import BodySizeLimitMiddleware
 from app.config import Settings, get_settings
 from app.db import create_engine, create_sessionmaker
@@ -36,6 +39,7 @@ from app.logging_config import configure_logging
 from app.middleware import RequestContextMiddleware
 from app.realtime.room_hub import RealtimeHub
 from app.services.oidc import OIDCClient
+from app.storage import Storage
 
 
 def create_app(
@@ -71,6 +75,9 @@ def create_app(
     # oidc_transport exists so tests can stub Google at the HTTP level.
     app.state.oidc = OIDCClient(settings, transport=oidc_transport)
     app.state.realtime = RealtimeHub(settings, app.state.sessionmaker)
+    app.state.storage = Storage(settings.storage_path)
+    app.state.asset_slots = asyncio.Semaphore(settings.asset_processing_concurrency)
+    configure_pillow(settings.asset_max_pixels)
 
     install_error_handlers(app)
     app.include_router(health.router)
@@ -80,6 +87,7 @@ def create_app(
     app.include_router(members.router)
     app.include_router(messages.router)
     app.include_router(documents.router)
+    app.include_router(assets.router)
     app.include_router(capabilities.router)
     app.include_router(room_events.router)
     app.include_router(sync.router)
@@ -96,6 +104,13 @@ def create_app(
                 "PUT",
                 re.compile(r"/rooms/[^/]+/documents/[^/]+/content"),
                 settings.document_save_body_limit_bytes,
+            ),
+            # image uploads are STREAMED (never buffered) and counted as they arrive
+            (
+                "POST",
+                re.compile(r"/rooms/[^/]+/assets"),
+                settings.asset_max_upload_bytes,
+                True,
             ),
         ),
     )

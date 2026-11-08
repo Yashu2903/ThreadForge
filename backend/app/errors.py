@@ -246,3 +246,20 @@ def invalid_document_content(errors: list[dict[str, str]]) -> AppError:
 def asset_not_found(asset_ids: list[str] | None = None) -> AppError:
     extra = {"asset_ids": asset_ids[:20]} if asset_ids else None
     return AppError(422 if asset_ids else 404, "asset_not_found", "Asset not found.", extra=extra)
+
+
+# ---- Part 6: assets ----------------------------------------------------------------------
+
+
+def unsupported_media_type(
+    message: str = "Only PNG, JPEG and WebP images are accepted.",
+) -> AppError:
+    return AppError(415, "unsupported_media_type", message)
+
+
+def invalid_image(reason: str, message: str) -> AppError:
+    return AppError(422, "invalid_image", message, extra={"reason": reason})
+
+
+def quota_exceeded(message: str) -> AppError:
+    return AppError(409, "quota_exceeded", message)

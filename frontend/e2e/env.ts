@@ -31,4 +31,5 @@ export const backendEnv: Record<string, string> = {
   MESSAGE_WRITES_PER_MINUTE: "1000",
   DOCUMENT_WRITES_PER_MINUTE: "1000",
   LOG_LEVEL: "WARNING",
+  STORAGE_PATH: `${BACKEND_DIR}data/e2e-storage`,
 };

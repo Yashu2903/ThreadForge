@@ -101,6 +101,9 @@ input, textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius
   .paper { padding: 24px 16px; }
 }
 
+.tf-editor img[data-selected="true"] { outline: 3px solid var(--focus); outline-offset: 1px; }
+.image-group { display: flex; gap: 6px; align-items: center; }
+.image-group input[type="text"] { min-width: 220px; }
 /* the editable surface */
 .tf-editor { outline: none; caret-color: #111; cursor: text; }
 .tf-editor:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -110,6 +113,15 @@ input, textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius
 .playground { max-width: 900px; margin: 0 auto; padding: 16px; }
 .playground pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; }
 
+/* saving */
+.doc-editor { display: flex; flex-direction: column; gap: 6px; }
+.save-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.save-status { font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--line); }
+.save-status.s-saved { background: #cfe9d4; color: #123d1c; }
+.save-status.s-unsaved, .save-status.s-saving { background: #f4e7b3; color: #4a3a00; }
+.save-status.s-failed, .save-status.s-conflict { background: #f3c4c0; color: #5d0f08; }
+.conflict { border: 2px solid var(--danger); border-radius: 8px; padding: 8px 12px; background: color-mix(in srgb, var(--danger) 8%, var(--panel)); }
+.conflict p { margin: 4px 0; }
 /* toolbar */
 .toolbar { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 6px; margin: 8px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; position: sticky; top: 0; z-index: 2; }
 .tb-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding-right: 8px; border-right: 1px solid var(--line); }

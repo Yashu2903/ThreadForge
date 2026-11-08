@@ -59,6 +59,7 @@ export class DocumentStore {
   private lastRefetchAt = -Infinity;
   private trailing: unknown = null;
   private disposed = false;
+  private contentListeners = new Set<(docId: string, version: number) => void>();
 
   constructor(
     private readonly api: Api,
@@ -185,6 +186,12 @@ export class DocumentStore {
     void this.fetchOpen(id, true);
   }
 
+  /** Called (synchronously, from the room client's batch handler) for each content version announced for a document. */
+  onContentEvent(listener: (docId: string, version: number) => void): () => void {
+    this.contentListeners.add(listener);
+    return () => this.contentListeners.delete(listener);
+  }
+
   // ---- room events ---------------------------------------------------------------------------------------------
   /** Called by the room client BEFORE its cursor advances; it only starts work, it never throws. */
   onSignals(signals: DocumentSignals): void {
@@ -196,6 +203,9 @@ export class DocumentStore {
     if (signals.listChanged) {
       this.patchList({ stale: true });
       void this.loadList();
+    }
+    for (const [docId, change] of signals.documents) {
+      if (change.contentVersion !== null) for (const l of this.contentListeners) l(docId, change.contentVersion);
     }
     const id = this.openId;
     const change = id ? signals.documents.get(id) : undefined;

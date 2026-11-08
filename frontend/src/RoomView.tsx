@@ -5,8 +5,24 @@ import { DocumentRead } from "./components/DocumentRead";
 import { OpenDialog } from "./components/OpenDialog";
 import { StartDialog } from "./components/StartDialog";
 import type { Capabilities, DocumentFull, Me } from "./types";
+import { DocumentEditor } from "./DocumentEditor";
+import type { DocumentSession, ReadOnlyReason } from "./documents/session";
 import { fontNotice } from "./editor/fonts";
 import { useClientState, useRoomHandles, useStore } from "./useRoom";
+
+/** Phones and tablets can view documents but editing is not supported there. */
+export function useIsMobile(): boolean {
+  const query = "(pointer: coarse) and (max-width: 900px)";
+  const [mobile, setMobile] = useState(() => typeof matchMedia === "function" && matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const list = matchMedia(query);
+    const on = () => setMobile(list.matches);
+    list.addEventListener("change", on);
+    return () => list.removeEventListener("change", on);
+  }, []);
+  return mobile;
+}
 
 /**
  * The room: navigation (documents) on the left, the document area in the middle, chat on the right.
@@ -21,6 +37,12 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
   const [dialog, setDialog] = useState<"start" | "open" | null>(null);
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const sessionRef = useRef<DocumentSession | null>(null);
+  const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const [recovered, setRecovered] = useState<string | null>(null);
+  const editedDocs = useRef(new Set<string>());
+  const mobile = useIsMobile();
 
   const role = state.role;
   const isOwner = role === "owner";
@@ -37,19 +59,71 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
     };
   }, [api]);
 
-  // Follow the room's active document (this client has no unsaved work to protect yet).
+  // Follow the room's active document. A CLEAN client opens the new one; a client with unsaved work
+  // keeps its document, says the room switched, and lets the user choose (never replaced silently).
   const followed = useRef<string | null>(null);
   useEffect(() => {
-    if (activeId && followed.current !== activeId) {
-      followed.current = activeId;
-      void store.open(activeId);
-    }
+    if (!activeId) return;
+    if (followed.current === activeId) return setPendingSwitch(null);
+    const session = sessionRef.current;
+    if (session && session.docId !== activeId && session.hasUnsavedWork) return setPendingSwitch(activeId);
+    followed.current = activeId;
+    setPendingSwitch(null);
+    void store.open(activeId);
   }, [activeId, store]);
 
+  /** Before the user's own navigation replaces the open document: save first; if that fails, ask. */
+  async function leaveOpenDocument(): Promise<boolean> {
+    const session = sessionRef.current;
+    if (!session || !session.hasUnsavedWork) return true;
+    await session.saveNow();
+    if (!session.hasUnsavedWork) return true;
+    return window.confirm("This document has changes that could not be saved. Leave it and discard them?");
+  }
+
+  async function openGuarded(id: string) {
+    if (store.openId === id) return;
+    if (await leaveOpenDocument()) {
+      followed.current = activeId === id ? id : followed.current;
+      void store.open(id);
+    }
+  }
+
+  async function switchNow(save: boolean) {
+    const target = pendingSwitch;
+    if (!target) return;
+    setSwitchError(null);
+    const session = sessionRef.current;
+    if (save && session) {
+      await session.saveNow();
+      if (session.hasUnsavedWork) return setSwitchError("Your changes could not be saved, so the document was not switched. Resolve the problem above, or discard.");
+    }
+    followed.current = target;
+    setPendingSwitch(null);
+    void store.open(target);
+  }
+
   if (state.status === "terminal" && state.terminalReason === "access_lost") {
+    const unsaved = sessionRef.current?.hasUnsavedWork ? sessionRef.current.localText() : null;
     return (
       <main className="centered">
         <h1>You no longer have access to this room</h1>
+        {unsaved !== null && (
+          <section className="conflict" role="alert" data-testid="access-lost-unsaved">
+            <p>You had changes that were not saved. They are still on this page; copy them before you leave.</p>
+            <button
+              onClick={() =>
+                navigator.clipboard.writeText(unsaved).then(
+                  () => setRecovered("Copied to the clipboard."),
+                  () => setRecovered(unsaved),
+                )
+              }
+            >
+              Copy my unsaved text
+            </button>
+            {recovered && <textarea readOnly rows={8} value={recovered === "Copied to the clipboard." ? "" : recovered} placeholder={recovered} aria-label="Your unsaved text" />}
+          </section>
+        )}
         <button onClick={props.onBack}>Back to your rooms</button>
       </main>
     );
@@ -82,15 +156,25 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
     }
   }
 
-  function created(doc: DocumentFull) {
+  async function created(doc: DocumentFull) {
     setDialog(null);
-    followed.current = doc.id;
-    void store.open(doc.id);
     void store.loadList();
+    // The new document is already the room's active one. If this tab holds unsaved work that cannot
+    // be saved and the user keeps it, the normal "the room switched" banner takes over.
+    if (!(await leaveOpenDocument())) return;
+    followed.current = doc.id;
+    setPendingSwitch(null);
+    void store.open(doc.id);
   }
 
   const open = docs.open;
   const openDoc = open?.doc ?? null;
+  const roleCanEdit = role === "owner" || role === "editor";
+  // Once an editor is on screen for a document it STAYS (read-only if rights are lost), so unsaved
+  // text is never torn away by a role change.
+  if (openDoc && roleCanEdit && openDoc.can_edit && !mobile) editedDocs.current.add(openDoc.id);
+  const showEditor = !!openDoc && editedDocs.current.has(openDoc.id);
+  const readOnlyReason: ReadOnlyReason | null = roleCanEdit && openDoc?.can_edit ? (mobile ? "mobile" : null) : "role_changed";
 
   return (
     <div className="room-layout">
@@ -117,7 +201,7 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
               <button
                 className={doc.id === open?.id ? "selected" : ""}
                 aria-current={doc.id === open?.id ? "true" : undefined}
-                onClick={() => void store.open(doc.id)}
+                onClick={() => void openGuarded(doc.id)}
               >
                 {doc.title}
               </button>
@@ -175,12 +259,45 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
                     </span>
                   </div>
                 </header>
-                {fontNotice(openDoc.content) && (
+                {!showEditor && fontNotice(openDoc.content) && (
                   <p className="font-notice" role="note" data-testid="font-notice">
                     {fontNotice(openDoc.content)}
                   </p>
                 )}
-                <DocumentRead content={openDoc.content} roomId={roomId} />
+                {pendingSwitch && (
+                  <div className="conflict" role="alert" data-testid="switch-banner">
+                    <strong>The room switched to a different document.</strong>
+                    <p>You have unsaved changes here, so this document stays open until you choose.</p>
+                    <div className="actions">
+                      <button type="button" onClick={() => void switchNow(true)} data-testid="save-then-switch">
+                        Save, then switch
+                      </button>
+                      <button type="button" onClick={() => void switchNow(false)} data-testid="discard-switch">
+                        Discard my changes and switch
+                      </button>
+                    </div>
+                    {switchError && <p className="error">{switchError}</p>}
+                  </div>
+                )}
+                {mobile && (
+                  <p className="muted" role="note" data-testid="mobile-note">
+                    Editing is not supported in mobile browsers; you can view this document.
+                  </p>
+                )}
+                {showEditor && !mobile ? (
+                  <DocumentEditor
+                    key={openDoc.id}
+                    api={api}
+                    roomId={roomId}
+                    doc={openDoc}
+                    serverDoc={openDoc}
+                    store={store}
+                    readOnlyReason={readOnlyReason}
+                    onSession={(s) => (sessionRef.current = s)}
+                  />
+                ) : (
+                  <DocumentRead content={openDoc.content} roomId={roomId} />
+                )}
               </>
             )}
           </>
@@ -197,7 +314,7 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
           capabilities={capabilities}
           onOpen={(id) => {
             setDialog(null);
-            void store.open(id);
+            void openGuarded(id);
           }}
           onMakeActive={makeActive}
           onClose={() => setDialog(null)}

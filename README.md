@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 6 in progress (documents, checkpoint 4 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
+## Status: Part 6 in progress (documents, checkpoint 5 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -746,7 +746,7 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
 
 ---
 
-## Part 6: documents (in progress: checkpoint 4 of 9, formatting and structure)
+## Part 6: documents (in progress: checkpoint 5 of 9, assets and images)
 
 Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
 the document format is [docs/document-schema.md](docs/document-schema.md).
@@ -909,6 +909,57 @@ quote, alignment, line/paragraph spacing, indent, bulleted/numbered lists (Tab, 
 Backspace rules, depth <= 3), links (http/https/mailto only), tables (Tab navigation, add/remove
 rows and columns, 50 x 20 limit), typing-state marks at a caret, and self-hosted metric-compatible
 fonts with their licenses in `frontend/public/fonts/`.
+
+### Image assets (checkpoint 5)
+
+| Route | Who | Notes |
+|---|---|---|
+| `POST /rooms/{room}/assets` | owner, editor | raw body, `Content-Type: image/png`, `image/jpeg` or `image/webp`; streamed to disk, at most `ASSET_MAX_UPLOAD_BYTES` (10 MiB) counted on received bytes |
+| `GET /rooms/{room}/assets/{asset}` | any member | authorized on every request; validated `Content-Type`, `nosniff`, `Cache-Control: private` + `ETag` (SHA-256), 304 on `If-None-Match` |
+
+**What happens to an upload** (`app/assets_pipeline.py`): the real signature must be PNG, JPEG or WebP
+(SVG, GIF, BMP, HTML dressed up as an image are 415) and must agree with the Content-Type; Pillow opens
+it restricted to that format and reads only the header, so a file that claims more than
+`ASSET_MAX_PIXELS` (25 million) or more than 10,000 pixels on a side is refused (`422 invalid_image`,
+reason `too_many_pixels` / `dimensions_too_large`) before any pixel is decoded, and Pillow's own
+decompression-bomb guard is armed behind that; animated WebP/APNG are refused (`animated`); then it is
+decoded, the EXIF orientation applied, converted to a plain RGB/RGBA image and **encoded again with no
+metadata**. The stored file is that re-encoding, so EXIF/GPS, ICC profiles, text chunks, comments and
+anything appended after the image (a polyglot's second payload) are gone; `sha256`, `byte_size`,
+`width_px`, `height_px` describe the stored bytes. Decoding runs in a worker thread, at most
+`ASSET_PROCESSING_CONCURRENCY` at a time per API process.
+
+**Storage** (`app/storage.py`): an opaque-key adapter on `STORAGE_PATH` (random 32-hex keys, sharded
+directories, temp file + atomic rename). User-supplied names are never part of a path. The API and
+the workers must share the directory (a persistent volume); multi-host deployments need a shared
+mount. No paid object storage.
+
+**Quotas and limits:** per-room total bytes (`ASSET_ROOM_QUOTA_BYTES`, 200 MiB) and count
+(`ASSET_MAX_PER_ROOM`), both excluding expired assets (`409 quota_exceeded`); per-user upload rate
+(`ASSET_UPLOADS_PER_MINUTE`, 30 per user per room, `429` + `Retry-After`), counted from rows the user
+created in the last minute so refused uploads cost nothing; a save can reference at most
+`DOCUMENT_MAX_IMAGES` (100) images. Uploads emit no room events and use no document-save quota.
+
+**Lifecycle:** `pending` on upload; the first save that references it makes it `attached`; a save that
+drops the last reference sets `unreferenced_since`; `python -m app.commands.cleanup_documents`
+(cron) expires pending assets unreferenced for `ASSET_PENDING_TTL_HOURS` (24) and attached assets
+unreferenced for `ASSET_UNREFERENCED_GRACE_DAYS` (7), deletes their bytes, removes storage files that
+have no live row after 24 hours (a crash between "store" and "insert"), and stale temp files. The row
+is marked `expired` first (one atomic UPDATE that re-checks the conditions, so a save that
+re-referenced the asset wins) and the file deleted after. **An undo across the 7-day window may show a
+broken image.** Removing an image from unsaved local content deletes nothing.
+`cleanup_auth` also prunes old `document_write_buckets` windows.
+
+**Editor:** the Insert image button uploads the chosen file, then inserts an inline image atom (scaled
+to at most 600 px wide, alt text empty). Clicking an image selects it as a unit (Backspace/Delete
+removes it whole, undo restores it); the alt-text field edits `alt` (control characters become spaces,
+500 characters). No remote image URLs, no clipboard images, no drag-and-drop of files.
+
+Configuration: `STORAGE_PATH`, `ASSET_MAX_UPLOAD_BYTES`, `ASSET_MAX_PIXELS`, `ASSET_ROOM_QUOTA_BYTES`,
+`ASSET_MAX_PER_ROOM`, `ASSET_UPLOADS_PER_MINUTE`, `ASSET_PROCESSING_CONCURRENCY`,
+`ASSET_PENDING_TTL_HOURS`, `ASSET_UNREFERENCED_GRACE_DAYS` (all validated; see `.env.example`).
+New error codes: `unsupported_media_type` (415), `invalid_image` (422, with `reason`),
+`quota_exceeded` (409).
 
 ### Known limitation (by design in this part)
 
