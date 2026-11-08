@@ -20,7 +20,13 @@ from app.dependencies.rooms import MemberAccess, WriterAccessUnsafe, parse_uuid
 from app.errors import message_not_found
 from app.request_body import json_body_docs, parse_json_body
 from app.schemas.auth import ErrorBody
-from app.schemas.messages import MessageOut, MessagePage, SendMessageRequest
+from app.schemas.messages import (
+    MAX_BIGINT,
+    EditMessageRequest,
+    MessageOut,
+    MessagePage,
+    SendMessageRequest,
+)
 from app.services import messages
 
 router = APIRouter(tags=["messages"])
@@ -102,3 +108,61 @@ async def get_message(request: Request, access: MemberAccess, message_id: str) -
     if view is None:
         raise message_not_found()
     return MessageOut(**view.__dict__)
+
+
+@router.patch(
+    "/rooms/{room_id}/messages/{message_id}",
+    response_model=MessageOut,
+    responses={
+        409: {
+            "model": ErrorBody,
+            "description": "message_version_conflict (with current_version) / message_deleted",
+        },
+        429: {"model": ErrorBody, "description": "rate_limited (Retry-After set)"},
+        **_COMMON,
+    },
+    openapi_extra=json_body_docs(EditMessageRequest),
+)
+async def edit_message(request: Request, access: WriterAccessUnsafe, message_id: str) -> MessageOut:
+    """Author only (and the author must still be an active owner or editor). Send the version you
+    last saw as expected_version; a stale version is 409 message_version_conflict."""
+    body = await parse_json_body(request, EditMessageRequest)
+    view = await messages.edit_message(
+        request.app.state.sessionmaker,
+        request.app.state.settings,
+        access.user_id,
+        access.room_id,
+        parse_uuid(message_id),
+        body.body,
+        body.expected_version,
+    )
+    return MessageOut(**view.__dict__)
+
+
+@router.delete(
+    "/rooms/{room_id}/messages/{message_id}",
+    status_code=204,
+    response_class=Response,
+    responses={
+        409: {"model": ErrorBody, "description": "message_version_conflict"},
+        429: {"model": ErrorBody, "description": "rate_limited (Retry-After set)"},
+        **_COMMON,
+    },
+)
+async def delete_message(
+    request: Request,
+    access: WriterAccessUnsafe,
+    message_id: str,
+    expected_version: int = Query(..., ge=1, le=MAX_BIGINT),
+) -> Response:
+    """Soft delete (tombstone). Owner: any message. Editor: only their own. Deleting an already
+    deleted message is 204 regardless of expected_version."""
+    await messages.delete_message(
+        request.app.state.sessionmaker,
+        request.app.state.settings,
+        access.user_id,
+        access.room_id,
+        parse_uuid(message_id),
+        expected_version,
+    )
+    return Response(status_code=204)

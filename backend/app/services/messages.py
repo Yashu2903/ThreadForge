@@ -37,7 +37,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import case, extract, func, insert, select, text, tuple_
+from sqlalchemy import case, extract, func, insert, select, text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -47,8 +47,11 @@ from app.db import db_error_details
 from app.errors import (
     insufficient_role,
     invalid_cursor,
+    message_deleted,
     message_id_reused,
+    message_not_author,
     message_not_found,
+    message_version_conflict,
     rate_limited,
 )
 from app.logging_config import APP_LOGGER, request_id_var
@@ -391,3 +394,136 @@ async def list_messages(
         encode_history_cursor(room_id, page[-1].created_at, page[-1].id) if extra else None
     )  # page[-1] is the OLDEST row returned (the page is in descending order here)
     return [row_to_view(row) for row in reversed(page)], next_before
+
+
+# ---- edit and delete ---------------------------------------------------------------------------
+
+
+async def _lock_message(db: AsyncSession, room_id: uuid.UUID, message_id: uuid.UUID):
+    """Lock-order step 2: the message row FOR UPDATE, scoped by BOTH room and id (so another
+    room's message id is simply not found)."""
+    return (
+        await db.execute(
+            select(
+                _MESSAGES.c.id,
+                _MESSAGES.c.author_id,
+                _MESSAGES.c.body,
+                _MESSAGES.c.version,
+                _MESSAGES.c.deleted_at,
+            )
+            .where(_MESSAGES.c.id == message_id, _MESSAGES.c.room_id == room_id)
+            .with_for_update()
+        )
+    ).one_or_none()
+
+
+async def edit_message(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    settings: Settings,
+    actor_id: uuid.UUID,
+    room_id: uuid.UUID,
+    message_id: uuid.UUID | None,
+    body: str,
+    expected_version: int,
+) -> MessageView:
+    """Edit with conflict protection. Single commit point. After the room lock, in this order:
+
+    1. recheck membership and write role (404 room_not_found / 403 insufficient_role: the author
+       must STILL be an active owner or editor);
+    2. load the message, scoped to the room, FOR UPDATE            -> 404 message_not_found;
+    3. caller is not the author (the owner cannot edit others')     -> 403 message_not_author;
+    4. already deleted (a tombstone is final)                       -> 409 message_deleted;
+    5. expected_version != current version                          -> 409 message_version_conflict
+       (with current_version); a stale version conflicts even when the text happens to match;
+    6. submitted body == current body: return it, change nothing (no version bump, no timestamp,
+       no rate-limit use);
+    7. consume rate-limit capacity                                  -> 429 rate_limited;
+    8. UPDATE body, edited_at = clock_timestamp(), version = version + 1.
+
+    There is no separate edit idempotency key in this part: a retry of an edit whose first attempt
+    landed carries the old expected_version and so gets a conflict, which tells the client to
+    reload. Only the latest text is kept: there is no message_versions table.
+    """
+    if message_id is None:
+        raise message_not_found()
+    changed = False
+    async with sessionmaker() as db, db.begin():
+        await _authorize_writer(db, room_id, actor_id)
+        message = await _lock_message(db, room_id, message_id)
+        if message is None:
+            raise message_not_found()
+        if message.author_id != actor_id:
+            raise message_not_author()
+        if message.deleted_at is not None:
+            raise message_deleted()
+        if message.version != expected_version:
+            raise message_version_conflict(message.version)
+        if body != message.body:
+            await _consume_write_capacity(db, settings, room_id, actor_id)
+            await db.execute(
+                update(_MESSAGES)
+                .where(_MESSAGES.c.id == message_id)
+                .values(
+                    body=body,
+                    edited_at=func.clock_timestamp(),
+                    version=_MESSAGES.c.version + 1,
+                )
+            )
+            changed = True
+    view = await get_message(sessionmaker, room_id, message_id)
+    if view is None:  # cannot happen
+        raise message_not_found()
+    if changed:
+        log_message_event("message_edited", room_id, message_id, actor_id)
+    return view
+
+
+async def delete_message(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    settings: Settings,
+    actor_id: uuid.UUID,
+    room_id: uuid.UUID,
+    message_id: uuid.UUID | None,
+    expected_version: int,
+) -> None:
+    """Soft delete: the row stays as a tombstone (body NULL); text is never recoverable. Single
+    commit point. After the room lock, in this order:
+
+    1. recheck membership (active owner or editor only);
+    2. load the message, scoped to the room, FOR UPDATE            -> 404 message_not_found;
+    3. owner may delete anyone's, an editor only their own         -> 403 message_not_author;
+    4. already deleted: success (204), no change, no rate-limit use, REGARDLESS of expected_version;
+    5. expected_version != current version                         -> 409 message_version_conflict;
+    6. consume rate-limit capacity                                 -> 429 rate_limited;
+    7. body = NULL, deleted_at = clock_timestamp(), deleted_by = actor, version = version + 1.
+
+    Authorization (3) comes before the already-deleted shortcut (4) so that a caller who may not
+    touch the message learns nothing about its state.
+    """
+    if message_id is None:
+        raise message_not_found()
+    changed = False
+    async with sessionmaker() as db, db.begin():
+        role = await _authorize_writer(db, room_id, actor_id)
+        message = await _lock_message(db, room_id, message_id)
+        if message is None:
+            raise message_not_found()
+        if role != "owner" and message.author_id != actor_id:
+            raise message_not_author()
+        if message.deleted_at is None:
+            if message.version != expected_version:
+                raise message_version_conflict(message.version)
+            await _consume_write_capacity(db, settings, room_id, actor_id)
+            await db.execute(
+                update(_MESSAGES)
+                .where(_MESSAGES.c.id == message_id)
+                .values(
+                    body=None,
+                    deleted_at=func.clock_timestamp(),
+                    deleted_by=actor_id,
+                    version=_MESSAGES.c.version + 1,
+                )
+            )
+            changed = True
+    if changed:
+        log_message_event("message_deleted", room_id, message_id, actor_id)
