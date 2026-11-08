@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -134,7 +134,8 @@ class OutboxEnvelope(BaseModel):
     schema_version: Literal[1]
     event_id: uuid.UUID
     room_id: uuid.UUID
-    room_seq: int = Field(gt=0)
+    # A true JSON integer: strict, so the string "3" is rejected instead of coerced.
+    room_seq: Annotated[int, Field(strict=True, gt=0)]
 
 
 class EventsPage(BaseModel):
