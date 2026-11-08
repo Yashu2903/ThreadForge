@@ -225,13 +225,3 @@ def event_frame(event: RoomEventOut) -> str:
 
 # Annotated alias kept for documentation tools.
 ServerFrameType = Annotated[str, "one JSON text frame"]
-
-
-# ---- Part 4 leftovers: removed in checkpoint 2 together with the old hub ------------------------
-CLOSE_POLICY_VIOLATION = 1008
-
-
-def ready_frame(room_id: uuid.UUID, current_room_seq: int) -> str:
-    from app.schemas.events import ReadyFrame
-
-    return ReadyFrame(room_id=room_id, current_room_seq=current_room_seq).model_dump_json()

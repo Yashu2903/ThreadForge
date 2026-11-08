@@ -223,3 +223,39 @@ async def seed_outbox(sm, owner_id, n: int, *, room_id=None):
         )
         ids = [row.event_id for row in result.all()]
     return room_id, ids
+
+
+async def append_events(sm, room_id, n: int, *, actor_id=None, event_type: str = "room_renamed"):
+    """Append `n` valid events to a room in ONE transaction exactly like a service function does:
+    take the room lock, bump rooms.event_seq by n, insert the room_events rows. Does not touch
+    the outbox (no hint is ever published). Returns the new sequence numbers."""
+    async with sm() as db, db.begin():
+        row = (
+            await db.execute(
+                text("SELECT event_seq, owner_id FROM rooms WHERE id = :r FOR NO KEY UPDATE"),
+                {"r": room_id},
+            )
+        ).one()
+        first = row.event_seq + 1
+        await db.execute(
+            text(
+                "UPDATE rooms SET event_seq = event_seq + :n, updated_at = updated_at WHERE id = :r"
+            ),
+            {"n": n, "r": room_id},
+        )
+        await db.execute(
+            text(
+                "INSERT INTO room_events (room_id, seq, type, resource_type, resource_id, actor_id,"
+                " payload, created_at)"
+                " SELECT :r, g, :t, 'room', :r, :a, '{}', clock_timestamp()"
+                " FROM generate_series(CAST(:first AS integer), CAST(:last AS integer)) g"
+            ),
+            {
+                "r": room_id,
+                "t": event_type,
+                "a": actor_id or row.owner_id,
+                "first": first,
+                "last": first + n - 1,
+            },
+        )
+    return list(range(first, first + n))

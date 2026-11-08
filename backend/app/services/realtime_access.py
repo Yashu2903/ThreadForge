@@ -58,20 +58,47 @@ async def read_event_seq(sessionmaker: async_sessionmaker[AsyncSession], room_id
     return value or 0
 
 
-async def fetch_event(
+async def read_event_seqs(
+    sessionmaker: async_sessionmaker[AsyncSession], room_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """The reconciliation query: ONE statement for every room that has a local connection,
+    not one per connection. rooms.event_seq is the authoritative high-water mark."""
+    if not room_ids:
+        return {}
+    async with sessionmaker() as db:
+        result = await db.execute(
+            text("SELECT id, event_seq FROM rooms WHERE id = ANY(CAST(:ids AS uuid[]))"),
+            {"ids": room_ids},
+        )
+        return {row.id: row.event_seq for row in result.all()}
+
+
+async def fetch_events_page(
     sessionmaker: async_sessionmaker[AsyncSession],
     room_id: uuid.UUID,
-    event_id: uuid.UUID,
-    seq: int,
-) -> RoomEventOut | None:
-    """The referenced event, or None unless event_id, room_id and seq all agree with the row."""
+    after_seq: int,
+    limit: int,
+) -> list[RoomEventOut]:
+    """Events with seq > after_seq, ascending, at most `limit`: a primary-key range scan on
+    (room_id, seq). The session is closed before this returns (never held across a socket send)."""
     async with sessionmaker() as db:
-        row = (
-            await db.execute(text("SELECT * FROM room_events WHERE event_id = :e"), {"e": event_id})
-        ).one_or_none()
-    if row is None or row.room_id != room_id or row.seq != seq:
-        return None
-    return row_to_event(row)
+        result = await db.execute(
+            text("SELECT * FROM room_events WHERE room_id = :r AND seq > :a ORDER BY seq LIMIT :l"),
+            {"r": room_id, "a": after_seq, "l": limit},
+        )
+        return [row_to_event(row) for row in result.all()]
+
+
+async def fetch_member_ids(
+    sessionmaker: async_sessionmaker[AsyncSession], room_id: uuid.UUID
+) -> set[uuid.UUID]:
+    """Current ACTIVE members (presence is filtered to these)."""
+    async with sessionmaker() as db:
+        result = await db.execute(
+            text("SELECT user_id FROM memberships WHERE room_id = :r AND state = 'active'"),
+            {"r": room_id},
+        )
+        return {row.user_id for row in result.all()}
 
 
 @dataclass(frozen=True)

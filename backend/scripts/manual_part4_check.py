@@ -147,19 +147,27 @@ async def run(  # noqa: PLR0915 - a linear script reads best top to bottom
     )
     report.check(joined.status_code == 200, "1. A created the room; B joined as viewer")
 
-    # 2. Each user opens a socket on a DIFFERENT API process; ready carries the room's seq mark.
+    # 2. Each user opens a socket on a DIFFERENT API process and resumes from the room's seq.
+    history = (await a.get(f"/rooms/{room}/events")).json()
     ws_a = await _connect(base1, room, cookie_name, cookie_a, origin)
     ws_b = await _connect(base2, room, cookie_name, cookie_b, origin)
-    ready_a, ready_b = await _next(ws_a), await _next(ws_b)
-    history = (await a.get(f"/rooms/{room}/events")).json()
-    ok = (
-        bool(ready_a and ready_b)
-        and ready_a["type"] == ready_b["type"] == "ready"
-        and ready_a["current_room_seq"]
-        == ready_b["current_room_seq"]
-        == history["current_room_seq"]
+    resume = json.dumps(
+        {"type": "resume", "schema_version": 1, "after_seq": history["current_room_seq"]}
     )
-    report.check(ok, "2. A (API 1) and B (API 2) are connected and told the same room seq")
+    await ws_a.send(resume)
+    await ws_b.send(resume)
+    done = []
+    for ws in (ws_a, ws_b):
+        frames = [await _next(ws), await _next(ws)]
+        done.append(frames)
+    ok = all(
+        f[0] is not None
+        and f[1] is not None
+        and [x["type"] for x in f] == ["sync_started", "sync_complete"]
+        and f[1]["through_seq"] == history["current_room_seq"]
+        for f in done
+    )
+    report.check(ok, "2. A (API 1) and B (API 2) are connected and synchronized to the same seq")
     if not ok:
         return 1
 
@@ -202,7 +210,9 @@ async def run(  # noqa: PLR0915 - a linear script reads best top to bottom
         "4. the same event is in B's durable history",
     )
 
-    # 5. Dispatcher stopped: writes still succeed and are durable; sockets wait until it returns.
+    # 5. Dispatcher stopped: the write succeeds and is durable. Since Part 5 the sockets still get
+    #    the event, without any hint: reconciliation (one query per RECONCILE_INTERVAL) notices
+    #    that the room moved on, and each socket reads the event from PostgreSQL in order.
     if operator is None:
         report.skip("5. dispatcher paused", "run with TF_OPERATOR=1 to perform this step")
     elif await operator("stop_dispatcher", "Stop the outbox dispatcher now."):
@@ -211,21 +221,23 @@ async def run(  # noqa: PLR0915 - a linear script reads best top to bottom
             json={"client_message_id": str(uuid.uuid4()), "body": "while paused"},
             headers=csrf_a,
         )
-        quiet = await _silent(ws_a, quiet_seconds) and await _silent(ws_b, quiet_seconds)
+        cursor = fa["room_seq"] if fa else 0
+        pending = (await a.get(f"/rooms/{room}/events?after_seq={cursor}")).json()
         report.check(
-            r.status_code == 201 and quiet,
-            "5a. dispatcher stopped: the write succeeds (201) and no socket receives anything",
+            r.status_code == 201 and len(pending["items"]) == 1,
+            "5a. dispatcher stopped: the write succeeds (201) and the event is durable in history",
         )
-        pending = (
-            await a.get(f"/rooms/{room}/events?after_seq={fa['room_seq'] if fa else 0}")
-        ).json()
-        report.check(len(pending["items"]) == 1, "5b. the event is already durable in history")
-        await operator("start_dispatcher", "Start the outbox dispatcher again.")
         fa2, fb2 = await _next(ws_a), await _next(ws_b)
         report.check(
             bool(fa2 and fb2)
             and fa2["event_id"] == fb2["event_id"] == pending["items"][0]["event_id"],
-            "5c. dispatcher back: the pending row is published and both sockets receive it",
+            "5b. with no hint at all, reconciliation delivers it to both sockets",
+            "" if fa2 and fb2 else "no frame within the wait: check RECONCILE_INTERVAL_SECONDS",
+        )
+        await operator("start_dispatcher", "Start the outbox dispatcher again.")
+        report.check(
+            await _silent(ws_a, quiet_seconds),
+            "5c. dispatcher back: the late hint repeats nothing (no duplicate frame)",
         )
     else:
         report.skip("5. dispatcher paused", "operator skipped")
@@ -255,12 +267,13 @@ async def run(  # noqa: PLR0915 - a linear script reads best top to bottom
     else:
         report.skip("6. Redis stopped", "operator skipped")
 
-    # 7. A client may send nothing: any frame closes with 1008.
+    # 7. An unknown client frame is a protocol violation: close 4400.
     ws_probe = await _connect(base1, room, cookie_name, cookie_a, origin)
-    await _next(ws_probe)  # ready
+    await ws_probe.send(resume)
+    await _next(ws_probe)  # sync_started
     await ws_probe.send("hello?")
     _, code = await _close_code(ws_probe)
-    report.check(code == 1008, "7. a client text frame is refused (close 1008)", str(code))
+    report.check(code == 4400, "7. an unknown client frame is refused (close 4400)", str(code))
 
     # 8. Handshake refusals are all the same bare HTTP 403.
     statuses = []

@@ -1,24 +1,29 @@
 """One Redis Pub/Sub connection per API process, and the room subscriptions on it.
 
+WHAT ARRIVES HERE ARE HINTS. A room channel message says "room R has an event with room_seq N". The
+manager validates it and calls `on_room_hint(room, seq)`, which only records "something newer may
+exist" and wakes the room's connections; each connection then READS PostgreSQL. Nothing from Redis
+is ever forwarded to a browser. A lost, duplicated or reordered hint is therefore harmless: it can
+only delay a wake-up, and reconciliation (hub.py) bounds that delay.
+
 DESIGN
-  * ONE pub/sub connection. Explicit SUBSCRIBE/UNSUBSCRIBE per room channel, never PSUBSCRIBE of all
-    rooms (a process only receives rooms it serves) and never a consumer group (every API process
-    must receive every event for the rooms it serves).
+  * ONE pub/sub connection. Explicit SUBSCRIBE/UNSUBSCRIBE per room, never PSUBSCRIBE of all rooms
+    (a process only receives rooms it serves) and never a consumer group (every API process must
+    hear every room it serves). Per room TWO channels: the event hint channel and the presence hint
+    channel.
   * ONE task (the "manager") owns every subscribe/unsubscribe, fed by a command queue. A connection
-    arriving while its room is mid-subscribe simply waits behind the command that is subscribing; a
-    connection arriving mid-unsubscribe waits and then re-subscribes. Races become ordering.
+    arriving while its room is mid-subscribe waits behind the command that is subscribing.
   * A room has a reference count of local connections. The last release unsubscribes.
-  * A subscription counts as established only when Redis's SUBSCRIBE ACKNOWLEDGEMENT has been read,
-    not when the command was sent.
-  * The READER task does no database or WebSocket work. It parses, validates and puts a small
-    Notification on a bounded queue. Redis disconnects a Pub/Sub subscriber whose output buffer
-    grows too large (client-output-buffer-limit pubsub: 32 MB hard, 8 MB for 60 s by default;
-    documented at redis.io "Redis client handling"), so a slow reader would be cut off. When the
-    queue is full the OLDEST notification is dropped and counted: losing a hint is acceptable
-    (PostgreSQL holds the history; Part 5 handles recovery), losing the connection is not.
-  * If the connection drops: reconnect with capped, jittered exponential backoff, re-subscribe every
-    room with a positive reference count, and log notification_gap_possible. A restored subscription
-    does NOT recover notifications published while it was down.
+  * A reference is taken even when the subscription cannot be established (Redis down or slow):
+    `acquire` then returns False ("degraded") but the reference stays, and the manager's repair pass
+    and its reconnect logic subscribe the room as soon as Redis allows. Callers ALWAYS release.
+  * A subscription counts as established only when Redis's SUBSCRIBE ACKNOWLEDGEMENT has been read.
+  * The READER task does no database or WebSocket work: it parses, validates and calls a cheap
+    synchronous callback (an assignment and an Event.set). Memory per room is constant, so a slow
+    consumer elsewhere cannot make hints pile up and Redis never has a reason to disconnect us
+    (Redis closes pub/sub subscribers whose output buffer grows: client-output-buffer-limit).
+  * If the connection drops: reconnect with capped, jittered backoff, re-subscribe every referenced
+    room, and call `on_recovered()` so everything wakes and re-reads PostgreSQL.
   * Redis trouble never fails HTTP: nothing here is on the HTTP request path.
 """
 
@@ -39,8 +44,12 @@ from redis.asyncio.client import PubSub
 
 from app.config import Settings
 from app.logging_config import APP_LOGGER
-from app.realtime.channels import room_channel
-from app.realtime.notifications import Notification, NotificationRejected, parse_notification
+from app.realtime.channels import (
+    presence_hint_channel,
+    presence_room_from_channel,
+    room_channel,
+)
+from app.realtime.notifications import NotificationRejected, parse_notification
 from app.realtime.publisher import create_redis_client
 
 log = logging.getLogger(f"{APP_LOGGER}.realtime")
@@ -48,6 +57,9 @@ log = logging.getLogger(f"{APP_LOGGER}.realtime")
 RECONNECT_BASE_SECONDS = 0.25
 RECONNECT_MAX_SECONDS = 10.0
 READ_TIMEOUT_SECONDS = 1.0
+REPAIR_INTERVAL_SECONDS = 2.0  # how often missing subscriptions are retried while connected
+MAX_PRESENCE_HINT_BYTES = 64
+FAST_FAIL_AFTER_SECONDS = 1.0  # Redis down longer than this: acquire fails fast (degraded)
 
 
 class SubscribeFailed(Exception):
@@ -65,22 +77,32 @@ class _Command:
     future: asyncio.Future[None] | None = None
 
 
+def _noop(*_args: Any) -> None:
+    return None
+
+
 class SubscriptionManager:
     def __init__(
         self,
         settings: Settings,
-        notifications: asyncio.Queue[Notification],
         *,
+        on_room_hint: Callable[[uuid.UUID, int], None] = _noop,
+        on_presence_hint: Callable[[uuid.UUID], None] = _noop,
+        on_recovered: Callable[[], None] = _noop,
         client_factory: Callable[[], Redis] | None = None,
     ) -> None:
         self._settings = settings
         self._prefix = settings.redis_channel_prefix
-        self._notifications = notifications
+        self._on_room_hint = on_room_hint
+        self._on_presence_hint = on_presence_hint
+        self._on_recovered = on_recovered
         self._client_factory = client_factory or (lambda: create_redis_client(settings))
         self._commands: asyncio.Queue[_Command] = asyncio.Queue()
         self._refs: dict[uuid.UUID, int] = {}  # mutated ONLY by the manager task
         self._subscribed: set[str] = set()  # channels whose ack was read on the CURRENT connection
         self._acks: dict[tuple[str, str], asyncio.Future[None]] = {}
+        self._pending: dict[uuid.UUID, list[asyncio.Future[None]]] = {}  # acquires awaiting Redis
+        self._down_since: float | None = None  # when Redis last became unreachable (None: up)
         self._client: Redis | None = None
         self._pubsub: PubSub | None = None
         self._connected = asyncio.Event()
@@ -88,16 +110,18 @@ class SubscriptionManager:
         self._tasks: list[asyncio.Task[None]] = []
         self._stopping = False
         # counters (visible in logs and status())
-        self.dropped_notifications = 0
         self.rejected: Counter[str] = Counter()
         self.connection_losses = 0  # established connections that dropped: a gap is possible
         self.connect_failures = 0
-        self.notifications_received = 0
+        self.hints_received = 0
+        self.presence_hints_received = 0
+        self.recoveries = 0
 
     # ---- lifecycle -----------------------------------------------------------------
 
     async def start(self) -> None:
         """Start the background tasks. Never blocks and never needs Redis to be up."""
+        self._down_since = asyncio.get_running_loop().time()
         self._tasks = [
             asyncio.create_task(self._reader_loop(), name="redis-pubsub-reader"),
             asyncio.create_task(self._manager_loop(), name="redis-subscription-manager"),
@@ -114,24 +138,37 @@ class SubscriptionManager:
             if command.future is not None and not command.future.done():
                 command.future.set_exception(SubscribeFailed("shutting_down"))
         self._fail_acks(SubscribeFailed("shutting_down"))
+        for futures in self._pending.values():
+            for future in futures:
+                if not future.done():
+                    future.set_exception(SubscribeFailed("shutting_down"))
+        self._pending.clear()
         await self._close_connection()
 
     # ---- public API (called by the WebSocket layer) --------------------------------
 
-    async def acquire(self, room_id: uuid.UUID) -> None:
-        """Add one local connection to the room and wait until Redis has ACKed the subscription.
-
-        Raises SubscribeFailed on timeout or Redis trouble. If it raises, no reference is held.
+    async def acquire(self, room_id: uuid.UUID) -> bool:
+        """Add one local connection to the room. True once Redis has ACKed the subscription;
+        False if that did not happen in time (degraded mode). Either way the REFERENCE IS HELD and
+        the caller must call release_nowait() exactly once; the manager keeps trying to subscribe.
         """
         if self._stopping:
-            raise SubscribeFailed("shutting_down")
+            return False
         future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        # a result nobody awaits any more (timeout) must not log "exception was never retrieved"
+        future.add_done_callback(lambda f: f.cancelled() or f.exception())
         self._commands.put_nowait(_Command("acquire", room_id, future))
         try:
-            await asyncio.wait_for(future, timeout=self._settings.ws_subscribe_timeout_seconds)
-        except TimeoutError:
-            # wait_for cancelled the future; the manager notices and gives back any reference.
-            raise SubscribeFailed("timeout") from None
+            await asyncio.wait_for(
+                asyncio.shield(future), timeout=self._settings.ws_subscribe_timeout_seconds
+            )
+        except (TimeoutError, SubscribeFailed):
+            future.cancel()  # nobody waits any more; the reference itself stays (degraded)
+            return False
+        except asyncio.CancelledError:
+            self.release_nowait(room_id)  # the caller is gone: the acquire (queued) is undone
+            raise
+        return True
 
     def release_nowait(self, room_id: uuid.UUID) -> None:
         """Drop one local connection. Fire-and-forget so cleanup paths can never block or be
@@ -142,16 +179,28 @@ class SubscriptionManager:
         """Wait until every queued subscribe/unsubscribe has been processed (tests, shutdown)."""
         await self._commands.join()
 
+    @property
+    def connected(self) -> bool:
+        return self._connected.is_set()
+
+    @property
+    def healthy(self) -> bool:
+        """Connected AND every referenced room subscribed. Anything else is degraded."""
+        return self._connected.is_set() and all(
+            self._channels(room)[0] in self._subscribed for room in self._refs
+        )
+
     def status(self) -> dict[str, Any]:
         return {
             "connected": self._connected.is_set(),
-            "subscribed_rooms": len(self._subscribed),
+            "healthy": self.healthy,
+            "subscribed_rooms": len({c for c in self._subscribed if ":room:" in c}),
             "rooms_with_connections": len(self._refs),
             "connection_losses": self.connection_losses,
             "connect_failures": self.connect_failures,
-            "dropped_notifications": self.dropped_notifications,
+            "hints_received": self.hints_received,
             "rejected_notifications": dict(self.rejected),
-            "notification_queue_depth": self._notifications.qsize(),
+            "recoveries": self.recoveries,
         }
 
     @property
@@ -162,7 +211,7 @@ class SubscriptionManager:
     def reference_counts(self) -> dict[uuid.UUID, int]:
         return dict(self._refs)
 
-    # ---- the reader: parse, validate, enqueue. Nothing else. -----------------------
+    # ---- the reader: parse, validate, call a cheap callback. Nothing else. ---------
 
     async def _reader_loop(self) -> None:
         delay = RECONNECT_BASE_SECONDS
@@ -187,6 +236,7 @@ class SubscriptionManager:
         self._client, self._pubsub = client, pubsub
         await pubsub.connect()  # raises while Redis is unreachable
         self._subscribed.clear()
+        self._down_since = None
         self._connected.set()
         log.info("redis_pubsub_connected rooms_to_resubscribe=%s", len(self._refs))
         self._commands.put_nowait(_Command("resubscribe"))
@@ -215,31 +265,33 @@ class SubscriptionManager:
             if future is not None and not future.done():
                 future.set_result(None)
             return
-        if kind != "message":
+        if kind != "message" or not isinstance(channel, str):
             return
-        self.notifications_received += 1
+        data = message.get("data", "")
+        presence_room = presence_room_from_channel(self._prefix, channel)
+        if presence_room is not None:  # the payload is ignored: it only says "look again"
+            if len(data) <= MAX_PRESENCE_HINT_BYTES:
+                self.presence_hints_received += 1
+                self._on_presence_hint(presence_room)
+            else:
+                self.rejected["presence_oversized"] += 1
+            return
+        self.hints_received += 1
         try:
-            notification = parse_notification(self._prefix, channel, message.get("data", ""))
+            notification = parse_notification(self._prefix, channel, data)
         except NotificationRejected as exc:
             self.rejected[exc.reason] += 1
             log.warning(
                 "notification_rejected reason=%s total=%s", exc.reason, self.rejected[exc.reason]
             )
             return
-        self._enqueue(notification)
-
-    def _enqueue(self, notification: Notification) -> None:
-        try:
-            self._notifications.put_nowait(notification)
-        except asyncio.QueueFull:
-            with contextlib.suppress(asyncio.QueueEmpty):
-                self._notifications.get_nowait()  # drop the OLDEST
-            self.dropped_notifications += 1
-            log.warning("notification_dropped_queue_full total=%s", self.dropped_notifications)
-            self._notifications.put_nowait(notification)
+        # Only the room and the sequence number are used: a HINT, never an event.
+        self._on_room_hint(notification.room_id, notification.room_seq)
 
     def _on_connection_error(self, exc: Exception) -> None:
         was_established = self._connected.is_set()
+        if self._down_since is None:
+            self._down_since = asyncio.get_running_loop().time()
         self._connected.clear()
         self._subscribed.clear()
         self._fail_acks(ConnectionError("pubsub connection lost"))
@@ -247,7 +299,7 @@ class SubscriptionManager:
             self.connection_losses += 1
             log.warning(
                 "redis_pubsub_lost error_type=%s notification_gap_possible=true losses=%s "
-                "(notifications published while disconnected are NOT recovered)",
+                "(hints published while disconnected are lost; reconciliation covers them)",
                 type(exc).__name__,
                 self.connection_losses,
             )
@@ -279,7 +331,13 @@ class SubscriptionManager:
 
     async def _manager_loop(self) -> None:
         while True:
-            command = await self._commands.get()
+            try:
+                command = await asyncio.wait_for(
+                    self._commands.get(), timeout=REPAIR_INTERVAL_SECONDS
+                )
+            except TimeoutError:
+                await self._repair()
+                continue
             try:
                 if command.kind == "acquire":
                     await self._do_acquire(command)
@@ -298,61 +356,98 @@ class SubscriptionManager:
             finally:
                 self._commands.task_done()
 
-    def _channel(self, room_id: uuid.UUID) -> str:
-        return room_channel(self._prefix, room_id)
+    def _channels(self, room_id: uuid.UUID) -> list[str]:
+        return [room_channel(self._prefix, room_id), presence_hint_channel(self._prefix, room_id)]
+
+    def _missing(self) -> list[str]:
+        return [c for room in self._refs for c in self._channels(room) if c not in self._subscribed]
 
     async def _do_acquire(self, command: _Command) -> None:
         future, room_id = command.future, command.room_id
         assert future is not None and room_id is not None
-        if future.done():  # the caller already timed out or was cancelled: take no reference
+        self._refs[room_id] = self._refs.get(room_id, 0) + 1  # the reference is ALWAYS taken
+        channels = self._channels(room_id)
+        if all(c in self._subscribed for c in channels):
+            if not future.done():
+                future.set_result(None)
             return
-        self._refs[room_id] = self._refs.get(room_id, 0) + 1
-        channel = self._channel(room_id)
+        if not self._connected.is_set():
+            down_for = asyncio.get_running_loop().time() - (self._down_since or 0.0)
+            if down_for > FAST_FAIL_AFTER_SECONDS:  # known to be down: do not make callers wait
+                if not future.done():
+                    future.set_exception(SubscribeFailed("redis_unavailable"))
+                return
+            waiting = self._pending.setdefault(room_id, [])
+            waiting[:] = [f for f in waiting if not f.done()]
+            waiting.append(future)  # resolved when the connect + subscribe completes
+            return
         try:
-            if channel not in self._subscribed:
-                await self._subscribe([channel])
+            await self._subscribe(channels)
         except Exception as exc:
-            self._decrement(room_id)
             if not future.done():
                 reason = exc.reason if isinstance(exc, SubscribeFailed) else type(exc).__name__
                 future.set_exception(SubscribeFailed(reason))
             return
-        if future.done():  # cancelled while we were subscribing: hand the reference back
-            await self._do_release(_Command("release", room_id))
-        else:
+        if not future.done():
             future.set_result(None)
 
     async def _do_release(self, command: _Command) -> None:
         room_id = command.room_id
         assert room_id is not None
-        if not self._decrement(room_id):
-            return  # still has local connections
-        channel = self._channel(room_id)
-        if channel in self._subscribed:
-            with contextlib.suppress(Exception):  # a dead connection is already unsubscribed
-                await self._unsubscribe(channel)
-            self._subscribed.discard(channel)
-
-    def _decrement(self, room_id: uuid.UUID) -> bool:
-        """Drop one reference. True when the room now has none."""
         remaining = self._refs.get(room_id, 0) - 1
         if remaining > 0:
             self._refs[room_id] = remaining
-            return False
+            return
         self._refs.pop(room_id, None)
-        return True
+        for future in self._pending.pop(room_id, []):
+            future.cancel()
+        channels = [c for c in self._channels(room_id) if c in self._subscribed]
+        if channels and self._connected.is_set():
+            with contextlib.suppress(Exception):  # a dead connection is already unsubscribed
+                await self._unsubscribe(channels)
+        self._subscribed.difference_update(self._channels(room_id))
 
     async def _do_resubscribe(self) -> None:
-        channels = [self._channel(room_id) for room_id in self._refs]
+        channels = self._missing()
         if channels and self._connected.is_set():
             try:
                 await self._subscribe(channels)
-                log.warning(
-                    "redis_pubsub_resubscribed rooms=%s notification_gap_possible=true",
-                    len(channels),
-                )
             except Exception as exc:  # the reader will reconnect and enqueue another resubscribe
                 log.error("resubscribe_failed error_type=%s", type(exc).__name__)
+                return
+            log.warning(
+                "redis_pubsub_resubscribed channels=%s notification_gap_possible=true",
+                len(channels),
+            )
+        if self._connected.is_set():
+            self._recovered()
+
+    async def _repair(self) -> None:
+        """Retry subscriptions that never completed (an ack timeout while connected)."""
+        channels = self._missing()
+        if not channels or not self._connected.is_set():
+            return
+        try:
+            await self._subscribe(channels)
+        except Exception as exc:
+            log.warning("subscription_repair_failed error_type=%s", type(exc).__name__)
+            return
+        self._recovered()
+
+    def _resolve_pending(self) -> None:
+        for room_id in list(self._pending):
+            if self._channels(room_id)[0] in self._subscribed:
+                for future in self._pending.pop(room_id):
+                    if not future.done():
+                        future.set_result(None)
+
+    def _recovered(self) -> None:
+        self._resolve_pending()
+        self.recoveries += 1
+        try:
+            self._on_recovered()
+        except Exception as exc:
+            log.error("on_recovered_failed error_type=%s", type(exc).__name__)
 
     async def _connected_pubsub(self) -> PubSub:
         try:
@@ -385,12 +480,18 @@ class SubscriptionManager:
                 self._acks.pop(("subscribe", channel), None)
         self._subscribed.update(channels)
 
-    async def _unsubscribe(self, channel: str) -> None:
+    async def _unsubscribe(self, channels: list[str]) -> None:
         pubsub = await self._connected_pubsub()
-        future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
-        self._acks[("unsubscribe", channel)] = future
+        loop = asyncio.get_running_loop()
+        futures = {c: loop.create_future() for c in channels}
+        for channel, future in futures.items():
+            self._acks[("unsubscribe", channel)] = future
         try:
-            await pubsub.unsubscribe(channel)
-            await asyncio.wait_for(future, timeout=self._settings.ws_subscribe_timeout_seconds)
+            await pubsub.unsubscribe(*channels)
+            await asyncio.wait_for(
+                asyncio.gather(*futures.values()),
+                timeout=self._settings.ws_subscribe_timeout_seconds,
+            )
         finally:
-            self._acks.pop(("unsubscribe", channel), None)
+            for channel in channels:
+                self._acks.pop(("unsubscribe", channel), None)

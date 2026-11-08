@@ -24,3 +24,19 @@ def room_id_from_channel(prefix: str, channel: str) -> uuid.UUID | None:
     except ValueError:
         return None
     return room_id if channel == room_channel(prefix, room_id) else None
+
+
+def presence_hint_channel(prefix: str, room_id: uuid.UUID) -> str:
+    """{prefix}:presence-hint:{room}: "presence or typing changed, look again". Payload ignored."""
+    return f"{prefix}:presence-hint:{room_id}"
+
+
+def presence_room_from_channel(prefix: str, channel: str) -> uuid.UUID | None:
+    head = f"{prefix}:presence-hint:"
+    if not channel.startswith(head):
+        return None
+    try:
+        room_id = uuid.UUID(channel[len(head) :])
+    except ValueError:
+        return None
+    return room_id if channel == presence_hint_channel(prefix, room_id) else None

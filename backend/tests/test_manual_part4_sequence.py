@@ -11,10 +11,19 @@ import asyncio
 import contextlib
 
 import httpx2
+import pytest
 
 from scripts.manual_part4_check import run
 from tests.helpers import TRUSTED_ORIGIN
 from tests.realtime_helpers import Pump, live_server
+
+
+@pytest.fixture
+def fast(settings):
+    """Reconciliation every 0.3 s instead of 5 s, so the demo does not wait on real intervals."""
+    return settings.model_copy(
+        update={"reconcile_interval_seconds": 0.3, "reconcile_interval_degraded_seconds": 0.2}
+    )
 
 
 class LoopingDispatcher:
@@ -42,7 +51,7 @@ class LoopingDispatcher:
 
 
 async def test_manual_part4_script_passes_against_fixture_users(
-    settings, engine, sessionmaker, redis_client, make_actor, capsys
+    settings, fast, engine, sessionmaker, redis_client, make_actor, capsys
 ):
     owner, viewer = await make_actor("A"), await make_actor("B")
     dispatcher = LoopingDispatcher(Pump(sessionmaker, settings))
@@ -58,7 +67,7 @@ async def test_manual_part4_script_passes_against_fixture_users(
         return True
 
     try:
-        async with live_server(settings, engine) as one, live_server(settings, engine) as two:
+        async with live_server(fast, engine) as one, live_server(fast, engine) as two:
             code = await run(
                 owner.client,
                 viewer.client,
@@ -89,13 +98,13 @@ async def test_manual_part4_script_passes_against_fixture_users(
 
 
 async def test_manual_part4_script_skips_operator_steps_without_an_operator(
-    settings, engine, sessionmaker, redis_client, make_actor, capsys
+    settings, fast, engine, sessionmaker, redis_client, make_actor, capsys
 ):
     owner, viewer = await make_actor("A"), await make_actor("B")
     dispatcher = LoopingDispatcher(Pump(sessionmaker, settings))
     dispatcher.start()
     try:
-        async with live_server(settings, engine) as one, live_server(settings, engine) as two:
+        async with live_server(fast, engine) as one, live_server(fast, engine) as two:
             code = await run(
                 owner.client,
                 viewer.client,
@@ -115,12 +124,14 @@ async def test_manual_part4_script_skips_operator_steps_without_an_operator(
     assert output.count("[SKIP]") == 2 and "[FAIL]" not in output
 
 
-async def test_manual_part4_script_fails_loudly_when_no_dispatcher_runs(
-    settings, engine, redis_client, make_actor, capsys, monkeypatch
+async def test_manual_part4_script_passes_with_no_dispatcher_because_delivery_is_durable(
+    settings, fast, engine, redis_client, make_actor, capsys, monkeypatch
 ):
-    monkeypatch.setattr("scripts.manual_part4_check.FRAME_WAIT_SECONDS", 1.5)
+    """Part 4's version of this test expected a FAILURE here (no dispatcher, no live delivery).
+    Since Part 5, sockets read PostgreSQL in order and reconciliation finds new events, so the
+    flow works with no dispatcher process at all (Redis hints only make it faster)."""
     owner, viewer = await make_actor("A"), await make_actor("B")
-    async with live_server(settings, engine) as one, live_server(settings, engine) as two:
+    async with live_server(fast, engine) as one, live_server(fast, engine) as two:
         code = await run(
             owner.client,
             viewer.client,
@@ -130,7 +141,8 @@ async def test_manual_part4_script_fails_loudly_when_no_dispatcher_runs(
             cookie_a=owner.secret,
             cookie_b=viewer.secret,
             origin=TRUSTED_ORIGIN,
-            quiet_seconds=0.4,
+            quiet_seconds=0.6,
         )
     output = capsys.readouterr().out
-    assert code == 1 and "[FAIL]" in output and "is the outbox dispatcher running?" in output
+    assert code == 0, output
+    assert "ALL CHECKS PASSED" in output and "[FAIL]" not in output

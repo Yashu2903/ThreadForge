@@ -31,7 +31,7 @@ from app.db import create_engine, create_sessionmaker
 from app.errors import install_error_handlers
 from app.logging_config import configure_logging
 from app.middleware import RequestContextMiddleware
-from app.realtime.hub import RealtimeHub
+from app.realtime.room_hub import RealtimeHub
 from app.services.oidc import OIDCClient
 
 

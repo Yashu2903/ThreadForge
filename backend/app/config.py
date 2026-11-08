@@ -119,8 +119,6 @@ class Settings(BaseSettings):
     ws_send_timeout_seconds: float = 5.0  # every socket send is bounded by this
     ws_connection_queue_size: int = 256  # per-connection outgoing frame queue
     ws_subscribe_timeout_seconds: float = 5.0  # wait for Redis's SUBSCRIBE acknowledgement
-    realtime_queue_size: int = 1000  # Part 4 pipeline; removed in checkpoint 2
-    ws_forward_workers: int = 4  # Part 4 pipeline; removed in checkpoint 2
 
     # Part 5: resume / replay / flow control.
     ws_resume_timeout_seconds: float = 5.0  # first client frame must be `resume` within this
