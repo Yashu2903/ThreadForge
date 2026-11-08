@@ -193,6 +193,9 @@ export class Editor {
     on("paste", (e) => this.onPaste(e as ClipboardEvent));
     on("copy", (e) => this.onCopy(e as ClipboardEvent, false));
     on("cut", (e) => this.onCopy(e as ClipboardEvent, true));
+    // selectionchange is delivered late: by the time it arrives, focus may already have moved to a toolbar
+    // control and the document selection with it. Remember the selection at the moment focus LEAVES.
+    on("focusout", () => this.rememberSelection());
     on("click", (e) => this.onClick(e as MouseEvent));
     on("mousedown", (e) => this.onMouseDown(e as MouseEvent));
     on("dragstart", (e) => e.preventDefault());
@@ -546,6 +549,11 @@ export class Editor {
     s.setBaseAndExtent(a.node, a.offset, f.node, f.offset);
   }
 
+  private rememberSelection(): void {
+    const sel = this.currentSelection();
+    if (sel) this.lastSel = sel;
+  }
+
   private onSelectionChange(): void {
     if (this.destroyed) return;
     const sel = this.currentSelection();
@@ -768,6 +776,7 @@ export class Editor {
       this.toggleMark(key === "b" ? "bold" : key === "i" ? "italic" : "underline");
     } else if (key === "k" && !e.shiftKey) {
       e.preventDefault();
+      this.rememberSelection();
       if (!this.readOnly) this.opts.onLinkRequest?.();
     } else if (key === "z" && !this.readOnly) {
       e.preventDefault();

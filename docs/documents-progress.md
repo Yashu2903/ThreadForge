@@ -12,8 +12,8 @@ Specification: the Part 6 task statement (documents, custom editor, DOCX import,
 | 3 | Editor core: model, renderer, selection mapping, beforeinput, composition, typing, Enter/Backspace/Delete, paste, undo/redo | **done** |
 | 4 | Formatting and structure, toolbar, accessibility | **done** |
 | 5 | Assets and images: pipeline, storage, quotas, editor insert | **done** |
-| 6 | Saving and conflicts: autosave, serialization, event-driven refresh, conflict UI, read-only, access loss | next |
-| 7 | Imports: worker, local upload, conversion, report, isolation, publication | not started |
+| 6 | Saving and conflicts: autosave, serialization, event-driven refresh, conflict UI, read-only, access loss | **done** |
+| 7 | Imports: worker, local upload, conversion, report, isolation, publication | next |
 | 8 | Google Drive: connection, Picker, import (stub-tested; real verification pending) | not started |
 | 9 | Integration tests, browser tests, documentation, final report | not started |
 
@@ -153,6 +153,27 @@ Not verified / notes: the full backend run is repeated at the end of this checkp
 message). Pillow 13.0.0. Images in rooms are not yet saved from the room editor (checkpoint 6 wires
 saving); the save path that attaches assets is covered by backend tests.
 
+## Checkpoint 6: what is done
+
+`documents/session.ts` (the save state machine, 27 unit tests with fake timers and a fake editor),
+`DocumentEditor.tsx` (toolbar + editor + status bar + conflict/failure/read-only messages + Load
+latest confirmation + Copy my text), `RoomView` integration (editor for owner/editor, read-only
+rendering for viewers/mobile, active-document switch banner, guarded navigation, access-lost screen
+with unsaved-text recovery), `DocumentStore.onContentEvent`, `Api.upload`, room client keeps
+`state.role` current. Details: README "Saving and conflicts".
+
+Verified: vitest (session 27; whole suite green); Playwright `documents-saving.spec.ts` against the
+real stack: blank + template creation from the UI, type/format/autosave/reload with nothing lost,
+viewer read-only, typing during an in-flight save, failed save keeps text and Retry, beforeunload
+warning, clean copy follows another session, proactive conflict from the event before any 409,
+nothing saved during conflict, Copy my text and Load latest, simultaneous edits (the loser's 409),
+active-document switch (clean follows / dirty asked / Discard and switch / Save then switch), role
+downgrade stops saving and keeps text, removal shows access-lost with copy-out, chat beside the
+editor, mobile view-only.
+
+Not verified: Safari/WebKit; a real Google login; behaviour under a real network partition longer
+than the test's aborted requests.
+
 ## Next step
 
-Checkpoint 6: saving and conflicts (the editor mounted in rooms for owners/editors, explicit + debounced autosave, one save in flight, conflict UI, event-driven refresh, active-document switching rules, read-only and access loss).
+Checkpoint 7: imports (document_imports table + migration, local DOCX upload, the worker with the PostgreSQL claim pattern, the isolated converter, compatibility report, publication rules, Compose worker and shared volume).

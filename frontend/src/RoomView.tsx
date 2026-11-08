@@ -254,7 +254,7 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
                       <button onClick={() => void makeActive(openDoc.id)}>Make active</button>
                     )}
                     <span data-testid="access-mode">{openDoc.can_edit ? "Access: can edit" : "Access: read-only"}</span>
-                    <span className="muted" data-testid="save-status">
+                    <span className="muted" data-testid="header-version">
                       Version {openDoc.content_version}
                     </span>
                   </div>

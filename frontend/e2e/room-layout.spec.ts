@@ -24,7 +24,7 @@ test.describe("room layout, document list and dialogs", () => {
     await owner.page.getByRole("button", { name: "Create document" }).click();
 
     await expect(owner.page.getByRole("heading", { name: "Launch brief" })).toBeVisible();
-    await expect(owner.page.getByTestId("document-read").getByRole("heading", { name: "Objective" })).toBeVisible();
+    await expect(owner.page.getByTestId("editor").getByRole("heading", { name: "Objective" })).toBeVisible();
     await expect(owner.page.getByTestId("access-mode")).toHaveText("Access: can edit");
     await expect(owner.page.getByText("Active document")).toBeVisible();
 

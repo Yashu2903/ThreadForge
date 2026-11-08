@@ -57,7 +57,7 @@ test.describe("saving", () => {
     for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowLeft");
     await page.keyboard.press("Control+b");
     await expect(status(page)).toHaveText("Saved"); // autosave fired ~1 s after the edits settled
-    await expect(page.getByTestId("doc-version")).toHaveText("Version 3"); // blank at 1, typing 2, bold 3
+    await expect(page.getByTestId("doc-version")).toHaveText("Version 2"); // typing and bold settled together: one save
 
     await page.reload();
     await expect(editor(page)).toBeVisible();
@@ -129,21 +129,26 @@ test.describe("saving", () => {
     await e.context.close();
   });
 
-  test("the browser warns before closing a tab with unsaved changes", async ({ browser }) => {
+  test("the page asks the browser to warn before closing while anything is unsaved, and only then", async ({ browser }) => {
     const s = await setupRoom(browser);
     const e = await member(browser, s.editorUser, s.roomId);
     await expect(editor(e.page)).toBeVisible();
+    const warns = () =>
+      e.page.evaluate(() => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      });
+    expect(await warns()).toBe(false); // nothing unsaved: leaving is silent
     await e.page.route(PUT, (route) => route.abort("failed"));
     await focusEnd(e.page);
     await e.page.keyboard.type("unsaved");
     await expect(status(e.page)).toHaveText("Save failed");
-    const dialogs: string[] = [];
-    e.page.on("dialog", (d) => {
-      dialogs.push(d.type());
-      void d.dismiss();
-    });
-    await e.page.close({ runBeforeUnload: true });
-    expect(dialogs).toContain("beforeunload");
+    expect(await warns()).toBe(true);
+    await e.page.unroute(PUT);
+    await e.page.getByTestId("retry-button").click();
+    await expect(status(e.page)).toHaveText("Saved");
+    expect(await warns()).toBe(false);
     await e.context.close();
   });
 });
@@ -235,7 +240,7 @@ test.describe("two sessions", () => {
     const clean = await member(browser, s.viewerUser, s.roomId);
     const busy = await member(browser, s.editorUser, s.roomId);
     await expect(editor(busy.page)).toBeVisible();
-    await expect(clean.page.getByRole("heading", { name: "First" })).toBeVisible();
+    await expect(clean.page.getByRole("heading", { name: "First", exact: true })).toBeVisible();
 
     await busy.page.route(PUT, (route) => route.abort("failed")); // keeps the editor's work unsaved
     await focusEnd(busy.page);
@@ -244,13 +249,13 @@ test.describe("two sessions", () => {
 
     await s.asOwner.createDocument(s.roomId, "Second", "meeting_notes"); // becomes the active document
 
-    await expect(clean.page.getByRole("heading", { name: "Second" })).toBeVisible(); // followed automatically
+    await expect(clean.page.getByRole("heading", { name: "Second", exact: true })).toBeVisible(); // followed automatically
     await expect(clean.page.getByTestId("document-read").getByRole("heading", { name: "Agenda" })).toBeVisible();
 
     await expect(busy.page.getByTestId("switch-banner")).toBeVisible();
     expect(await blockTexts(busy.page)).toEqual(["my unsaved work"]); // never replaced
     await busy.page.getByTestId("discard-switch").click();
-    await expect(busy.page.getByRole("heading", { name: "Second" })).toBeVisible();
+    await expect(busy.page.getByRole("heading", { name: "Second", exact: true })).toBeVisible();
     await expect(busy.page.getByTestId("switch-banner")).toHaveCount(0);
     await clean.context.close();
     await busy.context.close();
@@ -268,7 +273,7 @@ test.describe("two sessions", () => {
     await expect(e.page.getByTestId("switch-banner")).toBeVisible();
     await e.page.unroute(PUT);
     await e.page.getByTestId("save-then-switch").click();
-    await expect(e.page.getByRole("heading", { name: "Beta" })).toBeVisible();
+    await expect(e.page.getByRole("heading", { name: "Beta", exact: true })).toBeVisible();
     const first = await s.asOwner.get(`/rooms/${s.roomId}/documents/${s.doc.id}`);
     expect(first.content.blocks[0].children[0].text).toBe("keep this"); // it really was saved
     await e.context.close();

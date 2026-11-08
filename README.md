@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 6 in progress (documents, checkpoint 5 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
+## Status: Part 6 in progress (documents, checkpoint 6 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -746,7 +746,7 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
 
 ---
 
-## Part 6: documents (in progress: checkpoint 5 of 9, assets and images)
+## Part 6: documents (in progress: checkpoint 6 of 9, saving and conflicts)
 
 Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
 the document format is [docs/document-schema.md](docs/document-schema.md).
@@ -960,6 +960,47 @@ Configuration: `STORAGE_PATH`, `ASSET_MAX_UPLOAD_BYTES`, `ASSET_MAX_PIXELS`, `AS
 `ASSET_PENDING_TTL_HOURS`, `ASSET_UNREFERENCED_GRACE_DAYS` (all validated; see `.env.example`).
 New error codes: `unsupported_media_type` (415), `invalid_image` (422, with `reason`),
 `quota_exceeded` (409).
+
+### Saving and conflicts (checkpoint 6)
+
+The editor is now mounted in rooms for owners and editors (`frontend/src/DocumentEditor.tsx`);
+viewers, and every mobile browser, get the read-only rendering. All saving rules live in one
+framework-free state machine, `frontend/src/documents/session.ts`, which React only displays.
+
+**States:** *Saved* (the backend committed: an HTTP 200 with a `content_version`; "sent" is not saved),
+*Unsaved changes*, *Saving…*, *Save failed*, *Conflict*, *Read-only*.
+
+* **Saving.** Explicit Save (button, Ctrl/Cmd+S) plus autosave about 1 s after edits settle, never
+  during IME composition. The client canonicalizes (`validateDocument`) before sending, so the server
+  normally changes nothing; `canonical_changed` content is adopted only if there are no newer local
+  edits. **One save in flight:** the response acknowledges the *snapshot that was submitted*, so text
+  typed during a save is kept and the next save sends the version the response returned.
+* **Failures keep the text.** Network error or 5xx: retry with backoff (2 s doubling to 30 s) and a
+  manual *Retry now*. 429: autosave pauses for `Retry-After`. 422/413: reported, no retry loop.
+* **Conflicts.** A 409 `document_version_conflict`, **or a `document_content_updated` event for a
+  version we do not have while we hold unsaved work**, stops all saving, keeps the local text and
+  says another session saved a newer version. The event path is proactive: the conflict appears
+  without waiting for a 409. There is **no automatic merge and no force-save**. *Copy my text* is the
+  recovery aid; *Load latest…* asks for confirmation and only then discards local changes. Events at or
+  below the version we already hold are our own saves and are ignored; an event that beats the HTTP
+  answer of our own save is held until the answer arrives, so it is never mistaken for a conflict.
+* **Clean copies follow.** A clean editor adopts a newer server version (the document store refetches
+  with `If-None-Match`, at most once per second). Adopting clears undo history, because the old
+  snapshots describe a document that no longer exists. A dirty copy is never replaced.
+* **Active document switching.** A clean client opens the room's new active document. A client with
+  unsaved work keeps its document, shows *The room switched…* and offers *Save, then switch* or
+  *Discard my changes and switch*. The same guard protects the user's own navigation (opening another
+  document, creating one).
+* **Access.** A role downgrade below editor (`member_role_changed`, or a 403 on save) or removal (a 404,
+  or the live `member_removed`) stops autosave, makes the editor read-only and **keeps the unsaved
+  text in the page** with *Copy my text* (also on the access-lost screen); no further saves or fetches
+  are made. Regaining rights resumes saving.
+* **Leaving the page** with anything unsaved triggers the browser's `beforeunload` warning. There is
+  **no offline persistence and no crash recovery**: unsaved text lives only in the open tab.
+* **Mobile browsers** can view documents; editing is unsupported there (a notice says so).
+
+The room client now also keeps `state.role` in step with the member list, so a role change shows up
+without a reload.
 
 ### Known limitation (by design in this part)
 
