@@ -81,3 +81,18 @@ def test_config_error_message_has_no_secret_values(monkeypatch):
         load_settings()
     assert "SUPERSECRET" not in str(info.value)
     assert "CSRF_SECRET" in str(info.value)
+
+
+def test_env_example_is_valid_for_development_and_unsafe_for_production():
+    """The documented template works as-is locally, and cannot be deployed unchanged."""
+    from app.config import REPO_ROOT
+
+    template = REPO_ROOT / ".env.example"
+    dev = Settings(_env_file=template)
+    assert dev.app_env == "development"
+    assert dev.oidc_configured is False  # placeholder Google credentials => login not configured
+    assert dev.oidc_callback_url == "http://localhost:8000/auth/callback"
+    assert dev.database_name == "threadforge"
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=template, app_env="production")

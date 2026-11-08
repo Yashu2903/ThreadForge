@@ -24,8 +24,12 @@ from app.config import Settings
 
 def create_engine(settings: Settings, **engine_kwargs: Any) -> AsyncEngine:
     """Create the engine. No connection is opened until first use."""
+    return create_engine_from_url(settings.database_url.get_secret_value(), **engine_kwargs)
+
+
+def create_engine_from_url(url: str, **engine_kwargs: Any) -> AsyncEngine:
     return create_async_engine(
-        settings.database_url.get_secret_value(),
+        url,
         pool_pre_ping=True,
         # Keep bound parameters (nonce, PKCE verifier, hashes) out of SQLAlchemy error messages.
         hide_parameters=True,
