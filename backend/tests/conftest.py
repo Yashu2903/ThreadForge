@@ -14,6 +14,7 @@ import asyncpg
 import httpx2
 import pytest
 import pytest_asyncio
+from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
@@ -21,6 +22,7 @@ from sqlalchemy.pool import NullPool
 from app.config import Settings
 from app.db import create_engine
 from app.main import create_app
+from tests.db_utils import APP_TABLES, build_fresh_schema
 from tests.factories import TEST_DATABASE_URL, make_settings
 
 
@@ -57,7 +59,9 @@ async def _ensure_database_exists(url: str) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def _test_database() -> None:
+    """Create the test database if needed and build its schema with Alembic (not create_all)."""
     asyncio.run(_ensure_database_exists(TEST_DATABASE_URL))
+    build_fresh_schema()
 
 
 @pytest.fixture
@@ -71,6 +75,8 @@ async def engine(settings: Settings) -> AsyncIterator[AsyncEngine]:
     # NullPool: no connection outlives the test's event loop (asyncpg connections are bound to
     # the loop that created them, and each test gets its own loop).
     engine = create_engine(settings, poolclass=NullPool)
+    async with engine.begin() as connection:
+        await connection.execute(text(f"TRUNCATE {', '.join(APP_TABLES)} RESTART IDENTITY CASCADE"))
     yield engine
     await engine.dispose()
 

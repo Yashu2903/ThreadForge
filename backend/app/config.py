@@ -243,6 +243,22 @@ def load_settings() -> Settings:
         raise ConfigError("\n".join(lines)) from None
 
 
+class _DatabaseOnlySettings(BaseSettings):
+    """Just DATABASE_URL, so migrations and maintenance jobs do not need CSRF/Google settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+    )
+    database_url: SecretStr
+
+
+def load_database_url() -> str:
+    try:
+        return _DatabaseOnlySettings().database_url.get_secret_value()  # type: ignore[call-arg]
+    except ValidationError:
+        raise ConfigError("DATABASE_URL: must be set (see .env.example).") from None
+
+
 @lru_cache
 def get_settings() -> Settings:
     return load_settings()
