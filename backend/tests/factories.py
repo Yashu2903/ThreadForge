@@ -12,6 +12,12 @@ TEST_DATABASE_URL = os.environ.get(
     "postgresql+asyncpg://threadforge:threadforge-dev-password@127.0.0.1:5442/threadforge_test",
 )
 
+# ThreadForge's own Redis (compose service, host port 6390), DEDICATED test database index 15.
+# The suite refuses to run against any other index. Other Redis servers on this machine belong to
+# other projects and are never touched.
+TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL", "redis://127.0.0.1:6390/15")
+TEST_REDIS_DB_INDEX = "15"
+
 TEST_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
 TEST_CLIENT_SECRET = "test-client-secret-value"
 TEST_CSRF_SECRET = "test-csrf-secret-0123456789-abcdefghijklmnop"
@@ -27,6 +33,7 @@ def make_settings(**overrides: object) -> Settings:
         "public_base_url": "http://localhost:8000",
         "csrf_secret": TEST_CSRF_SECRET,
         "message_fingerprint_secret": TEST_FINGERPRINT_SECRET,
+        "redis_url": TEST_REDIS_URL,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)  # type: ignore[arg-type]

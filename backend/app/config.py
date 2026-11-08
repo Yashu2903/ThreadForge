@@ -384,6 +384,27 @@ class _DatabaseOnlySettings(BaseSettings):
     database_url: SecretStr
 
 
+class _CleanupSettings(BaseSettings):
+    """What the maintenance commands need: the database and the outbox retention."""
+
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+    )
+    database_url: SecretStr
+    outbox_processed_retention_days: int = 7
+
+
+def load_cleanup_settings() -> tuple[str, int]:
+    """(database_url, outbox_processed_retention_days) without requiring the other settings."""
+    try:
+        loaded = _CleanupSettings()  # type: ignore[call-arg]
+    except ValidationError:
+        raise ConfigError("DATABASE_URL: must be set (see .env.example).") from None
+    if loaded.outbox_processed_retention_days < 0:
+        raise ConfigError("OUTBOX_PROCESSED_RETENTION_DAYS must be 0 or more.")
+    return loaded.database_url.get_secret_value(), loaded.outbox_processed_retention_days
+
+
 def load_database_url() -> str:
     try:
         return _DatabaseOnlySettings().database_url.get_secret_value()  # type: ignore[call-arg]

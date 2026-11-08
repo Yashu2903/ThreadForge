@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import re
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack
+from urllib.parse import urlsplit
 
 import asyncpg
 import httpx2
@@ -25,7 +27,14 @@ from app.db import create_engine
 from app.main import create_app
 from app.services.sessions import create_session
 from tests.db_utils import APP_TABLES, build_fresh_schema
-from tests.factories import TEST_CLIENT_ID, TEST_CLIENT_SECRET, TEST_DATABASE_URL, make_settings
+from tests.factories import (
+    TEST_CLIENT_ID,
+    TEST_CLIENT_SECRET,
+    TEST_DATABASE_URL,
+    TEST_REDIS_DB_INDEX,
+    TEST_REDIS_URL,
+    make_settings,
+)
 from tests.fake_google import FakeGoogle
 from tests.helpers import Actor, make_client, put_cookie
 
@@ -39,6 +48,22 @@ def require_test_database(url: str) -> None:
 
 
 require_test_database(TEST_DATABASE_URL)
+
+
+def require_test_redis(url: str) -> None:
+    """Redis is used only for pub/sub, under a unique prefix, but still refuse to touch any
+    database index other than the dedicated test one (15)."""
+    index = urlsplit(url).path.strip("/")
+    if index != TEST_REDIS_DB_INDEX:
+        pytest.exit(
+            f"Refusing to run: test Redis URL must use the dedicated database index "
+            f"{TEST_REDIS_DB_INDEX}, got {index!r}.",
+            returncode=2,
+        )
+
+
+require_test_redis(TEST_REDIS_URL)
+RUN_ID = uuid.uuid4().hex[:8]
 
 
 async def _ensure_database_exists(url: str) -> None:
@@ -69,8 +94,35 @@ def _test_database() -> None:
 
 
 @pytest.fixture
-def settings() -> Settings:
-    return make_settings()
+def redis_prefix() -> str:
+    """A unique channel prefix per test, so tests can never see each other's notifications."""
+    prefix = f"tftest-{RUN_ID}-{uuid.uuid4().hex[:8]}"
+    assert prefix.startswith("tftest-")
+    return prefix
+
+
+@pytest.fixture
+def settings(redis_prefix: str) -> Settings:
+    return make_settings(redis_channel_prefix=redis_prefix)
+
+
+@pytest_asyncio.fixture
+async def redis_client():
+    """A raw Redis client for tests (subscribing, publishing, checking subscriber counts)."""
+    import redis.asyncio as aioredis
+
+    require_test_redis(TEST_REDIS_URL)
+    client = aioredis.Redis.from_url(TEST_REDIS_URL, decode_responses=True)
+    try:
+        await client.ping()
+    except Exception as exc:  # infrastructure missing: fail loudly, never skip silently
+        await client.aclose()
+        pytest.fail(
+            f"Redis is not reachable at the test URL ({type(exc).__name__}). "
+            "Start it with: docker compose up -d --wait redis"
+        )
+    yield client
+    await client.aclose()
 
 
 @pytest_asyncio.fixture

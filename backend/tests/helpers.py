@@ -191,3 +191,34 @@ async def insert_messages(
             )
         ).all()
     return [row.id for row in result]
+
+
+async def seed_outbox(sm, owner_id, n: int, *, room_id=None):
+    """Insert a room (unless given) plus n events and n PENDING outbox rows, directly. Returns
+    (room_id, [event_id, ...] in seq order). For dispatcher tests that need many rows quickly."""
+    if room_id is None:
+        await execute(sm, "INSERT INTO rooms (name, owner_id) VALUES ('seeded', :o)", o=owner_id)
+        room_id = await scalar(
+            sm, "SELECT id FROM rooms WHERE name = 'seeded' ORDER BY created_at DESC LIMIT 1"
+        )
+    first = await scalar(
+        sm, "SELECT coalesce(max(seq), 0) + 1 FROM room_events WHERE room_id = :r", r=room_id
+    )
+    async with sm() as db, db.begin():
+        result = await db.execute(
+            text(
+                "WITH ev AS ("
+                " INSERT INTO room_events (room_id, seq, type, resource_type, resource_id, actor_id,"
+                "  payload, created_at)"
+                " SELECT :r, g, 'room_renamed', 'room', :r, :o, '{}', clock_timestamp()"
+                " FROM generate_series(CAST(:first AS integer), CAST(:first AS integer) + CAST(:n AS integer) - 1) g"
+                " RETURNING room_id, seq, event_id), ob AS ("
+                " INSERT INTO outbox (event_id, room_id, room_seq, payload)"
+                " SELECT event_id, room_id, seq, jsonb_build_object('schema_version', 1,"
+                "  'event_id', event_id::text, 'room_id', room_id::text, 'room_seq', seq) FROM ev"
+                " RETURNING event_id, room_seq) SELECT event_id FROM ob ORDER BY room_seq"
+            ),
+            {"r": room_id, "o": owner_id, "first": first, "n": n},
+        )
+        ids = [row.event_id for row in result.all()]
+    return room_id, ids
