@@ -18,6 +18,13 @@ from app.logging_config import APP_LOGGER, request_id_var
 
 access_log = logging.getLogger(f"{APP_LOGGER}.access")
 
+
+def no_store_path(path: str) -> bool:
+    """Every response except health checks is private (session, rooms, invitation tokens): never
+    let a browser or shared cache keep it."""
+    return not path.startswith("/health/")
+
+
 # Accept a caller-supplied ID (so a proxy's ID can be correlated) only if it is boring.
 _VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 
@@ -37,7 +44,7 @@ class RequestContextMiddleware:
         token = request_id_var.set(request_id)
 
         path: str = scope["path"]
-        no_store = path.startswith("/auth/")
+        no_store = no_store_path(path)
         status = 500
         started = time.perf_counter()
 

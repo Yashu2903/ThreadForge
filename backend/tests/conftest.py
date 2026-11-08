@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import AsyncIterator
+from contextlib import AsyncExitStack
 
 import asyncpg
 import httpx2
@@ -22,10 +23,11 @@ from sqlalchemy.pool import NullPool
 from app.config import Settings
 from app.db import create_engine
 from app.main import create_app
+from app.services.sessions import create_session
 from tests.db_utils import APP_TABLES, build_fresh_schema
 from tests.factories import TEST_CLIENT_ID, TEST_CLIENT_SECRET, TEST_DATABASE_URL, make_settings
 from tests.fake_google import FakeGoogle
-from tests.helpers import make_client
+from tests.helpers import Actor, make_client, put_cookie
 
 
 def require_test_database(url: str) -> None:
@@ -106,3 +108,42 @@ def app(settings: Settings, engine: AsyncEngine, google: FakeGoogle):
 async def client(settings, engine, google) -> AsyncIterator[httpx2.AsyncClient]:
     async with make_client(settings, engine, google) as c:
         yield c
+
+
+@pytest_asyncio.fixture
+async def make_actor(settings, engine, sessionmaker, google):
+    """Factory for signed-in users. The user row is inserted directly; the SESSION is created by
+    Part 1's real create_session(), and the cookie is set on a fresh client, so every request
+    exercises the real cookie -> hash -> lookup path. Nothing here exists in production code."""
+    async with AsyncExitStack() as stack:
+
+        async def factory(name: str = "User", *, app_settings: Settings | None = None) -> Actor:
+            app_settings = app_settings or settings
+            async with sessionmaker() as db, db.begin():
+                user_id = (
+                    await db.execute(
+                        text("INSERT INTO users (display_name) VALUES (:n) RETURNING id"),
+                        {"n": name},
+                    )
+                ).scalar_one()
+                session = await create_session(db, app_settings, user_id)
+            client = await stack.enter_async_context(make_client(app_settings, engine, google))
+            put_cookie(client, app_settings.session_cookie_name, session.secret)
+            return Actor(client, user_id, name)
+
+        yield factory
+
+
+@pytest_asyncio.fixture
+async def alice(make_actor) -> Actor:
+    return await make_actor("Alice")
+
+
+@pytest_asyncio.fixture
+async def bob(make_actor) -> Actor:
+    return await make_actor("Bob")
+
+
+@pytest_asyncio.fixture
+async def carol(make_actor) -> Actor:
+    return await make_actor("Carol")

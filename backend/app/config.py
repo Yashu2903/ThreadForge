@@ -72,6 +72,17 @@ class Settings(BaseSettings):
     frontend_error_url: str = ""
     trusted_origins: Annotated[list[str], NoDecode] = []
 
+    # Part 2: invitation links point at the frontend's join page (the token is in the URL
+    # fragment, which browsers never send to servers). Dev default: the API's own origin.
+    frontend_base_url: str = ""
+    invitation_default_hours: int = 24
+    invitation_min_hours: int = 1
+    invitation_max_hours: int = 168
+    # Caps, enforced under row locks so they hold under concurrency.
+    max_owned_rooms_per_user: int = 20
+    max_members_per_room: int = 50
+    max_active_invitations_per_room: int = 50
+
     session_lifetime_seconds: int = 7 * 24 * 3600
     login_attempt_lifetime_seconds: int = 600
     max_pending_login_attempts: int = 1000
@@ -146,6 +157,7 @@ class Settings(BaseSettings):
             self.oidc_callback_url = self.oidc_callback_url or f"{base_origin}{CALLBACK_PATH}"
             self.frontend_success_url = self.frontend_success_url or f"{base_origin}/auth/me"
             self.frontend_error_url = self.frontend_error_url or f"{base_origin}/auth/me"
+            self.frontend_base_url = self.frontend_base_url or base_origin
             self.trusted_origins = self.trusted_origins or [base_origin]
         else:
             for name, value in (
@@ -207,6 +219,32 @@ class Settings(BaseSettings):
                 problems.append(
                     "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set in production."
                 )
+
+        if prod and not self.frontend_base_url:
+            problems.append("FRONTEND_BASE_URL must be set explicitly in production.")
+        if self.frontend_base_url:
+            problems += self._check_url("FRONTEND_BASE_URL", self.frontend_base_url)
+            base = urlsplit(self.frontend_base_url)
+            if base.query or base.fragment:
+                problems.append("FRONTEND_BASE_URL must not contain a query or fragment.")
+            self.frontend_base_url = self.frontend_base_url.rstrip("/")
+        if (
+            not 1
+            <= self.invitation_min_hours
+            <= self.invitation_default_hours
+            <= (self.invitation_max_hours)
+        ):
+            problems.append(
+                "INVITATION_MIN_HOURS <= INVITATION_DEFAULT_HOURS <= INVITATION_MAX_HOURS "
+                "must hold, and the minimum must be at least 1."
+            )
+        for name, cap in (
+            ("MAX_OWNED_ROOMS_PER_USER", self.max_owned_rooms_per_user),
+            ("MAX_MEMBERS_PER_ROOM", self.max_members_per_room),
+            ("MAX_ACTIVE_INVITATIONS_PER_ROOM", self.max_active_invitations_per_room),
+        ):
+            if cap < 1:
+                problems.append(f"{name} must be at least 1.")
 
         if self.session_lifetime_seconds < 60:
             problems.append("SESSION_LIFETIME_SECONDS must be at least 60.")

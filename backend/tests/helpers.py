@@ -76,3 +76,82 @@ async def execute(sessionmaker, sql: str, **params: Any) -> None:
     async with sessionmaker() as session:
         await session.execute(text(sql), params)
         await session.commit()
+
+
+# ---- Part 2: actors (a user + a real session + their own browser) ------------------------------
+
+TRUSTED_ORIGIN = "http://localhost:8000"
+
+
+class Actor:
+    """A signed-in user with their own client (cookie jar). Mutating calls automatically carry a
+    CSRF token fetched from the real /auth/csrf endpoint and a trusted Origin; pass csrf=False /
+    origin=False to omit them."""
+
+    def __init__(self, client: httpx2.AsyncClient, user_id, name: str) -> None:
+        self.client = client
+        self.id = user_id
+        self.name = name
+        self._csrf: str | None = None
+
+    async def csrf_token(self) -> str:
+        if self._csrf is None:
+            response = await self.client.get("/auth/csrf")
+            assert response.status_code == 200, response.text
+            self._csrf = response.json()["csrf_token"]
+        return self._csrf
+
+    async def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        json: Any = None,
+        content: bytes | None = None,
+        csrf: bool = True,
+        origin: bool = True,
+        headers: dict[str, str] | None = None,
+        **kwargs: Any,
+    ) -> httpx2.Response:
+        sent = dict(headers or {})
+        if method.upper() not in ("GET", "HEAD"):
+            if csrf:
+                sent["X-CSRF-Token"] = await self.csrf_token()
+            if origin:
+                sent["Origin"] = TRUSTED_ORIGIN
+        if content is not None:
+            return await self.client.request(method, url, content=content, headers=sent, **kwargs)
+        return await self.client.request(method, url, json=json, headers=sent, **kwargs)
+
+    async def get(self, url, **kw):
+        return await self.request("GET", url, **kw)
+
+    async def post(self, url, **kw):
+        return await self.request("POST", url, **kw)
+
+    async def patch(self, url, **kw):
+        return await self.request("PATCH", url, **kw)
+
+    async def delete(self, url, **kw):
+        return await self.request("DELETE", url, **kw)
+
+
+async def add_member(sm, room_id, user_id, role="editor", state="active") -> None:
+    """Insert/overwrite a membership directly (setup only; the API paths are tested separately)."""
+    removed = "now()" if state == "removed" else "NULL"  # fixed literals, not user input
+    await execute(
+        sm,
+        f"INSERT INTO memberships (room_id, user_id, role, state, removed_at) "
+        f"VALUES (:r, :u, :role, :s, {removed}) "
+        f"ON CONFLICT (room_id, user_id) DO UPDATE SET role = :role, state = :s, "
+        f"removed_at = {removed}",
+        r=room_id,
+        u=user_id,
+        role=role,
+        s=state,
+    )
+
+
+async def room_row(sm, room_id) -> dict[str, Any]:
+    [row] = await rows(sm, "SELECT * FROM rooms WHERE id = :r", r=room_id)
+    return row

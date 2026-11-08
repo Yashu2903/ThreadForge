@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.logging_config import APP_LOGGER
+from app.middleware import no_store_path
 
 log = logging.getLogger(f"{APP_LOGGER}.errors")
 
@@ -65,7 +66,7 @@ def error_response(
     # Set here as well as in the middleware: unhandled-exception responses are produced by
     # Starlette's outermost layer and would otherwise miss these headers.
     response.headers["X-Request-ID"] = request_id
-    if request.url.path.startswith("/auth/"):
+    if no_store_path(request.url.path):
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -96,3 +97,49 @@ def install_error_handlers(app: FastAPI) -> None:
         where = f"{frames[-1].filename}:{frames[-1].lineno}" if frames else "unknown"
         log.error("unhandled %s at %s (path %s)", type(exc).__name__, where, request.url.path)
         return error_response(request, 500, "internal_error", "Something went wrong.")
+
+
+# ---- Part 2 error constructors (stable lowercase codes; documented in the README) -------------
+
+
+def room_not_found() -> AppError:
+    # Also used when the caller is simply not an active member: private rooms are never revealed.
+    return AppError(404, "room_not_found", "Room not found.")
+
+
+def insufficient_role() -> AppError:
+    return AppError(403, "insufficient_role", "Your role does not allow this action.")
+
+
+def member_not_found() -> AppError:
+    return AppError(404, "member_not_found", "Member not found.")
+
+
+def invitation_not_found() -> AppError:
+    return AppError(404, "invitation_not_found", "Invitation not found.")
+
+
+def invitation_invalid() -> AppError:
+    # One status, one code, one message for EVERY redemption failure (unknown, malformed,
+    # expired, revoked, used by someone else), so the response reveals nothing about why.
+    return AppError(404, "invitation_invalid", "This invitation is not valid.")
+
+
+def invitation_already_redeemed() -> AppError:
+    return AppError(409, "invitation_already_redeemed", "This invitation was already redeemed.")
+
+
+def owner_protected() -> AppError:
+    return AppError(409, "owner_protected", "The room owner cannot be removed or demoted.")
+
+
+def limit_reached(code: str, message: str) -> AppError:
+    return AppError(409, code, message)
+
+
+def invalid_cursor() -> AppError:
+    return AppError(422, "invalid_cursor", "The pagination cursor is not valid.")
+
+
+def validation_failed(message: str) -> AppError:
+    return AppError(422, "validation_error", message)

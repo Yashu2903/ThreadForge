@@ -40,6 +40,7 @@ def make_production_settings(**overrides: object) -> Settings:
         "frontend_success_url": "https://app.threadforge.test/",
         "frontend_error_url": "https://app.threadforge.test/login-error",
         "trusted_origins": "https://app.threadforge.test",
+        "frontend_base_url": "https://app.threadforge.test",
         "csrf_secret": secrets.token_urlsafe(48),
     }
     values.update(overrides)

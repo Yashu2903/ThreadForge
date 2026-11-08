@@ -27,14 +27,24 @@ def create_engine(settings: Settings, **engine_kwargs: Any) -> AsyncEngine:
     return create_engine_from_url(settings.database_url.get_secret_value(), **engine_kwargs)
 
 
-def create_engine_from_url(url: str, **engine_kwargs: Any) -> AsyncEngine:
+# A statement that waits longer than this for a row lock fails instead of queueing forever.
+# Locks in this app are held for single short transactions, so a long wait means a bug.
+DEFAULT_LOCK_TIMEOUT_MS = 10_000
+
+
+def create_engine_from_url(
+    url: str, *, lock_timeout_ms: int = DEFAULT_LOCK_TIMEOUT_MS, **engine_kwargs: Any
+) -> AsyncEngine:
     return create_async_engine(
         url,
         pool_pre_ping=True,
         # Keep bound parameters (nonce, PKCE verifier, hashes) out of SQLAlchemy error messages.
         hide_parameters=True,
         # Store and compare everything in UTC regardless of the server's default timezone.
-        connect_args={"server_settings": {"timezone": "UTC"}, "timeout": 5},
+        connect_args={
+            "server_settings": {"timezone": "UTC", "lock_timeout": str(lock_timeout_ms)},
+            "timeout": 5,
+        },
         **engine_kwargs,
     )
 

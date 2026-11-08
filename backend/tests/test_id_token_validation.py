@@ -69,7 +69,8 @@ async def test_valid_token_from_the_same_setup_is_accepted(client, google):
 
 
 async def test_small_clock_skew_is_tolerated(client, google):
-    response = await sign_in(client, google, exp=NOW - 10, iat=NOW - 3610)
+    now = int(time.time())  # fresh: a module-level NOW goes stale in a long suite
+    response = await sign_in(client, google, exp=now - 10, iat=now - 3610)
     assert error_code(response) is None  # within the 30 s leeway
 
 

@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from app.errors import AppError
+from app.services.csrf import enforce_csrf
 from app.services.sessions import AuthContext, load_session
 
 
@@ -48,3 +49,18 @@ async def get_current_user(request: Request) -> AuthContext:
 #     async def route(user: CurrentUser): ...
 CurrentUser = Annotated[AuthContext, Depends(get_current_user)]
 OptionalSession = Annotated[AuthContext | None, Depends(get_optional_session)]
+
+
+async def require_csrf(request: Request, context: CurrentUser) -> AuthContext:
+    """Authentication, THEN CSRF (401 before 403): the reusable check for every unsafe method.
+
+    Depends on get_current_user, so an unauthenticated request gets 401 and never reaches the
+    CSRF comparison. Attach it (via CsrfProtectedUser) to every POST/PATCH/PUT/DELETE route.
+    Logout is the one exception: it must answer 204 when there is no session, so it calls
+    enforce_csrf itself, only when a session exists (behaviour unchanged from Part 1).
+    """
+    enforce_csrf(request, request.app.state.settings, context)
+    return context
+
+
+CsrfProtectedUser = Annotated[AuthContext, Depends(require_csrf)]
