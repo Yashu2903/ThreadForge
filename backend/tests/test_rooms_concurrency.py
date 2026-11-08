@@ -313,3 +313,46 @@ async def test_a_burst_of_mixed_random_operations_keeps_every_invariant(
         )
         == 0
     )
+
+
+async def test_one_user_redeeming_two_different_invitations_at_once_joins_once(
+    alice, bob, sessionmaker
+):
+    room_id = await new_room(alice)
+    first = await invite(alice, room_id, role="editor")
+    second = await invite(alice, room_id, role="viewer")
+    results = await contended(
+        sessionmaker, room_id, redeem(bob, first["token"]), redeem(bob, second["token"])
+    )
+    assert [r.status_code for r in results] == [200, 200]
+    assert results[0].json()["membership"] == results[1].json()["membership"]
+    assert (
+        await scalar(sessionmaker, "SELECT count(*) FROM memberships WHERE user_id = :u", u=bob.id)
+        == 1
+    )
+    # Exactly one invitation was consumed; the other was left unused (already a member).
+    assert (
+        await scalar(sessionmaker, "SELECT count(*) FROM invitations WHERE used_at IS NOT NULL")
+        == 1
+    )
+    assert await epoch(sessionmaker, room_id) == 2
+
+
+async def test_invitations_to_different_rooms_do_not_block_each_other(
+    alice, bob, carol, sessionmaker
+):
+    room_a = await new_room(alice, "A")
+    room_b = await new_room(carol, "B")
+    inv_a = await invite(alice, room_a)
+    inv_b = await invite(carol, room_b)
+    # Hold room A's lock: a redemption for room B must NOT wait for it (locks are per room).
+    async with sessionmaker() as holder, holder.begin():
+        await holder.execute(
+            text("SELECT 1 FROM rooms WHERE id = :r FOR NO KEY UPDATE"), {"r": room_a}
+        )
+        other_room = await asyncio.wait_for(redeem(bob, inv_b["token"]), timeout=2)
+        assert other_room.status_code == 200
+        blocked = asyncio.create_task(redeem(bob, inv_a["token"]))
+        await asyncio.sleep(0.4)
+        assert not blocked.done()  # room A's redemption IS waiting on room A's lock
+    assert (await asyncio.wait_for(blocked, timeout=10)).status_code == 200
