@@ -1,15 +1,17 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 3 of 5 — authentication, rooms, invitations and persistent messages
+## Status: Part 4 of 5 — authentication, rooms, messages, durable room events and live delivery
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
 Part 2 (rooms, invitations, permissions): private rooms with an owner, editors and viewers; single-use invitation links; membership management; server-side authorization on every route. See [Part 2](#part-2-rooms-invitations-and-authorization).
 
-Part 3 (persistent room messages over HTTP): send, history, single lookup, duplicate-send protection, edit with conflict protection, soft delete, a PostgreSQL write rate limit. See [Part 3](#part-3-persistent-room-messages-over-http). **Clients see changes only by fetching over HTTP: there is no live delivery yet.**
+Part 3 (persistent room messages over HTTP): send, history, single lookup, duplicate-send protection, edit with conflict protection, soft delete, a PostgreSQL write rate limit. See [Part 3](#part-3-persistent-room-messages-over-http). 
 
-Not implemented (later parts): room events / outbox / Pub/Sub / WebSockets (4), reconnect recovery / presence / connection revocation (5), documents, uploads, AI. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
+Part 4 (durable room events and reliable publication of live updates): every supported change also records a room event and a transactional outbox row; a standalone dispatcher publishes through Redis Pub/Sub; an authenticated room WebSocket delivers events across several API processes; a protected HTTP endpoint serves event history. See [Part 4](#part-4-durable-room-events-and-reliable-publication-of-live-updates). **Live delivery is best-effort, at-least-once publication with possible loss and duplicates; PostgreSQL history is the source of truth.**
+
+Not implemented (later parts): automatic reconnection / replay-to-live recovery / presence / proactive connection revocation (5), documents, uploads, AI. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
 
 > **Superseded handbook sections.** If a ThreadForge handbook exists under `docs/` (none is in this repository yet), these parts of it are replaced by the Google OIDC decision: email/password login, Argon2id password hashing, `POST /accounts`, `POST /sessions`, and operator password recovery. There are no passwords in this system. The handbook's other conventions are kept: UUID primary keys, UTC timestamps, `ON DELETE RESTRICT` foreign keys, a `version` column on mutable entity tables, and request IDs.
 
@@ -27,7 +29,7 @@ cp .env.example .env            # PowerShell: Copy-Item .env.example .env
 cd backend
 uv sync
 
-# 3. Start PostgreSQL 16 (data persists in a Docker volume; bound to 127.0.0.1:5442 only)
+# 3. Start PostgreSQL 16 and Redis 7 (Postgres on 127.0.0.1:5442, Redis on 127.0.0.1:6390; data in a Docker volume)
 cd ..
 docker compose up -d --wait
 
@@ -101,7 +103,7 @@ All settings are environment variables (or `.env` at the repo root). Invalid set
 | `TRUSTED_PROXY_IPS` | IPs/CIDRs whose `X-Forwarded-*` headers are trusted. Default: none. |
 | `COOKIE_SECURE` | Dev only (default false). Production always forces `Secure`; `false` there is a startup error. |
 
-Part 3 settings: `MESSAGE_FINGERPRINT_SECRET` (**required**; HMAC key for the duplicate-send fingerprint; production: ≥ 32 chars, no placeholder, validated like `CSRF_SECRET`) and `MESSAGE_WRITES_PER_MINUTE` (default 30; see Part 3).
+Part 4 settings (Redis, outbox dispatcher, WebSockets) are listed in [Part 4](#configuration-added-in-part-4). Part 3 settings: `MESSAGE_FINGERPRINT_SECRET` (**required**; HMAC key for the duplicate-send fingerprint; production: ≥ 32 chars, no placeholder, validated like `CSRF_SECRET`) and `MESSAGE_WRITES_PER_MINUTE` (default 30; see Part 3).
 
 Part 2 settings (all validated at startup; placeholders in `.env.example`):
 
@@ -265,7 +267,7 @@ Membership and room changes emit one structured line after commit: `action=<…>
 
 ### Where later parts hook in
 - **Part 3 (messages) — now implemented** in `app/services/messages.py`. It holds the same room lock (`FOR NO KEY UPDATE`) that every membership mutation takes, so a message write and a removal or role change serialize, and no extra `FOR SHARE` on the membership row is needed (the originally planned design). See [Part 3](#part-3-persistent-room-messages-over-http).
-- **Part 4 (room events, outbox):** write the room-event and outbox rows **inside** the same transactions, in the functions that already hold the room lock: `rooms.create_room`, `rooms.rename_room`, `memberships.activate_membership` (via `invitations.redeem_invitation`), `memberships.change_role`, `memberships.remove_member`, and `rooms.bump_membership_epoch` (the only place the epoch changes). Routes never write these tables (a test enforces it), so there is exactly one place to edit. `membership_epoch` is the version live connections compare against.
+- **Part 4 (room events, outbox) — now implemented.** `record_room_event()` (`app/services/room_events.py`) is called inside the transactions of `rooms.create_room`, `rooms.rename_room`, `invitations.redeem_invitation`, `memberships.change_role`, `memberships.remove_member` and the three message writes, always while holding the room lock. The `membership_epoch` plan above was replaced by the per-room `event_seq`. See [Part 4](#part-4-durable-room-events-and-reliable-publication-of-live-updates).
 - **Part 5 (revocation):** removal currently blocks subsequent **HTTP** requests. WebSocket/connection revocation is not implemented and not claimed.
 
 ### Manual verification (Part 2, real Google accounts)
@@ -397,7 +399,7 @@ No row returned means the window is full: the transaction rolls back and the res
 
 Message bodies, cookies, CSRF tokens and fingerprints are never logged. Each committed write emits one structured line: `action=<message_sent|message_edited|message_deleted> room_id=… message_id=… actor_id=… request_id=…` (no content).
 
-### Where Part 4 hooks in
+### Where Part 4 hooks in (done: see [Part 4](#part-4-durable-room-events-and-reliable-publication-of-live-updates))
 Add the room-event and outbox inserts, and the per-room event-sequence increment, **inside the same transaction** in the three service functions, immediately before their single commit point: `send_message`, `edit_message`, `delete_message` in `app/services/messages.py`. The room lock they already hold is the lock the sequence counter needs. Room events delivered later go to **all active members regardless of role** (chat is open to viewers too). Emit an event only at the points where `created` (send) or `changed` (edit, delete) is set to true: those are exactly the writes that changed something. Matching retries, no-op edits and repeated deletes also reach the end of those blocks and must **not** emit events. Routes never write these tables (a test enforces it).
 
 ### Manual demonstration (three real Google accounts)
@@ -419,6 +421,175 @@ The script: A creates a room and invitations, B joins as editor, C as viewer →
 - **Rotating `MESSAGE_FINGERPRINT_SECRET`** breaks in-flight retries (`message_id_reused`).
 - **Part 2 routes** still parse their JSON before authentication (see Part 2 limitations); message routes do not.
 - **Unverified:** the real Google login (see above); behaviour behind a real reverse proxy or across several API processes (the tests use one process against one local PostgreSQL); `clock_timestamp()` monotonicity relies on the database host's clock (the Docker VM used for development has been observed stepping backwards by hundreds of milliseconds between connections, which is why no CHECK relates timestamps from different transactions).
+
+---
+
+## Part 4: durable room events and reliable publication of live updates
+
+**What this part adds, in one paragraph.** Every supported change (room created or renamed, member joined, role changed, member removed, message created, edited or deleted) now also writes a durable **room event** and an **outbox** row *in the same PostgreSQL transaction*. A separate **dispatcher** process publishes outbox rows to Redis Pub/Sub; each API process subscribes to Redis, re-reads the event from PostgreSQL, re-checks the viewer's access, and pushes it to that room's open **WebSocket**s. Message writes stay on HTTP. The WebSocket only *delivers* events.
+
+```
+HTTP write ──► ONE transaction: change + rooms.event_seq++ + room_events row + outbox row (pending)
+                                   │
+                  (commit)         ▼
+   dispatcher (own process): claim pending rows (lease) ─► PUBLISH to Redis ─► mark processed
+                                   │
+   Redis Pub/Sub (hint only: {event_id, room_id, room_seq}; keeps nothing)
+                                   │
+   each API process: one subscription connection ─► bounded queue ─► forwarding workers
+        re-read the event from PostgreSQL ─► ONE access query for all local sockets of the room
+        ─► each socket's bounded send queue ─► sender task ─► browser
+```
+
+### Guarantees: what is promised and what is not
+Terms: **at-least-once** means "retried until it works, so it may happen twice"; a **lease** is a time-limited claim a worker holds on a row.
+
+| Statement | Status |
+|---|---|
+| No committed supported mutation lacks its event and outbox row | **Guaranteed** by one transaction; a test audits every service function that records events. |
+| A dispatcher crash does not erase pending work | **Guaranteed**: pending rows live in PostgreSQL; an expired lease makes a row claimable again. |
+| Publication to Redis may happen **more than once** | **Yes** (at-least-once). Clients de-duplicate by `event_id`. |
+| A Redis notification can be **lost** | **Yes**: nobody subscribed, queue overflow, a Redis connection loss, a slow-consumer disconnect. Redis Pub/Sub stores nothing. |
+| `outbox.state = processed` means a browser got it | **No.** It means Redis accepted the publish. A frame sent to a socket means the server queued it, not that a browser rendered it. |
+| `room_seq` defines the durable order of a room's events | **Yes**: contiguous 1, 2, 3, … per room, allocated under the room lock. Live frames can arrive out of order or twice; order by `room_seq`. |
+| A client that missed events can recover them | **From the database**, via `GET /rooms/{id}/events`. Automatic recovery is Part 5. |
+
+This README never claims exactly-once or guaranteed delivery, and neither should clients.
+
+### Running it (from the repository root unless noted)
+```bash
+docker compose up -d --wait postgres redis        # Redis is bound to 127.0.0.1:6390 only
+cd backend
+uv run alembic upgrade head                       # applies 0004 (room_events, outbox, rooms.event_seq)
+# API processes: run as many as you like on different ports; each holds its own sockets
+uv run uvicorn app.main:create_app --factory --port 8000 --no-access-log --no-proxy-headers --ws-max-size 1024 --ws-ping-interval 20 --ws-ping-timeout 20
+uv run uvicorn app.main:create_app --factory --port 8001 --no-access-log --no-proxy-headers --ws-max-size 1024 --ws-ping-interval 20 --ws-ping-timeout 20
+# One dispatcher is enough (several are safe: rows are claimed with SKIP LOCKED)
+uv run python -m app.workers.outbox_dispatcher    # SIGTERM / Ctrl+C stops it gracefully
+```
+- `--ws-max-size 1024` makes the server itself refuse oversized client frames (close 1009); clients are expected to send nothing. `--ws-ping-interval/--ws-ping-timeout` make uvicorn drop connections whose peer vanished.
+- **Run the dispatcher.** Without it everything still works over HTTP and events accumulate as pending outbox rows, but no socket ever receives anything.
+- Production needs `REDIS_URL=rediss://…` **with a password** (startup fails otherwise). Redis credentials never reach a browser: sockets talk only to the API.
+
+```bash
+uv run python -m app.commands.outbox_status                          # counts, ages, retries, failed entries
+uv run python -m app.commands.outbox_requeue --event-id <uuid>        # put ONE failed entry back to pending
+uv run python -m app.commands.cleanup_auth --outbox-retention-days 7  # also deletes old PROCESSED outbox rows
+```
+`outbox_status` never selects payloads. **Suggested alert (documentation only):** the oldest pending row is older than 2 minutes. The dispatcher and each API process log a stats line every 30 s (counts and codes only; no payloads, message text, cookies or tokens).
+
+### Configuration added in Part 4
+| Variable | Default | Meaning |
+|---|---|---|
+| `REDIS_URL` | `redis://127.0.0.1:6390/0` | Redis/Valkey. Production: `rediss://` + password. |
+| `REDIS_CHANNEL_PREFIX` | `threadforge` | Channel is `<prefix>:room:<room_id>`. Letters, digits, `-`, `_`, `.`. |
+| `REDIS_SOCKET_TIMEOUT_SECONDS`, `REDIS_HEALTH_CHECK_INTERVAL_SECONDS` | 5, 30 | Client timeouts. |
+| `OUTBOX_BATCH_SIZE` / `OUTBOX_POLL_INTERVAL_MS` | 50 / 200 | Rows per claim / idle poll. |
+| `OUTBOX_CLAIM_LEASE_SECONDS` | 30 | How long a claim lasts. **Must be ≥ 2 × `OUTBOX_PUBLISH_TIMEOUT_SECONDS`** (startup fails otherwise). |
+| `OUTBOX_PUBLISH_TIMEOUT_SECONDS` | 2 | Per-publish bound. |
+| `OUTBOX_RETRY_MAX_DELAY_SECONDS` | 60 | Backoff cap (base 0.5 s, doubling, equal jitter: the delay is uniform in [cap/2, cap]). |
+| `OUTBOX_PROCESSED_RETENTION_DAYS` | 7 | Used by the cleanup command. |
+| `REALTIME_QUEUE_SIZE` | 1000 | Reader → workers queue per API process; **oldest dropped** when full. |
+| `WS_MAX_CONNECTIONS_PER_USER` / `WS_MAX_CONNECTIONS_PER_PROCESS` | 5 / 1000 | Per API process; over the cap → close 4409. |
+| `WS_SEND_TIMEOUT_SECONDS`, `WS_CONNECTION_QUEUE_SIZE` | 5, 100 | A frame send is bounded; a full per-socket queue → close 4429. |
+| `WS_FORWARD_WORKERS`, `WS_SUBSCRIBE_TIMEOUT_SECONDS` | 4, 5 | Forwarding concurrency; Redis SUBSCRIBE acknowledgement bound. |
+
+### Schema (migration `0004`)
+- `rooms.event_seq BIGINT NOT NULL DEFAULT 0 CHECK (event_seq >= 0)`: the room's last allocated sequence number. Incrementing it changes neither `version` nor `updated_at`.
+- `room_events`: primary key `(room_id, seq)`; `event_id` unique; unique `(room_id, seq, event_id)`; `type` CHECK of the eight types; `payload` a JSON object ≤ 2048 bytes; `created_at` from `clock_timestamp()`.
+- `outbox`: primary key `event_id`; **one composite foreign key** `(room_id, room_seq, event_id)` → `room_events(room_id, seq, event_id)`, so an outbox row can never name an event that disagrees with itself; a CHECK matrix ties `state` (`pending`/`processing`/`processed`/`failed`) to the claim and error columns; partial indexes serve the dispatcher's queries.
+- **No consumer-receipts table.** Redis Pub/Sub cannot tell the publisher who received what, so a table of receipts would invent evidence. Delivery is a hint; recovery is from `room_events`.
+- **Sequence allocation is `UPDATE rooms SET event_seq = event_seq + 1 … RETURNING` under the room lock** (not a PostgreSQL SEQUENCE, which leaves gaps on rollback, and not `MAX(seq)+1`, which races). `record_room_event(locked_room, …)` requires a `LockedRoom` handle that only `lock_room()` / `adopt_new_room()` can produce, so an event cannot be recorded without holding the lock.
+
+### Event types and payloads (`app/schemas/events.py`)
+| `event_type` | `resource_type` | `resource_version` | `payload` |
+|---|---|---|---|
+| `room_created`, `room_renamed` | `room` | null | `{}` |
+| `member_joined`, `member_role_changed` | `membership` | null | `{"user_id", "role"}` |
+| `member_removed` | `membership` | null | `{"user_id"}` |
+| `message_created`, `message_edited`, `message_deleted` | `message` | the version reached | `{}` |
+
+Events are change notifications, not copies of data: they never contain message text (live or deleted), invitation tokens, emails, credentials or request bodies. Creating or revoking an invitation emits nothing; neither does any no-op (a repeated send, a rename to the same name, a repeated delete).
+
+### WebSocket: `/rooms/{room_id}/ws`
+**Handshake (all before the connection is accepted).** The server checks (1) `Origin` exactly matches a `TRUSTED_ORIGINS` entry (a **missing** Origin is rejected: this is a browser endpoint), (2) the session cookie, via the same function the HTTP routes use, (3) the user is an **active member**. Every failure, including an unknown room, is the same bare **HTTP 403**. Credentials are never accepted in the URL. The Origin check is not CORS (browsers do not apply CORS to WebSockets, and cookies ride along on cross-site handshakes), so without it any web page could open an authenticated socket as the visitor.
+
+**Frames (server → client, JSON text).**
+```json
+{"type":"ready","schema_version":1,"room_id":"…","current_room_seq":42}
+{"type":"room_event","schema_version":1,"event_id":"…","room_id":"…","room_seq":43,"event_type":"message_created",
+ "resource_type":"message","resource_id":"…","resource_version":1,"payload":{},"actor_id":"…","created_at":"…"}
+```
+`ready` means "the live subscription is established", **not** "snapshot consistent" or "replay complete"; `current_room_seq` is the room's high-water mark at that moment and is the starting point for Part 5's replay. A `room_event` has the same shape as an item of the history endpoint plus `type`. Clients send **nothing**: there are no commands over the socket.
+
+**Close codes.**
+| Code | Meaning |
+|---|---|
+| 1001 | The application is shutting down. (When the whole uvicorn process stops, uvicorn itself closes open sockets with **1012** first; clients should treat both as "reconnect later".) |
+| 1003 | Binary frame (unsupported) |
+| 1008 | Any client text frame (no commands exist) |
+| 1009 | Client frame larger than 1 KiB |
+| 1013 | The room subscription could not be established in time (Redis down): try again later; no `ready` was sent |
+| 4401 | Session revoked/expired or user no longer active |
+| 4403 | No longer an active member of the room. **No frame is sent first**, so a removed member never receives their own `member_removed` event |
+| 4409 | Too many connections (per user / per process) |
+| 4429 | Slow consumer: this socket's send queue was full or a send timed out. Other sockets are unaffected |
+
+**Delivery rules.** The forwarding worker re-reads the event from PostgreSQL and checks that `event_id`, `room_id` and `room_seq` agree (a mismatch is dropped and counted), then runs **one** access query for all the room's local sockets (session still valid? member still active?), then per socket either closes it (4401/4403) or enqueues the frame with `put_nowait` (never blocking on a slow client). Forwarding **writes nothing** to the database (a test snapshots the tables). Events that arrive while a connection is still starting are held (bounded) and delivered after `ready` if their `room_seq` is above the mark in `ready`. An event whose outbox row is published *after* a socket connected is pushed even if its `room_seq` is at or below that socket's mark; history already has it, so clients de-duplicate by `event_id`.
+
+### History: `GET /rooms/{room_id}/events?after_seq=0&limit=100`
+Active members only (404 `room_not_found` for everyone else, like the other room routes). Returns `{"items":[…], "next_after_seq", "has_more", "current_room_seq"}` in ascending `room_seq`, from **one SQL statement** so `items` and `current_room_seq` agree. `limit` is 1–500 (default 100); values outside the range are **422, never clamped**. `after_seq` beyond the room's latest event is **409 `cursor_ahead`** with `current_room_seq` (it also happens after a database restore). `Cache-Control: no-store`. Works with Redis down. Part 4 does not prune events.
+
+### The dispatcher (`python -m app.workers.outbox_dispatcher`)
+1. **Claim** (one statement): select due pending rows `FOR UPDATE SKIP LOCKED`, set `state='processing'`, a fresh `claim_token`, `claimed_until = now() + lease` and `attempts + 1`, using the **database clock**. Expired `processing` rows are claimable again, which is how a crashed dispatcher's work comes back.
+2. **Publish** each row with a bounded timeout. The envelope `{schema_version, event_id, room_id, room_seq}` (no event body) must be valid **and agree with the row**, otherwise the row fails permanently (`envelope_invalid`).
+3. **Finish**, always matching on `claim_token`: processed, retry with backoff, failed, or released. A worker whose lease expired and was reclaimed updates zero rows and moves on. **Deadline rule:** once the lease is nearly over, a worker stops publishing the rest of its batch and releases it instead of publishing under a lease someone else may now hold.
+4. **Graceful stop** on SIGTERM/SIGINT (Ctrl+Break on Windows): finish the in-flight row, release unstarted claims, exit.
+
+Per-room ordering of *publication* is not promised (retries, several dispatchers); the sequence number is the order.
+
+### Redis outage and other failures
+| Situation | Behaviour |
+|---|---|
+| Redis unreachable | HTTP reads and writes keep working and keep committing events and **pending** outbox rows; `/health/ready` stays DB-only (healthy); the dispatcher backs off and retries; new WebSocket handshakes succeed, then close **1013** (no subscription possible, no `ready`). |
+| Redis connection lost while sockets are open | Open sockets **stay open** but receive nothing; each API process reconnects with backoff, resubscribes, and logs `notification_gap_possible` (events published during the gap are not replayed to sockets; history has them). |
+| Dispatcher stopped | Writes succeed; events pile up as pending; nothing is lost; on restart they are published. |
+| Dispatcher crashes mid-batch | Leases expire (30 s default) and another dispatcher (or the restarted one) republishes: **possible duplicates**, which clients and the forwarding layer tolerate. |
+| API queue overflow | The oldest notifications are dropped and counted; history has the events. |
+| Slow browser | Only that socket is closed (4429). |
+| Malformed, oversized or wrong-channel Redis message | Dropped and counted; nothing about the payload is logged. |
+
+### Manual demonstration (two real Google accounts, two API processes)
+**Status: real Google login pending** (no credentials were available). The script was run end to end against **real processes**: two uvicorn API processes (8000, 8001), a dispatcher process, the development PostgreSQL and this project's compose Redis, with two users whose sessions were created by Part 1's `create_session()` (as in the test fixtures; no endpoint exists for this) and an operator that really stopped/started the dispatcher process and the Redis container. All steps passed. Observed in those process logs: the dispatcher retried with backoff (`code=redis_connection`, then `redis_timeout`) while Redis was down and published the outage-time event on attempt 3 after Redis returned; both API processes logged `redis_pubsub_lost … notification_gap_possible=true`, reconnected and resubscribed; no message text, cookie or token appeared in any log. `tests/test_manual_part4_sequence.py` runs the same script against two in-process API servers (real uvicorn, real WebSockets, real Redis) with the Redis step left to the human (reported SKIP there); `tests/test_realtime_failures.py` covers Redis outage behaviour separately. The demonstration left two `Demo A/B` users and a room in the development database.
+
+1. Start Postgres, Redis, two API processes (ports 8000 and 8001) and the dispatcher as above.
+2. Sign in as **A** (owner) and **B** through the real Google flow in two browser profiles and copy each `tf_session` cookie *value* into `TF_COOKIE_A/B` without putting it on a command line (PowerShell: `$env:TF_COOKIE_A = Read-Host "cookie A" -MaskInput`).
+3. From `backend/`: `uv run python -m scripts.manual_part4_check` (add `$env:TF_OPERATOR = "1"` to be prompted to stop/start the dispatcher and Redis).
+
+The script: A creates a room, B joins → A on API 1 and B on API 2 open sockets and get the same `current_room_seq` → A sends one message and **both** sockets receive the same `message_created` (no text in the frame) → it is in durable history → *(operator)* with the dispatcher stopped the write succeeds and sockets are silent, then both receive it when the dispatcher returns → *(operator)* with Redis stopped writes succeed, `/health/ready` is 200 and the socket stays open and silent → a client frame closes 1008 → bad origin / no origin / no cookie are all 403 → A removes B: B's socket closes **4403 with no frame**, A receives `member_removed`, B can no longer read history (404) or reconnect (403). It never prints cookies, tokens or message text.
+
+### Where Part 5 hooks in
+- **Replay-to-live recovery:** `ready.current_room_seq` plus `GET /rooms/{id}/events?after_seq=` is the intended pair: fetch history up to the mark, then apply live frames, de-duplicating by `event_id`. Part 4 supplies both halves but implements neither reconnection nor the stitching.
+- **Event retention:** Part 4 never prunes `room_events`; a retention policy must also decide what a cursor that is too *old* returns (today only a cursor that is too far *ahead* is an error).
+- **Proactive revocation:** closing a removed member's sockets without waiting for the next room event needs a signal path from the removal transaction; today the 4403 close happens when the *next* event for that room is forwarded.
+- A new event type needs one entry in `EVENT_SPECS`, the migration's type CHECK, and the service function that calls `record_room_event`.
+
+### Part 4 limitations, handbook deviations and unverified assumptions
+- **Not implemented (by design):** automatic reconnection, cursor persistence, replay-to-live recovery, presence, typing indicators, proactive revocation routing, AI, uploads, document collaboration.
+- **Idle connections:** a socket whose session expired, or whose member was removed, is closed only when the next event for its room is forwarded (4401/4403). Until then it holds an idle, silent connection. Part 4 does not claim live revocation.
+- **Lost notifications are not recovered** by the live path. Duplicate publications and out-of-order frames are possible.
+- **No event pruning**; `room_events` grows without bound, and processed outbox rows are removed only by the cleanup command.
+- **Connection caps are per process**, not global across API processes.
+- **Handbook deviations (deliberate):** no event retention or compaction yet; the event payload is inline (ids and roles only) rather than a pointer plus snapshot; no consumer-receipts table; the WebSocket path `/rooms/{room_id}/ws` and the close codes above are this project's own.
+- **Verification at completion:** the full suite (`uv run pytest`, real PostgreSQL 16 and Redis 7 in Docker) passed with **827 tests**; `ruff check`, `ruff format --check` and `alembic check` are clean.
+- **Pre-existing test flake observed, not caused by Part 4:** `tests/test_messages_history.py::test_complete_history_is_visible_regardless_of_when_a_member_joined` failed once in a full run and passed on three isolated reruns. Message history orders by `created_at` (`clock_timestamp()`), and the Docker VM's clock has been observed stepping backwards between connections (see Part 3 limitations).
+- **Unverified assumptions:**
+  - Real Google login and a real browser: tests use the `websockets` client library with explicit `Cookie`/`Origin` headers, never a browser. A browser cannot read the HTTP status of a rejected handshake (it only sees a failed connection).
+  - A reverse proxy in front of the API (WebSocket upgrade, `Origin` pass-through, idle timeouts versus the ping interval) was not exercised.
+  - Redis over TLS (`rediss://`) with a password was validated in configuration only; tests run against a local Redis 7 without TLS. Valkey and managed Redis services were not tested; their `client-output-buffer-limit pubsub` settings can differ (Redis closes slow Pub/Sub subscribers; the manager reconnects).
+  - Development and tests ran on Windows with Docker Desktop; the SIGTERM paths for uvicorn and the dispatcher on Linux were not run here (Windows uses Ctrl+Break).
+  - Starlette's "close before accept is an HTTP 403 handshake rejection" was read from source and then confirmed empirically by the handshake tests.
+  - Several dispatchers or API processes against one PostgreSQL were tested on one machine only.
 
 ---
 
@@ -474,14 +645,20 @@ Status of this checklist for the current commit: **pending** (no Google credenti
 backend/app/        main.py config.py db.py middleware.py body_limit.py request_body.py errors.py
                     pagination.py logging_config.py
   api/              health.py auth.py rooms.py members.py invitations.py messages.py
+                    room_events.py (Part 4: history)  realtime.py (Part 4: WebSocket route)
   services/         oidc.py login_attempts.py accounts.py sessions.py csrf.py cookies.py security.py
                     rooms.py memberships.py invitations.py   (Part 2: ALL room/membership writes)
                     messages.py                              (Part 3: ALL message writes)
+                    room_lock.py room_events.py outbox.py    (Part 4: lock handle, events, outbox queries)
+                    realtime_access.py                       (Part 4: read-only WebSocket DB reads)
+  realtime/         channels.py publisher.py notifications.py subscriptions.py hub.py protocol.py
+  workers/          outbox_dispatcher.py                     (Part 4: standalone process)
   dependencies/     auth.py (CurrentUser, require_csrf)  rooms.py (member/owner pre-checks)
-  models/ schemas/  commands/cleanup_auth.py
-backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py, 0002_rooms_...py, 0003_messages.py
-backend/scripts/    manual_part2_check.py, manual_part3_check.py (manual verification with real accounts)
-backend/tests/      pytest suite (fake Google in tests/fake_google.py)
-compose.yaml        PostgreSQL 16
+  models/ schemas/  commands/cleanup_auth.py outbox_status.py outbox_requeue.py
+backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py, 0002_rooms_...py,
+                    0003_messages.py, 0004_room_events_outbox.py
+backend/scripts/    manual_part2_check.py, manual_part3_check.py, manual_part4_check.py
+backend/tests/      pytest suite (fake Google in tests/fake_google.py; real PostgreSQL and Redis)
+compose.yaml        PostgreSQL 16 and Redis 7
 .env.example
 ```
