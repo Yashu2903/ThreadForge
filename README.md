@@ -1,13 +1,15 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 2 of 5 — authentication, rooms, invitations and authorization
+## Status: Part 3 of 5 — authentication, rooms, invitations and persistent messages
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
 Part 2 (rooms, invitations, permissions): private rooms with an owner, editors and viewers; single-use invitation links; membership management; server-side authorization on every route. See [Part 2](#part-2-rooms-invitations-and-authorization).
 
-Not implemented (later parts): messages (3), room events / outbox / Pub/Sub / WebSockets (4), reconnect recovery / presence / connection revocation (5), documents, uploads, AI. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
+Part 3 (persistent room messages over HTTP): send, history, single lookup, duplicate-send protection, edit with conflict protection, soft delete, a PostgreSQL write rate limit. See [Part 3](#part-3-persistent-room-messages-over-http). **Clients see changes only by fetching over HTTP: there is no live delivery yet.**
+
+Not implemented (later parts): room events / outbox / Pub/Sub / WebSockets (4), reconnect recovery / presence / connection revocation (5), documents, uploads, AI. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
 
 > **Superseded handbook sections.** If a ThreadForge handbook exists under `docs/` (none is in this repository yet), these parts of it are replaced by the Google OIDC decision: email/password login, Argon2id password hashing, `POST /accounts`, `POST /sessions`, and operator password recovery. There are no passwords in this system. The handbook's other conventions are kept: UUID primary keys, UTC timestamps, `ON DELETE RESTRICT` foreign keys, a `version` column on mutable entity tables, and request IDs.
 
@@ -98,6 +100,8 @@ All settings are environment variables (or `.env` at the repo root). Invalid set
 | `CSRF_SECRET` | HMAC key for CSRF tokens. Production: ≥ 32 chars, no placeholder text. |
 | `TRUSTED_PROXY_IPS` | IPs/CIDRs whose `X-Forwarded-*` headers are trusted. Default: none. |
 | `COOKIE_SECURE` | Dev only (default false). Production always forces `Secure`; `false` there is a startup error. |
+
+Part 3 settings: `MESSAGE_FINGERPRINT_SECRET` (**required**; HMAC key for the duplicate-send fingerprint; production: ≥ 32 chars, no placeholder, validated like `CSRF_SECRET`) and `MESSAGE_WRITES_PER_MINUTE` (default 30; see Part 3).
 
 Part 2 settings (all validated at startup; placeholders in `.env.example`):
 
@@ -260,7 +264,7 @@ An unlocked lookup by token hash finds the room to lock; everything is revalidat
 Membership and room changes emit one structured line after commit: `action=<…> room_id=<…> actor_id=<…> target_id=<…> request_id=<…>` (actions: `room_created`, `room_renamed`, `member_joined`, `member_rejoined`, `member_role_changed`, `member_removed`, `invitation_created`, `invitation_revoked`). Tokens, token hashes, cookies and redemption request bodies are never logged (tested).
 
 ### Where later parts hook in
-- **Part 3 (messages):** a send runs `SELECT … FROM memberships WHERE room_id=… AND user_id=… AND state='active' FOR SHARE` (and checks the role is editor/owner) inside its own transaction. It conflicts with `change_role`/`remove_member` (which `UPDATE` that row under the room lock), so a removal either commits before the send's check (send rejected) or waits for the send. Use the existing `get_active_role`/`require_room_member*` dependencies for the fast pre-check only.
+- **Part 3 (messages) — now implemented** in `app/services/messages.py`. It holds the same room lock (`FOR NO KEY UPDATE`) that every membership mutation takes, so a message write and a removal or role change serialize, and no extra `FOR SHARE` on the membership row is needed (the originally planned design). See [Part 3](#part-3-persistent-room-messages-over-http).
 - **Part 4 (room events, outbox):** write the room-event and outbox rows **inside** the same transactions, in the functions that already hold the room lock: `rooms.create_room`, `rooms.rename_room`, `memberships.activate_membership` (via `invitations.redeem_invitation`), `memberships.change_role`, `memberships.remove_member`, and `rooms.bump_membership_epoch` (the only place the epoch changes). Routes never write these tables (a test enforces it), so there is exactly one place to edit. `membership_epoch` is the version live connections compare against.
 - **Part 5 (revocation):** removal currently blocks subsequent **HTTP** requests. WebSocket/connection revocation is not implemented and not claimed.
 
@@ -281,6 +285,130 @@ The script: A creates a room → A creates an editor invitation → B cannot rea
 - Removal blocks HTTP access only (no live-connection revocation until Part 5).
 - Invitations are not bound to an email address or account; whoever holds the token and is signed in can use it once.
 - Room names are not unique and are visible to every member.
+- **Part 2 routes that take a JSON body** (`POST /rooms`, `PATCH /rooms/{id}`, `POST …/invitations`, `POST /invitations/redeem`, `PATCH …/members/{id}`) let FastAPI parse the body before the authentication dependency runs, so an unauthenticated or unauthorized caller sending *syntactically malformed* JSON gets 422 instead of 401/404. It reveals nothing, and Part 3's message routes avoid it (they parse the body themselves after the gates), but the Part 2 routes were not changed.
+
+---
+
+## Part 3: persistent room messages over HTTP
+
+Plain-text messages in a room: send, read paginated history, read one, edit, delete. **Nothing is live**: no WebSockets, Redis, room events or outbox. A client sees another client's change only by fetching over HTTP.
+
+### Product rules
+- A message belongs to exactly one room and one author; the author is always the authenticated session user (no request field can name one).
+- Active **owners and editors** can send. Active **viewers** can read. Only the **author** can edit, and the author must still be an active owner or editor. The **owner can delete anyone's** message; an **editor only their own**; a **viewer cannot delete** (even a message they wrote before being downgraded). The owner **cannot edit** another person's message.
+- Removed members cannot read or modify room messages.
+- A deleted message becomes a **tombstone** (body `NULL`) and can never be edited or restored.
+- **History visibility:** every active member reads the room's *complete* history, including messages sent before they joined or while they were removed. There is no per-member visibility window. Messages written by since-removed members remain visible.
+- No attachments, reactions, threads, Markdown rendering or read receipts. Content is untrusted plain text: it is never interpreted or rendered as HTML.
+
+### Routes and permissions
+Every route needs authentication (401); every mutation also needs CSRF (403 `csrf_failed`). All message responses, success and error, carry `Cache-Control: no-store`.
+
+| Method | Route | Owner | Editor | Viewer | Nonmember / removed |
+|---|---|---|---|---|---|
+| POST | `/rooms/{id}/messages` — body `{client_message_id, body}` → **201** new, **200** matching retry | ✓ | ✓ | 403 `insufficient_role` | 404 `room_not_found` |
+| GET | `/rooms/{id}/messages?limit=50&before=<cursor>` | ✓ | ✓ | ✓ | 404 |
+| GET | `/rooms/{id}/messages/{message_id}` | ✓ | ✓ | ✓ | 404 |
+| PATCH | `/rooms/{id}/messages/{message_id}` — body `{body, expected_version}` | own messages only | own messages only | 403 `insufficient_role` | 404 |
+| DELETE | `/rooms/{id}/messages/{message_id}?expected_version=N` → 204 | any message | own messages only | 403 `insufficient_role` | 404 |
+
+**Gate order** for every message route: (1) body-size middleware → 413; (2) authentication → 401; (3) CSRF on unsafe methods → 403; (4) an **unlocked** membership pre-check → 404 for a nonmember or removed user, 403 for a viewer on a write route (people with no access can never take the room lock; the pre-check is never the authority); (5) request validation → 422; (6) the transaction: lock the room, **recheck** membership and role inside it, then write. Message routes read and validate the JSON body themselves after steps 2–4 (FastAPI would otherwise parse it before authentication runs), so the order holds even for malformed JSON.
+
+### Message representation
+One shape everywhere: `id, room_id, author_id, author_display_name, client_message_id, body, created_at, edited_at, deleted_at, deleted_by, version, is_deleted`. Tombstones have `body: null`; deleted text is never returned. `author_display_name` is read from `users.display_name` at query time (not copied into message rows), or `"Deleted user"` when the user is deleted. No emails, provider identity, session data, fingerprint or exception text.
+
+### Schema (migration `0003`)
+`messages`: `id`, `room_id`, `author_id` (all foreign keys `RESTRICT`, nothing cascades, so removing a member never removes messages), `client_message_id`, `body` (null only after deletion), `initial_request_fingerprint` (32 bytes, never exposed), `created_at`, `edited_at`, `deleted_at`, `deleted_by`, `version`. Named constraints: `uq_messages_room_author_client` (unique `(room_id, author_id, client_message_id)`), `ck_messages_body_matches_deletion` (live ⇒ body of 1–5000 characters; deleted ⇒ body null), `ck_messages_deleted_pair`, `ck_messages_version_positive`, `ck_messages_fingerprint_length`. One index, `(room_id, created_at, id)`, serves history. `room_id`, `author_id`, `client_message_id`, `initial_request_fingerprint` and `created_at` are **immutable after insert**, enforced by a database trigger (`trg_messages_immutable`), not just by convention.
+
+`version` **starts at 1**, unlike the default-0 `version` columns of Parts 1 and 2, because clients echo it back as `expected_version`; 1 means "never edited". `message_write_buckets` holds the rate-limit counters (below).
+
+**Timestamps use `clock_timestamp()`, never `now()`.** `now()` is the time the *transaction started*. A transaction that started earlier but then waited for the room lock would stamp an *older* time than a message that was already committed, so a client paginating by `(created_at, id)` could skip it. `created_at`, `edited_at` and `deleted_at` are therefore assigned in SQL with `clock_timestamp()` *after* the room lock is held (the column deliberately has no default). Writes in a room are serialized by that lock, so the timestamps are non-decreasing in commit order. Residual limits: equal timestamps are ordered by `id`, and a backwards system-clock adjustment can still reorder (the database clock is not guaranteed monotonic).
+
+### Validation (no normalization)
+Requests are strict and reject unknown fields: send takes exactly `client_message_id` (a UUID string; case-insensitive, normalized) and `body` (a JSON string, no coercion); edit takes exactly `body` and `expected_version` (a JSON integer ≥ 1: strings, floats and booleans are rejected, as are values above bigint). Body rules: **1–5,000 Unicode code points**; rejected: NUL, lone surrogates (category `Cs`), control characters (`Cc`) other than tab/LF/CR (these would otherwise fail inside PostgreSQL or the UTF-8 encoder and become a 500); the body must contain at least one *visible* character (neither `str.isspace` nor category `Cf`, so zero-width-only bodies are rejected). **No normalization of any kind is applied**: the stored body is exactly what was validated and submitted (leading/trailing whitespace and line breaks included). Validation errors never echo the input (Pydantic's `input` field is not returned or logged). **Request size:** an ASGI middleware enforces 128 KiB, counting bytes as they stream in (an oversized `Content-Length` is rejected early, but it is never trusted alone: it may be missing or false). 5,000 characters fully JSON-escaped is at most about 60 KB, so 128 KiB is generous headroom.
+
+### Sending and duplicate protection
+The client generates `client_message_id` once per new send and **reuses it on retries**; an intentional repeat of the same text gets a new id. Under the room lock the server looks up `(room, author, client_message_id)`:
+- not found → rate-limit, insert (version 1), commit, respond **201**;
+- found with a matching fingerprint → respond **200** with the message's *current* representation (edited text after an edit, a tombstone after a deletion; a retry never restores text), with no write and no rate-limit use;
+- found with a different fingerprint → **409 `message_id_reused`**.
+
+Permission is checked *before* the existing row is returned, so a removed or downgraded user cannot use a retry to bypass current restrictions. Deduplication is by `client_message_id` only, never by matching text. If an `INSERT` ever raises a unique violation on `uq_messages_room_author_client` (it cannot while the room lock serializes writers; the constraint is the final safeguard) the transaction is rolled back and re-run once, answering as a retry, never a 500 (tested by forcing two sends past the lookup with a barrier).
+
+**The fingerprint is keyed.** `initial_request_fingerprint = HMAC-SHA256(MESSAGE_FINGERPRINT_SECRET, "msg-create-v1\n" + canonical JSON of {client_message_id, body})`, compared with `hmac.compare_digest`. A plain unsalted hash of a short message can be reversed by guessing candidate texts, which would defeat deletion (the row would keep an offline-checkable copy of the text); an HMAC cannot be tested without the key. Retaining a keyed fingerprint is not the same as retaining the text. **Rotating the secret** makes in-flight retries fail with `message_id_reused`, which is acceptable because retries happen within seconds.
+
+### History and pagination
+`GET /rooms/{id}/messages`: `limit` default 50 (outside 1–100 → 422 `validation_error`), optional `before`. The first request returns the **newest** page; items *within* a page are in ascending chronological order. Older pages use keyset pagination: `WHERE room_id = :room AND (created_at, id) < (:ts, :id) ORDER BY created_at DESC, id DESC LIMIT :limit + 1`, which uses the `(room_id, created_at, id)` index and never `OFFSET`. The extra row reveals whether an older page exists without a count query; `next_before` is the cursor of the **oldest returned item** when one does, else `null`. One query joins `users` for the author name, so the number of statements does not grow with the number of messages (tested). Reads take **no locks**.
+
+The cursor is an opaque URL-safe base64 of a versioned payload (`m1 | room_id | created_at with microseconds | id`). It is parsed strictly: anything malformed, non-canonical, of another version, or naming a different room is 422 `invalid_cursor`. It is **unsigned**: a cursor is a pagination position, never an authorization credential. Forging one can only move the position within a room the caller can already read; every request is authorized on its own. This is **history pagination, not a synchronization protocol**, and not a frozen snapshot: messages written between two requests appear on a later newest-page fetch, and edits and deletions show up on re-fetch.
+
+### Editing and deleting (checks run in exactly this order, after the room lock)
+**PATCH**: recheck membership/role (the author must still be an active owner or editor) → load the message **scoped to the room** `FOR UPDATE`, else 404 `message_not_found` → not the author, 403 `message_not_author` → already deleted, 409 `message_deleted` → `expected_version` ≠ current, 409 `message_version_conflict` with `current_version` in the error body (a stale version conflicts *even if the text matches*) → body exactly equals the current body: 200, nothing changes (no version bump, no timestamp, no rate-limit use) → rate limit → update body, `edited_at = clock_timestamp()`, `version + 1`. There is no separate edit idempotency key in this part. Only the latest text is kept (no `message_versions` table).
+
+**DELETE** (`expected_version` is a required query parameter, else 422): recheck membership (owner/editor only) → load the message scoped to the room `FOR UPDATE`, else 404 → owner may delete any, an editor only their own, else 403 `message_not_author` → **already deleted: 204, no change, no rate-limit use, regardless of `expected_version`** → stale `expected_version`, 409 `message_version_conflict` → rate limit → `body = NULL`, `deleted_at = clock_timestamp()`, `deleted_by = actor`, `version + 1`. The row is never physically deleted. Authorization comes before the already-deleted shortcut so that someone who may not touch a message learns nothing about its state.
+
+Two concurrent edits with the same `expected_version`: exactly one succeeds and the other gets `message_version_conflict`. No silent last-write-wins.
+
+### Locks and transactions
+Same single pattern as Part 2: every operation is a service function in `app/services/messages.py` that takes the sessionmaker, opens its own session and `begin()`s one transaction, with **one commit point** per function (so Part 4 can add its inserts in the same transaction). Isolation stays at PostgreSQL's default `READ COMMITTED` (the in-lock lookups rely on each statement seeing the latest committed data) and **must not be raised**. The response is built only after the commit, from a fresh read. No network calls in transactions.
+
+**Lock order:** (1) the room row `FOR NO KEY UPDATE`, (2) the message row `FOR UPDATE`, (3) the rate-limit bucket row. Every membership mutation also takes the room lock first, so holding it guarantees the caller's membership and role cannot change underneath the request; no extra `FOR SHARE` on the membership row is needed. **Trade-off:** all message writes in one room are serialized. At ThreadForge room sizes and write limits that is cheap, and Part 4's per-room event sequence counter needs this same lock anyway. A write committed before a removal is valid; a write ordered after it fails its in-transaction membership check (tested in both orders).
+
+### Rate limit (PostgreSQL, no Redis)
+Fixed window: `MESSAGE_WRITES_PER_MINUTE` (default 30) successful writes per user per room per minute, counting **new sends, edits that change content, and deletions of live messages** in one bucket for the acting user. **Not counted:** matching send retries, unchanged edits, repeated deletes, and any request that fails before the write. One atomic statement in the same transaction as the message change, using the *database* clock:
+
+```sql
+INSERT INTO message_write_buckets (room_id, user_id, window_start, count)
+VALUES (:room, :user, date_trunc('minute', clock_timestamp()), 1)
+ON CONFLICT (room_id, user_id, window_start)
+DO UPDATE SET count = message_write_buckets.count + 1
+WHERE message_write_buckets.count < :limit
+RETURNING count;
+```
+No row returned means the window is full: the transaction rolls back and the response is **429 `rate_limited`** with an integer `Retry-After` (seconds until the next minute, minimum 1). A failed or rolled-back write consumes no capacity because the increment is in the same transaction. **Fixed-window caveat:** near a minute boundary a user can burst up to twice the limit. The cleanup command (`python -m app.commands.cleanup_auth`) also deletes bucket rows older than 24 hours in batches; it never deletes messages.
+
+### Error codes
+
+| Code | Status | Meaning |
+|---|---|---|
+| `unauthenticated` | 401 | No valid session |
+| `csrf_failed` | 403 | Missing/invalid CSRF token or untrusted Origin |
+| `room_not_found` | 404 | Room missing, or the caller is not an active member |
+| `insufficient_role` | 403 | Active member lacks the role (a viewer writing) |
+| `message_not_found` | 404 | Message not in this room |
+| `message_not_author` | 403 | Editing, or deleting, a message the caller may not |
+| `message_id_reused` | 409 | Same `client_message_id`, different original content |
+| `message_version_conflict` | 409 | Stale `expected_version` (error body includes `current_version`) |
+| `message_deleted` | 409 | Edit attempted on a tombstone |
+| `rate_limited` | 429 | Write limit reached (`Retry-After` set) |
+| `payload_too_large` | 413 | Body exceeds 128 KiB |
+| `invalid_cursor` | 422 | Bad pagination cursor |
+| `validation_error` | 422 | Bad fields, content, or limit |
+
+Message bodies, cookies, CSRF tokens and fingerprints are never logged. Each committed write emits one structured line: `action=<message_sent|message_edited|message_deleted> room_id=… message_id=… actor_id=… request_id=…` (no content).
+
+### Where Part 4 hooks in
+Add the room-event and outbox inserts, and the per-room event-sequence increment, **inside the same transaction** in the three service functions, immediately before their single commit point: `send_message`, `edit_message`, `delete_message` in `app/services/messages.py`. The room lock they already hold is the lock the sequence counter needs. Emit an event only at the points where `created` (send) or `changed` (edit, delete) is set to true: those are exactly the writes that changed something. Matching retries, no-op edits and repeated deletes also reach the end of those blocks and must **not** emit events. Routes never write these tables (a test enforces it).
+
+### Manual demonstration (three real Google accounts)
+**Status: pending**: no Google credentials were available. `tests/test_manual_part3_sequence.py` runs the same script against fixture users (sessions created by Part 1's `create_session()`), which proves the script and the flow but **not** the real Google login.
+
+1. Start the backend with a small limit, e.g. `MESSAGE_WRITES_PER_MINUTE=5`.
+2. Sign in as **A** (owner), **B** (editor) and **C** (viewer) through the real Google flow in three separate browser profiles.
+3. Copy each `tf_session` cookie *value* into `TF_COOKIE_A/B/C` without putting it on a command line or in a transcript (PowerShell: `$env:TF_COOKIE_A = Read-Host "cookie A" -MaskInput`).
+4. From `backend/`: `uv run python -m scripts.manual_part3_check` (add `$env:TF_INSPECT_DB = "1"` to print message and bucket rows: lengths and a tombstone flag, never text or fingerprints).
+
+The script: A creates a room and invitations, B joins as editor, C as viewer → B sends → A fetches history → B retries (same id returned, 200) → B reuses the id with different text (409) → B edits with the current version, then an old one (409) → A deletes B's message → history shows a tombstone and a retry of the original send does not restore the text → C cannot send (403) → A removes B and B can no longer read or write (404) → exceeding the limit returns 429 with `Retry-After`. It prints PASS/FAIL per step and never prints cookies, tokens or CSRF values. Other clients see changes only by fetching history.
+
+### Part 3 limitations, handbook deviations and unverified assumptions
+- **Handbook deviations (deliberate):** 5,000 characters, not 8,000; no `message_versions` table, so edited text is overwritten; `expected_version` with **409**, not `If-Match` with 412; the owner cannot edit another person's message.
+- **No rate limit on reads.** A failed request from an *active member* that gets past validation (version conflict, not-author, message-not-found, `message_id_reused`, `rate_limited`) still takes the room lock briefly; requests that fail earlier (auth, CSRF, pre-check, validation, 413) never do. Proxy-level request limiting is advisable.
+- **No per-room message retention cap** (rooms grow without bound until a later part decides).
+- **Fixed-window burst** of up to twice the limit at a minute boundary.
+- **No edit idempotency key:** a retried edit whose first attempt landed gets a version conflict and the client must reload.
+- **Rotating `MESSAGE_FINGERPRINT_SECRET`** breaks in-flight retries (`message_id_reused`).
+- **Part 2 routes** still parse their JSON before authentication (see Part 2 limitations); message routes do not.
+- **Unverified:** the real Google login (see above); behaviour behind a real reverse proxy or across several API processes (the tests use one process against one local PostgreSQL); `clock_timestamp()` monotonicity relies on the database host's clock (the Docker VM used for development has been observed stepping backwards by hundreds of milliseconds between connections, which is why no CHECK relates timestamps from different transactions).
 
 ---
 
@@ -333,14 +461,16 @@ Status of this checklist for the current commit: **pending** (no Google credenti
 ## Project layout
 
 ```
-backend/app/        main.py config.py db.py middleware.py errors.py pagination.py logging_config.py
-  api/              health.py auth.py rooms.py members.py invitations.py
+backend/app/        main.py config.py db.py middleware.py body_limit.py request_body.py errors.py
+                    pagination.py logging_config.py
+  api/              health.py auth.py rooms.py members.py invitations.py messages.py
   services/         oidc.py login_attempts.py accounts.py sessions.py csrf.py cookies.py security.py
                     rooms.py memberships.py invitations.py   (Part 2: ALL room/membership writes)
+                    messages.py                              (Part 3: ALL message writes)
   dependencies/     auth.py (CurrentUser, require_csrf)  rooms.py (member/owner pre-checks)
   models/ schemas/  commands/cleanup_auth.py
-backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py, 0002_rooms_...py
-backend/scripts/    manual_part2_check.py (manual verification with real accounts)
+backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py, 0002_rooms_...py, 0003_messages.py
+backend/scripts/    manual_part2_check.py, manual_part3_check.py (manual verification with real accounts)
 backend/tests/      pytest suite (fake Google in tests/fake_google.py)
 compose.yaml        PostgreSQL 16
 .env.example
