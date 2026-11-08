@@ -50,6 +50,26 @@ async def get_active_role(
         ).scalar_one_or_none()
 
 
+async def fetch_active_members(db: AsyncSession, room_id: uuid.UUID, cap: int) -> list[MemberView]:
+    """Every ACTIVE member, oldest joiner first, on a session the caller owns (the sync snapshot).
+    `cap` bounds the result (the room's member cap), so the response size is bounded."""
+    rows = (
+        await db.execute(
+            select(
+                _MEMBERSHIPS.c.user_id,
+                _USERS.c.display_name,
+                _MEMBERSHIPS.c.role,
+                _MEMBERSHIPS.c.joined_at,
+            )
+            .join(_USERS, _USERS.c.id == _MEMBERSHIPS.c.user_id)
+            .where(_MEMBERSHIPS.c.room_id == room_id, _MEMBERSHIPS.c.state == "active")
+            .order_by(_MEMBERSHIPS.c.joined_at.asc(), _MEMBERSHIPS.c.user_id.asc())
+            .limit(cap)
+        )
+    ).all()
+    return [MemberView(r.user_id, r.display_name, r.role, r.joined_at) for r in rows]
+
+
 async def list_members(
     sessionmaker: async_sessionmaker[AsyncSession],
     room_id: uuid.UUID,

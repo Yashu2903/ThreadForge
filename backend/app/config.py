@@ -113,14 +113,42 @@ class Settings(BaseSettings):
     outbox_retry_max_delay_seconds: float = 60.0
     outbox_processed_retention_days: int = 7
 
-    # Part 4: WebSockets and the per-process notification pipeline.
-    realtime_queue_size: int = 1000  # reader -> workers; oldest dropped when full
-    ws_max_connections_per_user: int = 5  # per API process
+    # Part 4/5: WebSockets (per API process).
+    ws_max_connections_per_user: int = 5
     ws_max_connections_per_process: int = 1000
-    ws_send_timeout_seconds: float = 5.0
-    ws_connection_queue_size: int = 100  # per-connection send queue; full => slow consumer
-    ws_forward_workers: int = 4
-    ws_subscribe_timeout_seconds: float = 5.0
+    ws_send_timeout_seconds: float = 5.0  # every socket send is bounded by this
+    ws_connection_queue_size: int = 256  # per-connection outgoing frame queue
+    ws_subscribe_timeout_seconds: float = 5.0  # wait for Redis's SUBSCRIBE acknowledgement
+    realtime_queue_size: int = 1000  # Part 4 pipeline; removed in checkpoint 2
+    ws_forward_workers: int = 4  # Part 4 pipeline; removed in checkpoint 2
+
+    # Part 5: resume / replay / flow control.
+    ws_resume_timeout_seconds: float = 5.0  # first client frame must be `resume` within this
+    replay_page_size: int = 100  # events per database read while draining
+    replay_max_events: int = 1000  # a client further behind than this must resync
+    replay_concurrency: int = 20  # process-wide cap on connections replaying at once
+    replay_slot_wait_seconds: float = 10.0  # waiting longer than this for a slot => close 1013
+    ack_window: int = 200  # max events sent but not yet acknowledged
+    ack_timeout_seconds: float = 30.0  # a paused connection with no ack progress => close 4429
+    ws_client_frames_per_second: float = 20.0  # sustained client frame budget (burst = 2 s)
+    ws_ack_frames_per_second: float = 10.0
+    ws_typing_frames_per_second: float = 2.0  # extras are dropped, not fatal
+
+    # Part 5: lost-notification detection and live access enforcement.
+    reconcile_interval_seconds: float = 5.0
+    reconcile_interval_degraded_seconds: float = 2.0
+    access_check_interval_seconds: float = 15.0
+    access_cache_seconds: float = 1.0
+    access_db_grace_seconds: float = 30.0
+
+    # Part 5: heartbeat, presence and typing.
+    client_heartbeat_interval_seconds: float = 15.0  # what clients are told to send
+    ws_watchdog_timeout_seconds: float = 45.0  # no client frame of any kind => close 4408
+    presence_expiry_seconds: float = 45.0
+    presence_tick_seconds: float = 15.0
+    presence_hint_min_interval_seconds: float = 1.0  # coalescing of hint-triggered ticks
+    typing_expiry_seconds: float = 5.0
+    typing_state_min_interval_seconds: float = 0.5  # at most 2 typing_state frames/s per room
 
     trusted_proxy_ips: Annotated[list[str], NoDecode] = []
     cookie_secure: bool | None = None
@@ -331,13 +359,33 @@ class Settings(BaseSettings):
             "OUTBOX_CLAIM_LEASE_SECONDS": self.outbox_claim_lease_seconds,
             "OUTBOX_PUBLISH_TIMEOUT_SECONDS": self.outbox_publish_timeout_seconds,
             "OUTBOX_RETRY_MAX_DELAY_SECONDS": self.outbox_retry_max_delay_seconds,
-            "REALTIME_QUEUE_SIZE": self.realtime_queue_size,
             "WS_MAX_CONNECTIONS_PER_USER": self.ws_max_connections_per_user,
             "WS_MAX_CONNECTIONS_PER_PROCESS": self.ws_max_connections_per_process,
             "WS_SEND_TIMEOUT_SECONDS": self.ws_send_timeout_seconds,
             "WS_CONNECTION_QUEUE_SIZE": self.ws_connection_queue_size,
-            "WS_FORWARD_WORKERS": self.ws_forward_workers,
             "WS_SUBSCRIBE_TIMEOUT_SECONDS": self.ws_subscribe_timeout_seconds,
+            "WS_RESUME_TIMEOUT_SECONDS": self.ws_resume_timeout_seconds,
+            "REPLAY_PAGE_SIZE": self.replay_page_size,
+            "REPLAY_MAX_EVENTS": self.replay_max_events,
+            "REPLAY_CONCURRENCY": self.replay_concurrency,
+            "REPLAY_SLOT_WAIT_SECONDS": self.replay_slot_wait_seconds,
+            "ACK_WINDOW": self.ack_window,
+            "ACK_TIMEOUT_SECONDS": self.ack_timeout_seconds,
+            "WS_CLIENT_FRAMES_PER_SECOND": self.ws_client_frames_per_second,
+            "WS_ACK_FRAMES_PER_SECOND": self.ws_ack_frames_per_second,
+            "WS_TYPING_FRAMES_PER_SECOND": self.ws_typing_frames_per_second,
+            "RECONCILE_INTERVAL_SECONDS": self.reconcile_interval_seconds,
+            "RECONCILE_INTERVAL_DEGRADED_SECONDS": self.reconcile_interval_degraded_seconds,
+            "ACCESS_CHECK_INTERVAL_SECONDS": self.access_check_interval_seconds,
+            "ACCESS_CACHE_SECONDS": self.access_cache_seconds,
+            "ACCESS_DB_GRACE_SECONDS": self.access_db_grace_seconds,
+            "CLIENT_HEARTBEAT_INTERVAL_SECONDS": self.client_heartbeat_interval_seconds,
+            "WS_WATCHDOG_TIMEOUT_SECONDS": self.ws_watchdog_timeout_seconds,
+            "PRESENCE_EXPIRY_SECONDS": self.presence_expiry_seconds,
+            "PRESENCE_TICK_SECONDS": self.presence_tick_seconds,
+            "PRESENCE_HINT_MIN_INTERVAL_SECONDS": self.presence_hint_min_interval_seconds,
+            "TYPING_EXPIRY_SECONDS": self.typing_expiry_seconds,
+            "TYPING_STATE_MIN_INTERVAL_SECONDS": self.typing_state_min_interval_seconds,
         }
         problems += [
             f"{name} must be greater than 0." for name, value in positives.items() if value <= 0
@@ -348,6 +396,38 @@ class Settings(BaseSettings):
             problems.append(
                 "OUTBOX_CLAIM_LEASE_SECONDS must be at least twice OUTBOX_PUBLISH_TIMEOUT_SECONDS "
                 "so a claim cannot expire while its publish is still in flight."
+            )
+        problems += self._validate_part5()
+        return problems
+
+    def _validate_part5(self) -> list[str]:
+        """Relationships between the Part 5 timers; each protects a specific failure mode."""
+        problems: list[str] = []
+        if self.ws_watchdog_timeout_seconds < 2 * self.client_heartbeat_interval_seconds:
+            problems.append(
+                "WS_WATCHDOG_TIMEOUT_SECONDS must be at least twice "
+                "CLIENT_HEARTBEAT_INTERVAL_SECONDS, or one late heartbeat disconnects a client."
+            )
+        if self.ack_timeout_seconds <= self.ws_send_timeout_seconds:
+            problems.append(
+                "ACK_TIMEOUT_SECONDS must exceed WS_SEND_TIMEOUT_SECONDS: a slow send is judged "
+                "first and a stalled-ack close would otherwise hide it."
+            )
+        if self.replay_page_size > self.replay_max_events:
+            problems.append("REPLAY_PAGE_SIZE must not exceed REPLAY_MAX_EVENTS.")
+        if self.ack_window < 1 or self.ws_connection_queue_size < 2:
+            problems.append("ACK_WINDOW and WS_CONNECTION_QUEUE_SIZE must be positive.")
+        if self.presence_expiry_seconds < 2 * self.client_heartbeat_interval_seconds:
+            problems.append(
+                "PRESENCE_EXPIRY_SECONDS must be at least twice CLIENT_HEARTBEAT_INTERVAL_SECONDS."
+            )
+        if self.access_cache_seconds >= self.access_check_interval_seconds:
+            problems.append(
+                "ACCESS_CACHE_SECONDS must be smaller than ACCESS_CHECK_INTERVAL_SECONDS."
+            )
+        if self.reconcile_interval_degraded_seconds > self.reconcile_interval_seconds:
+            problems.append(
+                "RECONCILE_INTERVAL_DEGRADED_SECONDS must not exceed RECONCILE_INTERVAL_SECONDS."
             )
         return problems
 

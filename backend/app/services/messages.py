@@ -393,6 +393,15 @@ async def list_messages(
     not a synchronization protocol, and not a frozen snapshot: messages written between two page
     requests can appear on a later "newest" fetch, and edits or deletions show up on re-fetch.
     """
+    async with sessionmaker() as db:
+        return await fetch_message_page(db, room_id, limit, before)
+
+
+async def fetch_message_page(
+    db: AsyncSession, room_id: uuid.UUID, limit: int, before: str | None
+) -> tuple[list[MessageView], str | None]:
+    """The query behind list_messages, on a session the CALLER owns. GET /rooms/{id}/sync runs it
+    inside its REPEATABLE READ snapshot so the page and through_seq come from one point in time."""
     after = decode_history_cursor(before, room_id) if before is not None else None
     query = (
         _joined_select()
@@ -402,8 +411,7 @@ async def list_messages(
     )
     if after is not None:
         query = query.where(tuple_(_MESSAGES.c.created_at, _MESSAGES.c.id) < tuple_(*after))
-    async with sessionmaker() as db:
-        fetched = (await db.execute(query)).all()
+    fetched = (await db.execute(query)).all()
     page, extra = fetched[:limit], fetched[limit:]
     next_before = (
         encode_history_cursor(room_id, page[-1].created_at, page[-1].id) if extra else None

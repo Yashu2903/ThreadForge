@@ -23,6 +23,7 @@ from app.api import (
     realtime,
     room_events,
     rooms,
+    sync,
 )
 from app.body_limit import BodySizeLimitMiddleware
 from app.config import Settings, get_settings
@@ -76,6 +77,7 @@ def create_app(
     app.include_router(members.router)
     app.include_router(messages.router)
     app.include_router(room_events.router)
+    app.include_router(sync.router)
     app.include_router(realtime.router)
 
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the
