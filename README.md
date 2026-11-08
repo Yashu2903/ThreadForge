@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 4 of 5 — authentication, rooms, messages, durable room events and live delivery
+## Status: Part 5 of 5 — authentication, rooms, messages, durable events, reconnect recovery, presence and live access
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -11,7 +11,9 @@ Part 3 (persistent room messages over HTTP): send, history, single lookup, dupli
 
 Part 4 (durable room events and reliable publication of live updates): every supported change also records a room event and a transactional outbox row; a standalone dispatcher publishes through Redis Pub/Sub; an authenticated room WebSocket delivers events across several API processes; a protected HTTP endpoint serves event history. See [Part 4](#part-4-durable-room-events-and-reliable-publication-of-live-updates). **Live delivery is best-effort, at-least-once publication with possible loss and duplicates; PostgreSQL history is the source of truth.**
 
-Not implemented (later parts): automatic reconnection / replay-to-live recovery / presence / proactive connection revocation (5), documents, uploads, AI. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
+Part 5 (reconnect recovery, presence, typing, live access enforcement): a consistent bootstrap (`GET /rooms/{id}/sync`), ordered replay from a client cursor, a safe switch to live delivery where Redis only *hints* and PostgreSQL is always read in order, acknowledgements, lost-hint detection by reconciliation, Redis-only presence and typing, access checked for the whole life of every connection, and a TypeScript client (`client/`). See [Part 5](#part-5-reconnect-recovery-presence-typing-indicators-and-live-access-enforcement). **Still never exactly-once or guaranteed delivery.**
+
+Not implemented (out of scope): documents, uploads, AI, event pruning. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
 
 > **Superseded handbook sections.** If a ThreadForge handbook exists under `docs/` (none is in this repository yet), these parts of it are replaced by the Google OIDC decision: email/password login, Argon2id password hashing, `POST /accounts`, `POST /sessions`, and operator password recovery. There are no passwords in this system. The handbook's other conventions are kept: UUID primary keys, UTC timestamps, `ON DELETE RESTRICT` foreign keys, a `version` column on mutable entity tables, and request IDs.
 
@@ -436,9 +438,9 @@ HTTP write ──► ONE transaction: change + rooms.event_seq++ + room_events r
                                    │
    Redis Pub/Sub (hint only: {event_id, room_id, room_seq}; keeps nothing)
                                    │
-   each API process: one subscription connection ─► bounded queue ─► forwarding workers
-        re-read the event from PostgreSQL ─► ONE access query for all local sockets of the room
-        ─► each socket's bounded send queue ─► sender task ─► browser
+   each API process: one subscription connection ─► hub.on_room_hint(room, seq)   (Part 5: a HINT only)
+        wakes the room's connections; each one READS room_events from PostgreSQL in ascending room_seq,
+        after a batched access check ─► its bounded outgoing queue ─► writer task ─► browser
 ```
 
 ### Guarantees: what is promised and what is not
@@ -489,10 +491,9 @@ uv run python -m app.commands.cleanup_auth --outbox-retention-days 7  # also del
 | `OUTBOX_PUBLISH_TIMEOUT_SECONDS` | 2 | Per-publish bound. |
 | `OUTBOX_RETRY_MAX_DELAY_SECONDS` | 60 | Backoff cap (base 0.5 s, doubling, equal jitter: the delay is uniform in [cap/2, cap]). |
 | `OUTBOX_PROCESSED_RETENTION_DAYS` | 7 | Used by the cleanup command. |
-| `REALTIME_QUEUE_SIZE` | 1000 | Reader → workers queue per API process; **oldest dropped** when full. |
 | `WS_MAX_CONNECTIONS_PER_USER` / `WS_MAX_CONNECTIONS_PER_PROCESS` | 5 / 1000 | Per API process; over the cap → close 4409. |
-| `WS_SEND_TIMEOUT_SECONDS`, `WS_CONNECTION_QUEUE_SIZE` | 5, 100 | A frame send is bounded; a full per-socket queue → close 4429. |
-| `WS_FORWARD_WORKERS`, `WS_SUBSCRIBE_TIMEOUT_SECONDS` | 4, 5 | Forwarding concurrency; Redis SUBSCRIBE acknowledgement bound. |
+| `WS_SEND_TIMEOUT_SECONDS`, `WS_CONNECTION_QUEUE_SIZE` | 5, 256 | A frame send is bounded; a send timeout → close 4429. |
+| `WS_SUBSCRIBE_TIMEOUT_SECONDS` | 5 | Redis SUBSCRIBE acknowledgement bound (then degraded mode, Part 5). |
 
 ### Schema (migration `0004`)
 - `rooms.event_seq BIGINT NOT NULL DEFAULT 0 CHECK (event_seq >= 0)`: the room's last allocated sequence number. Incrementing it changes neither `version` nor `updated_at`.
@@ -514,28 +515,7 @@ Events are change notifications, not copies of data: they never contain message 
 ### WebSocket: `/rooms/{room_id}/ws`
 **Handshake (all before the connection is accepted).** The server checks (1) `Origin` exactly matches a `TRUSTED_ORIGINS` entry (a **missing** Origin is rejected: this is a browser endpoint), (2) the session cookie, via the same function the HTTP routes use, (3) the user is an **active member**. Every failure, including an unknown room, is the same bare **HTTP 403**. Credentials are never accepted in the URL. The Origin check is not CORS (browsers do not apply CORS to WebSockets, and cookies ride along on cross-site handshakes), so without it any web page could open an authenticated socket as the visitor.
 
-**Frames (server → client, JSON text).**
-```json
-{"type":"ready","schema_version":1,"room_id":"…","current_room_seq":42}
-{"type":"room_event","schema_version":1,"event_id":"…","room_id":"…","room_seq":43,"event_type":"message_created",
- "resource_type":"message","resource_id":"…","resource_version":1,"payload":{},"actor_id":"…","created_at":"…"}
-```
-`ready` means "the live subscription is established", **not** "snapshot consistent" or "replay complete"; `current_room_seq` is the room's high-water mark at that moment and is the starting point for Part 5's replay. A `room_event` has the same shape as an item of the history endpoint plus `type`. Clients send **nothing**: there are no commands over the socket.
-
-**Close codes.**
-| Code | Meaning |
-|---|---|
-| 1001 | The application is shutting down. (When the whole uvicorn process stops, uvicorn itself closes open sockets with **1012** first; clients should treat both as "reconnect later".) |
-| 1003 | Binary frame (unsupported) |
-| 1008 | Any client text frame (no commands exist) |
-| 1009 | Client frame larger than 1 KiB |
-| 1013 | The room subscription could not be established in time (Redis down): try again later; no `ready` was sent |
-| 4401 | Session revoked/expired or user no longer active |
-| 4403 | No longer an active member of the room. **No frame is sent first**, so a removed member never receives their own `member_removed` event |
-| 4409 | Too many connections (per user / per process) |
-| 4429 | Slow consumer: this socket's send queue was full or a send timed out. Other sockets are unaffected |
-
-**Delivery rules.** The forwarding worker re-reads the event from PostgreSQL and checks that `event_id`, `room_id` and `room_seq` agree (a mismatch is dropped and counted), then runs **one** access query for all the room's local sockets (session still valid? member still active?), then per socket either closes it (4401/4403) or enqueues the frame with `put_nowait` (never blocking on a slow client). Forwarding **writes nothing** to the database (a test snapshots the tables). Events that arrive while a connection is still starting are held (bounded) and delivered after `ready` if their `room_seq` is above the mark in `ready`. An event whose outbox row is published *after* a socket connected is pushed even if its `room_seq` is at or below that socket's mark; history already has it, so clients de-duplicate by `event_id`.
+**Frames, close codes and delivery were redefined in Part 5** (the Part 4 `ready` frame, the 1008 rule, the 1013-on-no-subscription rule and the notification queue + forwarding workers are gone). See [Part 5](#part-5-reconnect-recovery-presence-typing-indicators-and-live-access-enforcement) for the current protocol, the single close-code table and the delivery rules. What stays from Part 4: the handshake above, the caps, the guarantees table, the schema and the dispatcher.
 
 ### History: `GET /rooms/{room_id}/events?after_seq=0&limit=100`
 Active members only (404 `room_not_found` for everyone else, like the other room routes). Returns `{"items":[…], "next_after_seq", "has_more", "current_room_seq"}` in ascending `room_seq`, from **one SQL statement** so `items` and `current_room_seq` agree. `limit` is 1–500 (default 100); values outside the range are **422, never clamped**. `after_seq` beyond the room's latest event is **409 `cursor_ahead`** with `current_room_seq` (it also happens after a database restore). `Cache-Control: no-store`. Works with Redis down. Part 4 does not prune events.
@@ -548,16 +528,15 @@ Active members only (404 `room_not_found` for everyone else, like the other room
 
 Per-room ordering of *publication* is not promised (retries, several dispatchers); the sequence number is the order.
 
-### Redis outage and other failures
+### Redis outage and other failures (as of Part 5)
 | Situation | Behaviour |
 |---|---|
-| Redis unreachable | HTTP reads and writes keep working and keep committing events and **pending** outbox rows; `/health/ready` stays DB-only (healthy); the dispatcher backs off and retries; new WebSocket handshakes succeed, then close **1013** (no subscription possible, no `ready`). |
-| Redis connection lost while sockets are open | Open sockets **stay open** but receive nothing; each API process reconnects with backoff, resubscribes, and logs `notification_gap_possible` (events published during the gap are not replayed to sockets; history has them). |
-| Dispatcher stopped | Writes succeed; events pile up as pending; nothing is lost; on restart they are published. |
-| Dispatcher crashes mid-batch | Leases expire (30 s default) and another dispatcher (or the restarted one) republishes: **possible duplicates**, which clients and the forwarding layer tolerate. |
-| API queue overflow | The oldest notifications are dropped and counted; history has the events. |
-| Slow browser | Only that socket is closed (4429). |
-| Malformed, oversized or wrong-channel Redis message | Dropped and counted; nothing about the payload is logged. |
+| Redis unreachable | HTTP reads and writes keep working and keep committing events and **pending** outbox rows; `/health/ready` stays DB-only (healthy); the dispatcher backs off and retries; WebSocket connections open and stay open in **degraded mode**: durable events still arrive through reconciliation (≤ 2 s) and presence/typing say `degraded: true` |
+| Redis connection lost while sockets are open | Sockets stay open; each API process reconnects with backoff, resubscribes and wakes every connection; hints published during the gap are lost, which reconciliation covers |
+| Dispatcher stopped | Writes succeed; events pile up as pending; **sockets still receive them** through reconciliation (≤ one interval); on restart the dispatcher publishes the pending rows (late hints repeat nothing) |
+| Dispatcher crashes mid-batch | Leases expire (30 s default) and another dispatcher republishes: possible duplicate hints, which are harmless |
+| Slow browser | Only that socket is closed (4429) |
+| Malformed, oversized or wrong-channel Redis message | Dropped and counted; nothing about the payload is logged |
 
 ### Manual demonstration (two real Google accounts, two API processes)
 **Status: real Google login pending** (no credentials were available). The script was run end to end against **real processes**: two uvicorn API processes (8000, 8001), a dispatcher process, the development PostgreSQL and this project's compose Redis, with two users whose sessions were created by Part 1's `create_session()` (as in the test fixtures; no endpoint exists for this) and an operator that really stopped/started the dispatcher process and the Redis container. All steps passed. Observed in those process logs: the dispatcher retried with backoff (`code=redis_connection`, then `redis_timeout`) while Redis was down and published the outage-time event on attempt 3 after Redis returned; both API processes logged `redis_pubsub_lost … notification_gap_possible=true`, reconnected and resubscribed; no message text, cookie or token appeared in any log. `tests/test_manual_part4_sequence.py` runs the same script against two in-process API servers (real uvicorn, real WebSockets, real Redis) with the Redis step left to the human (reported SKIP there); `tests/test_realtime_failures.py` covers Redis outage behaviour separately. The demonstration left two `Demo A/B` users and a room in the development database.
@@ -566,18 +545,15 @@ Per-room ordering of *publication* is not promised (retries, several dispatchers
 2. Sign in as **A** (owner) and **B** through the real Google flow in two browser profiles and copy each `tf_session` cookie *value* into `TF_COOKIE_A/B` without putting it on a command line (PowerShell: `$env:TF_COOKIE_A = Read-Host "cookie A" -MaskInput`).
 3. From `backend/`: `uv run python -m scripts.manual_part4_check` (add `$env:TF_OPERATOR = "1"` to be prompted to stop/start the dispatcher and Redis).
 
-The script: A creates a room, B joins → A on API 1 and B on API 2 open sockets and get the same `current_room_seq` → A sends one message and **both** sockets receive the same `message_created` (no text in the frame) → it is in durable history → *(operator)* with the dispatcher stopped the write succeeds and sockets are silent, then both receive it when the dispatcher returns → *(operator)* with Redis stopped writes succeed, `/health/ready` is 200 and the socket stays open and silent → a client frame closes 1008 → bad origin / no origin / no cookie are all 403 → A removes B: B's socket closes **4403 with no frame**, A receives `member_removed`, B can no longer read history (404) or reconnect (403). It never prints cookies, tokens or message text.
+The script: A creates a room, B joins → A on API 1 and B on API 2 open sockets, resume from the room's seq and reach `sync_complete` → A sends one message and **both** sockets receive the same `message_created` (no text in the frame) → it is in durable history → *(operator)* with the dispatcher stopped the write succeeds and (since Part 5) both sockets still receive it through reconciliation, and the late hint repeats nothing → *(operator)* with Redis stopped writes succeed and `/health/ready` is 200 → an unknown client frame closes **4400** → bad origin / no origin / no cookie are all 403 → A removes B: B's socket closes **4403 with no frame**, A receives `member_removed`, B can no longer read history (404) or reconnect (403). It never prints cookies, tokens or message text.
 
-### Where Part 5 hooks in
-- **Replay-to-live recovery:** `ready.current_room_seq` plus `GET /rooms/{id}/events?after_seq=` is the intended pair: fetch history up to the mark, then apply live frames, de-duplicating by `event_id`. Part 4 supplies both halves but implements neither reconnection nor the stitching.
-- **Event retention:** Part 4 never prunes `room_events`; a retention policy must also decide what a cursor that is too *old* returns (today only a cursor that is too far *ahead* is an error).
-- **Proactive revocation:** closing a removed member's sockets without waiting for the next room event needs a signal path from the removal transaction; today the 4403 close happens when the *next* event for that room is forwarded.
-- A new event type needs one entry in `EVENT_SPECS`, the migration's type CHECK, and the service function that calls `record_room_event`.
+### Where Part 5 hooks in (done: see [Part 5](#part-5-reconnect-recovery-presence-typing-indicators-and-live-access-enforcement))
+Replay-to-live recovery, the resume cursor, proactive access enforcement and presence are implemented. Still open: event retention (a cursor that is too *old* is only `too_far_behind` by count) and a new event type needs one entry in `EVENT_SPECS`, the migration's type CHECK, and the service function that calls `record_room_event`.
 
 ### Part 4 limitations, handbook deviations and unverified assumptions
-- **Not implemented (by design):** automatic reconnection, cursor persistence, replay-to-live recovery, presence, typing indicators, proactive revocation routing, AI, uploads, document collaboration.
-- **Idle connections:** a socket whose session expired, or whose member was removed, is closed only when the next event for its room is forwarded (4401/4403). Until then it holds an idle, silent connection. Part 4 does not claim live revocation.
-- **Lost notifications are not recovered** by the live path. Duplicate publications and out-of-order frames are possible.
+- **Not implemented in Part 4 (implemented in Part 5):** reconnection, cursors, replay-to-live recovery, presence, typing, proactive revocation. Still out of scope: AI, uploads, document collaboration.
+- **Idle connections** (resolved in Part 5): a periodic sweep and the hint-triggered check now close expired or removed connections, idle ones included.
+- **Lost notifications** (resolved in Part 5): hints are only wake-ups; reconciliation and replay recover everything from PostgreSQL. Duplicates and reordering of *hints* are harmless.
 - **No event pruning**; `room_events` grows without bound, and processed outbox rows are removed only by the cleanup command.
 - **Connection caps are per process**, not global across API processes.
 - **Handbook deviations (deliberate):** no event retention or compaction yet; the event payload is inline (ids and roles only) rather than a pointer plus snapshot; no consumer-receipts table; the WebSocket path `/rooms/{room_id}/ws` and the close codes above are this project's own.
@@ -590,6 +566,183 @@ The script: A creates a room, B joins → A on API 1 and B on API 2 open sockets
   - Development and tests ran on Windows with Docker Desktop; the SIGTERM paths for uvicorn and the dispatcher on Linux were not run here (Windows uses Ctrl+Break).
   - Starlette's "close before accept is an HTTP 403 handshake rejection" was read from source and then confirmed empirically by the handshake tests.
   - Several dispatchers or API processes against one PostgreSQL were tested on one machine only.
+
+---
+
+## Part 5: reconnect recovery, presence, typing indicators and live access enforcement
+
+**In one paragraph.** A client now starts from a consistent **bootstrap** (`GET /rooms/{id}/sync`: state and a `through_seq` from one database snapshot), opens the WebSocket and sends `resume{after_seq: through_seq}`. The server replays every event after that cursor **read from PostgreSQL in ascending `room_seq`**, says `sync_complete`, and then keeps the connection live the same way: a Redis message is only a **hint** ("something newer exists") that wakes the connection, which then reads PostgreSQL again. A lost hint is found by **reconciliation** within one interval. Acknowledgements give flow control. A reconnecting client resumes from its own cursor. Presence ("who is online", availability) and typing live only in Redis. Access (session valid, user active, member active) is enforced for the whole life of a connection, including idle ones.
+
+Terms. **Cursor**: the highest `room_seq` a client has fully processed. **Hint**: a tiny Redis message `{room, seq}` that only wakes connections. **Reconciliation**: a periodic query that compares each room's `event_seq` with what its connections have been sent. **TTL**: an expiry after which Redis deletes a key by itself. **Snapshot**: a PostgreSQL transaction that sees one fixed committed state.
+
+### What Part 5 replaced from Part 4
+| Part 4 | Part 5 |
+|---|---|
+| Notification queue + forwarding workers pushed an event for every notification (lost hint = lost event; parallel workers could reorder) | `app/realtime/room_hub.py`: a hint only wakes connections. Each connection **pulls** durable events in order (`app/realtime/connection.py`). No path pushes an event that was not read from PostgreSQL in sequence |
+| `ready{current_room_seq}` | `sync_started` … events … `sync_complete`. **Only `sync_complete` means synchronized**; an open socket does not |
+| Any client frame closed the socket with **1008** | Client frames exist (`resume`, `ack`, `heartbeat`, `typing`, `set_availability`); **1008 is retired**, a bad frame is **4400** |
+| No subscription closed the socket **1013** | Redis trouble means **degraded mode**: the connection stays open, durable delivery continues through reconciliation, presence/typing say `degraded: true` |
+| Access noticed only when the next event was forwarded | Hint-triggered check, periodic sweep of every connection (idle ones too), check before every page |
+| `REALTIME_QUEUE_SIZE`, `WS_FORWARD_WORKERS`, `ws_connection_queue_size = 100` | Removed / default 256 |
+
+Part 4 tests that changed: `test_websocket.py`, `test_redis_subscriptions.py`, `test_realtime_failures.py`, `test_manual_part4_sequence.py` (and `scripts/manual_part4_check.py`; it now passes with *no dispatcher at all*, which Part 4 expected to fail). **No migration** was needed (`alembic check` is clean): everything durable already existed, and presence/typing never touch PostgreSQL.
+
+### Guarantees now
+| Statement | Status |
+|---|---|
+| A connection receives every retained event after its cursor **in ascending `room_seq`, none skipped** | Yes: events come only from `room_events` by primary-key range; contiguity is verified before anything is sent |
+| A gap while draining is a bug, never a race | Yes. Sequence numbers are allocated under the room lock, held until commit, so **committed events form a gapless prefix**. A gap sends `resync_required(event_gap)`, closes **4410** and logs an error with the room and sequences. It never skips |
+| A lost, duplicated or reordered Redis hint loses an event | **No.** It can only delay a wake-up by up to one reconcile interval |
+| Duplicates | Possible at the client (reconnects); ignored by `room_seq` |
+| Acknowledgements are read receipts or have durable effect | **No.** They drive flow control and diagnostics only; the cursor lives in the client |
+| Exactly-once / guaranteed delivery | **Never claimed.** A frame means the server queued it, not that a browser rendered it |
+| Presence/typing in PostgreSQL, `room_events` or the outbox | **Never** (tested: table counts and `event_seq` are unchanged) |
+
+### `GET /rooms/{room_id}/sync`: the bootstrap
+Active member only (404 otherwise), `Cache-Control: no-store`. Returns `room` (id, name, owner_id, created_at, updated_at), the caller's `role`, `membership_epoch`, `members` (all *active* members: user_id, display_name, role, joined_at; no emails; bounded by the member cap), `messages` (the latest 50, ascending, tombstones included, Part 3 representation), `next_before` (the Part 3 history cursor) and `through_seq` (`rooms.event_seq` in the same snapshot; 0 for a room with no events).
+
+**Why it is consistent.** Every mutation changes the data, bumps `rooms.event_seq` and inserts its `room_events` row in **one transaction while holding the room lock**. A `READ ONLY REPEATABLE READ` transaction sees every statement against one committed state, fixed by its **first query**, so it sees each such transaction entirely or not at all: `through_seq` counts exactly the changes the body reflects (`app/services/sync.py`). PostgreSQL does not allow changing the isolation level after a transaction's first query (verified in its docs and by a test), and authentication has already run queries on the request session, so the snapshot uses **its own session** with the isolation level set before its first statement. The first statement re-checks membership and reads the room in the same snapshot; no Redis or socket work happens inside. A test commits a message and a new member *between the snapshot's reads* and shows neither appears, and that the same interleaving on a plain `READ COMMITTED` session *does* mix.
+
+Older message pages loaded later (`GET …/messages?before=`) are ordinary current-state reads; the client merges them by id and version.
+
+### WebSocket protocol (schema_version 1): `/rooms/{room_id}/ws`
+Unchanged from Part 4: cookie auth through the shared session function, active-membership check, **exact Origin match** (missing Origin rejected), the uniform pre-accept **HTTP 403**, per-user (5) and per-process (1000) caps (close 4409). Client frames are JSON text of at most **1 KiB**, unknown fields rejected, with **no room or user identity inside** (identity always comes from the authenticated connection).
+
+**Client → server** (`app/realtime/protocol.py` is authoritative):
+```json
+{"type":"resume","schema_version":1,"after_seq":41}      // MUST be first, within RESUME_TIMEOUT (5 s); integer >= 0
+{"type":"ack","through_seq":60}
+{"type":"heartbeat"}
+{"type":"typing","state":"start"}                        // or "stop"
+{"type":"set_availability","value":"busy"}               // available | busy | dnd
+```
+**Server → client:**
+```json
+{"type":"sync_started","schema_version":1,"room_id":"…","after_seq":41,"through_seq":57}
+{"type":"room_event", …}                                 // the Part 4 shape, unchanged
+{"type":"sync_complete","through_seq":57}
+{"type":"heartbeat_ack","server_time":"…"}
+{"type":"presence_snapshot","room_id":"…","online":[{"user_id":"…","availability":"available"}],"degraded":false}
+{"type":"typing_state","room_id":"…","typing":["<user_id>"],"degraded":false}
+{"type":"resync_required","reason":"cursor_ahead" | "too_far_behind" | "event_gap"}   // then close 4410
+```
+**Handshake sequence** (after the pre-accept checks and accept): the caps (4409); wait for `resume` (else **4408**; invalid **4400**); acquire a **replay slot** from a process-wide semaphore (`REPLAY_CONCURRENCY` 20; waiting longer than `REPLAY_SLOT_WAIT_SECONDS` closes **1013**); register with the room hub; ensure the Redis room subscription and wait for its acknowledgement with a bounded timeout, **continuing in degraded mode** if that fails; read `H = rooms.event_seq` *after* the subscription step; `after_seq > H` → `cursor_ahead`, `H - after_seq > REPLAY_MAX_EVENTS` (1000) → `too_far_behind` (both then 4410); send `sync_started`; drain `(after_seq, H]` in pages of `REPLAY_PAGE_SIZE` (100); send `sync_complete(H)`; release the slot; mark the connection live; send the first `presence_snapshot` and `typing_state`; run one more drain pass (events committed after H) and then wait for wake-ups.
+
+**Close codes** (one table for Parts 4 and 5):
+| Code | Meaning | Client reaction |
+|---|---|---|
+| 1001 | Server shutting down (uvicorn itself sends 1012 when the whole process stops) | Reconnect with backoff |
+| 1003 | Binary frame | Terminal protocol bug |
+| 1009 | Frame too large | Terminal protocol bug |
+| 1013 | Try again later (overload, replay slot wait, database unavailable too long) | Reconnect with backoff |
+| 4400 | Protocol violation (bad/unknown frame, invalid ack, unsupported version) | Terminal |
+| 4401 | Session invalid (revoked, expired, user inactive) | Terminal; sign in again |
+| 4403 | Not a member (access revoked); **no frame is sent first** | Terminal; clear room data |
+| 4408 | Resume or heartbeat timeout | Reconnect with backoff |
+| 4409 | Too many connections | Retry after at least 10 s, stop after 3 tries |
+| 4410 | Resync required | Fetch bootstrap, reconnect |
+| 4429 | Slow consumer or frame-rate exceeded | Reconnect with backoff; 3 times in 5 minutes means resync |
+
+### Server design
+**Room hub and hints** (`room_hub.py`, `subscriptions.py`). The Redis reader validates every notification (≤ 1 KiB, JSON, schema, room matches channel) and then does only `hub.on_room_hint(room, seq)`: `hint_seq = max(hint_seq, seq)` and `Event.set()` on the room's connections. Memory per room is constant (a test sends 10,000 hints and checks the state is one integer), so a flood cannot pile up or make Redis disconnect a slow subscriber. Hints for rooms with no local connection are ignored. A hint also bumps the room's `access_epoch`, which invalidates cached access verdicts (below).
+
+**Per-connection tasks** (`connection.py`): *receiver* reads and validates client frames and rate-limits them (20 frames/s sustained, 10 acks/s; typing frames above 2/s are dropped and counted; the sustained budget closes 4429); it never waits on anything but the socket, so acks and heartbeats keep flowing while the drainer is paused. *Drainer* is the only producer of durable frames: pull-based, it holds only `last_sent` and `last_acked`. *Writer* is the only task that writes to the socket (including the close frame); every send has a timeout (`WS_SEND_TIMEOUT_SECONDS` 5); the outgoing queue is bounded (256) and presence/typing frames are **coalesced** to one pending frame each. *Watchdog* closes **4408** when no client frame of any kind arrived within `WS_WATCHDOG_TIMEOUT_SECONDS` (45). If one task ends, the others are cancelled and `finally` unregisters from the hub, releases the Redis subscription reference, queues presence/typing removal, and closes the socket.
+
+**Drain loop.** Each pass: `ensure_access` (below) → read **one page** `WHERE room_id = :r AND seq > :last ORDER BY seq LIMIT :n` (capped to the remaining ack window) → **close the database session** → verify contiguity (first row is `last+1`, each next is previous+1; otherwise `event_gap`) → queue the page → repeat until caught up → wait for a wake-up. No database session is ever held while waiting on a socket. A page read before a revocation and queued after it is an unavoidable race (see limits). A hint that is ahead of the database (bogus or early) is discarded after one empty read.
+
+**Flow control and acks.** `unacked = last_sent - last_acked`. At `ACK_WINDOW` (200) draining pauses until an ack arrives (pages are capped so the window is never exceeded). If acks make no progress for `ACK_TIMEOUT` (30 s) the client is closed **4429**. Replay obeys the same rule, and the watchdog keeps running during a pause, so a slow replay never looks like a dead connection. An ack is valid if it is an integer, at least the accepted resume point and at least `last_acked` (equal is ignored) and at most `last_sent`; anything else closes **4400**.
+
+**Reconciliation** (`RealtimeHub.reconcile_once`). Every `RECONCILE_INTERVAL_SECONDS` (5, jittered by up to 20 %) **one query for all rooms that have local connections** (`SELECT id, event_seq FROM rooms WHERE id = ANY(:ids)`) updates each room's known sequence and wakes connections whose `last_sent` is behind. Not one query per connection. Every connection is also woken after a Redis subscription recovers. While Redis is unhealthy the interval is `RECONCILE_INTERVAL_DEGRADED_SECONDS` (2). **Worst-case delay for a lost hint: one interval** (plus jitter).
+
+**Redis down** (verified on real processes, with the actual container stopped): HTTP writes keep working; existing and new connections keep receiving durable events through reconciliation; `presence_snapshot`/`typing_state` carry `degraded: true` with empty lists (unknown, **not** "everyone is offline"); nothing is lost. When Redis returns, every process re-subscribes, wakes all connections and re-registers its local connections, which rebuilds presence.
+
+### Live access enforcement
+Checked: the session exists, is not revoked, `expires_at > the database clock`, the user is `active`, and the membership is `active`. **No role checks** (chat is open to every active member).
+* at the handshake; before replay starts; **before every replay page and every live batch**, through the room hub's **batched check** (ONE query per room for all its local connections, listing their session ids), the result reused for at most `ACCESS_CACHE_SECONDS` (1) **unless a hint arrived since** (the room's `access_epoch` changed);
+* before applying `typing` or `set_availability`;
+* **on every hint for the room**, so a member removal (which commits an event) closes the removed member's connection within a moment, *without sending them anything*, because their drain re-checks before it reads;
+* **periodically** (`ACCESS_CHECK_INTERVAL_SECONDS`, 15): one batched query per room per process, for **every connection including idle ones**.
+
+On access loss: the connection's pending frames are **discarded**, it closes **4401** (session) or **4403** (membership), is unregistered, its presence/typing entries are removed (best effort) and its subscription reference is released. A removed member never receives their own `member_removed` frame. Logout, session expiry and a disabled account emit **no room event**, so they are bounded by the periodic sweep (at most 15 s + jitter by default). A lost removal hint is bounded the same way.
+
+**PostgreSQL unavailable.** Nothing protected is sent on stale assumptions: every read retries with backoff for up to `ACCESS_DB_GRACE_SECONDS` (30); after that **every connection closes 1013**, idle ones included. Each database call is bounded by its own timeout (`grace / 3`, 0.3–10 s), so a *hung* database counts as a failure too (tested).
+
+**Unavoidable limits.** Frames already written or in flight cannot be recalled, so the exposure window after a revoke is the page being sent, or for an idle connection up to the check interval when no hint arrives. This is documented, not hidden.
+
+### Presence and typing (Redis only)
+`app/realtime/presence.py` (Lua) and `presence_hub.py` (workers, ticks). **Every key has a TTL.**
+* `{prefix}:presence:{room}:conns`: sorted set, member `"{user_id}:{conn_id}"`, score = expiry in ms. `conn_id` is a server-generated random value, never sent to clients. No IPs, no user agents.
+* `{prefix}:presence:{room}:avail`: hash `user_id → available|busy|dnd`, shared by that user's tabs (last write wins). **Availability is per room and per user (not global)**, display-only (it never changes permissions or delivery), meaningful only while the user has a live connection, and resets to `available` when they come back from offline.
+* `{prefix}:typing:{room}`: sorted set, member `"{user_id}:{conn_id}"`, score = expiry; aggregated by distinct user, so one tab's `stop` never clears another tab's typing.
+
+Each operation is **one Lua script** (atomic) that reads **Redis `TIME`** inside the script, so API servers' clocks do not matter (allowed with effects replication, the default since Redis 5; all keys are passed in `KEYS`). A connection is registered on connect, refreshed by its heartbeat (and by the server's tick for connections not refreshed for a while), removed on disconnect, and expires `PRESENCE_EXPIRY_SECONDS` (45) after a crash. `presence_snapshot` is always the full state (a room has at most 50 members). A per-process, per-room **tick** every `PRESENCE_TICK_SECONDS` (15, jittered) rebuilds it and sends it **only if it changed**; it is also how expiries (which Redis never announces) are reported. Connect, disconnect, availability and typing changes publish a hint on `{prefix}:presence-hint:{room}`; other processes re-tick on it, coalesced to **at most one presence tick per second and two typing ticks per second per room**. A lost presence hint costs at most one tick. Snapshots are **filtered to current active members** (a cached member set, refreshed when a member event is drained and at least every 15 s); if membership cannot be determined nothing is sent. Typing: any active member may type (viewers too); the server derives user and room from the connection; at most 2 typing frames per second per connection (extras dropped and counted); no keystrokes or draft text are stored.
+
+### The client (`client/`)
+A framework-free TypeScript module with an injectable socket, `fetch`, timers and random (so it is unit-tested with a fake socket and a fake clock). `npm install && npm test` (61 vitest tests), `npm run build`. `src/room-client.ts` is the state machine; `demo/cli.mjs` (Node + `ws`) and `demo/index.html` are minimal demos; `test/e2e-driver.mjs` drives the real client for the backend's end-to-end tests.
+
+* **State** (room, members, messages by id, **cursor**, status `bootstrapping | syncing | live | reconnecting | resyncing | terminal`) lives in memory, with the cursor, installed together from a bootstrap. A page refresh bootstraps; the cursor is never persisted alone.
+* **Events**: frames arrive in order; `seq <= cursor` is a duplicate (ignored); a gap (`seq != cursor+1`) closes the socket and reconnects from the last processed cursor. Batches (until `sync_complete`, 100 events, or 50 ms idle) compute the distinct affected message ids, whether the room is dirty (`room_renamed`) and whether members are dirty. More than 20 distinct messages → a fresh bootstrap; otherwise fetch each message by id (concurrency 4), the members (all pages) and the room if dirty. A fetched message replaces the local one only if its version is `>=` the local version; **a tombstone is final**. The cursor advances and the ack is sent **only after every required fetch succeeded**; a transient failure retries 3 times with backoff, then reconnects from the last processed cursor; 401/403/404 follows access loss. `member_removed` for the current user stops everything, clears the room and never reconnects. Batches are processed *during replay* too (otherwise the server's ack window would deadlock a long replay).
+* **Reconnect**: exponential backoff with jitter (1 s doubling to 30 s, reset after 30 s live), **one** reconnect loop, a generation counter so frames and timers of an obsolete socket are ignored; switching rooms cancels the old socket, timers and fetches (AbortController). A refused handshake looks like an abnormal close (1006) with no frames in a browser, so the client then **re-bootstraps over HTTP**, where 401 means sign in again and 404 means access lost. More than 3 resyncs in 60 s is a terminal "cannot synchronize" state.
+* **Heartbeat** every 15 s; no server frame of any kind for 45 s → reconnect. **Typing**: `start` at most every 3 s, `stop` after 4 s idle or on send; typing entries also expire locally after 6 s; `degraded: true` is shown as "unknown", never "offline". **Sends** are retried with the same `client_message_id` (safe, Part 3); a reconnect never generates new ids or re-sends confirmed writes.
+
+**Why an application heartbeat in addition to transport ping/pong.** uvicorn's ping/pong (`--ws-ping-interval/--ws-ping-timeout`) is kept: it frees server resources for dead peers. But browsers answer pings automatically and JavaScript **cannot observe them**, so the page cannot tell a dead connection from a quiet one; the heartbeat frame and `heartbeat_ack` give it something to watch. Browsers may throttle timers in hidden tabs (not verified against current versions), which can cause a missed heartbeat and a reconnect; the cursor makes that safe.
+
+### Configuration added in Part 5 (all validated at startup; defaults shown)
+| Variable | Default | Meaning / validation |
+|---|---|---|
+| `WS_RESUME_TIMEOUT_SECONDS` | 5 | `resume` must arrive within this, else 4408 |
+| `REPLAY_PAGE_SIZE` / `REPLAY_MAX_EVENTS` | 100 / 1000 | page size ≤ max; further behind than max → `too_far_behind` |
+| `REPLAY_CONCURRENCY` / `REPLAY_SLOT_WAIT_SECONDS` | 20 / 10 | connections replaying at once per process; longer wait → 1013 |
+| `ACK_WINDOW` / `ACK_TIMEOUT_SECONDS` | 200 / 30 | **`ACK_TIMEOUT` must exceed `WS_SEND_TIMEOUT`** |
+| `WS_CLIENT_FRAMES_PER_SECOND` / `WS_ACK_FRAMES_PER_SECOND` / `WS_TYPING_FRAMES_PER_SECOND` | 20 / 10 / 2 | rate limits (typing extras are dropped) |
+| `WS_CONNECTION_QUEUE_SIZE` | 256 | outgoing frames per connection |
+| `RECONCILE_INTERVAL_SECONDS` / `…_DEGRADED_SECONDS` | 5 / 2 | degraded must not exceed normal |
+| `ACCESS_CHECK_INTERVAL_SECONDS` / `ACCESS_CACHE_SECONDS` / `ACCESS_DB_GRACE_SECONDS` | 15 / 1 / 30 | cache must be smaller than the interval |
+| `CLIENT_HEARTBEAT_INTERVAL_SECONDS` / `WS_WATCHDOG_TIMEOUT_SECONDS` | 15 / 45 | **watchdog ≥ 2 × heartbeat** |
+| `PRESENCE_EXPIRY_SECONDS` / `PRESENCE_TICK_SECONDS` | 45 / 15 | **expiry ≥ 2 × heartbeat** |
+| `PRESENCE_HINT_MIN_INTERVAL_SECONDS` / `TYPING_EXPIRY_SECONDS` / `TYPING_STATE_MIN_INTERVAL_SECONDS` | 1 / 5 / 0.5 | coalescing and expiry |
+
+### Operations: database load
+Per API process, with `R` rooms that have local connections and `C` connections:
+* reconciliation: **one query per `RECONCILE_INTERVAL`** regardless of `R` and `C` (12/min at 5 s);
+* periodic access sweep: `R` queries per `ACCESS_CHECK_INTERVAL` (4 per room per minute at 15 s);
+* presence member refresh: at most one query per room per 15 s (plus one when a member event is drained);
+* live delivery: when a room's events arrive, each *woken connection* does one page read and shares one access query per room (re-run per hint burst): roughly `C_room` page reads + 1 access query per event burst. **This is the dominant cost** and scales with connections × event bursts; there is no shared per-room event cache in Part 5;
+* replay: `ceil(missed / 100)` page reads per reconnecting connection, limited to `REPLAY_CONCURRENCY` at once;
+* heartbeats, typing and availability are Redis only.
+
+Example: 200 connections in 20 rooms, idle: 12 + 80 + 80 ≈ **170 queries/minute**; each message in a 10-member room adds about 10 page reads + 1 access query. Alert suggestions (documentation only): `realtime_stats` log lines every 30 s show `connections`, `replaying`, `redis_healthy`, `resyncs` and `closes` by code; investigate a rising count of 4410 (resync), 4429 or 1013.
+
+### Manual demonstration (three real Google accounts, two API processes)
+**Status: real Google login pending** (no credentials were available). `scripts/manual_part5_check.py` plays a client (bootstrap, resume, fetch-and-merge, ack) and judges convergence against a **fresh bootstrap**, never against itself. Environment: `TF_COOKIE_A/B/C` (cookie *values*, set with `Read-Host -MaskInput`, never on a command line), `TF_BASE_URL_1/2`, `TF_COOKIE_NAME`, `TF_ORIGIN`, `TF_OPERATOR=1` to be prompted for the steps that need you to stop or restart something. Steps: bootstrap and live sync across two API processes → a message A→B → two tabs for A are one online user → typing appears and expires → B disconnects, A creates/edits/deletes while B is away, B resumes from its cursor and its state equals a fresh bootstrap with an ordered duplicate-free replay and no resurrected text → *(operator)* dispatcher stopped: the event still arrives through reconciliation → *(operator)* Redis stopped: writes succeed, B still receives the event, presence says `degraded`; Redis restarted: presence is rebuilt → *(operator)* API process 1 restarted: reconnect through the other and converge → C is removed: socket closes 4403 with no frame, A is told, C is refused (403/404) → B logs out: its idle socket closes 4401 within the check interval and the reconnect is refused. Never prints cookies, tokens or message text.
+
+It was run end to end against **real processes** (two uvicorn servers, a dispatcher process, the development PostgreSQL and the compose Redis container, with the operator really stopping the dispatcher, the Redis container and an API process; sessions made by Part 1's `create_session()` as in the fixtures; **default intervals**). All steps passed, and the process logs held no errors, tracebacks, message text or cookies. `tests/test_manual_part5_sequence.py` runs the same script in-process (the Redis and API-restart steps are SKIP there); `tests/test_client_e2e.py` runs the real TypeScript client (Node) against a live backend.
+
+### Where to read the code (suggested order)
+`app/services/sync.py` (snapshot) → `app/realtime/protocol.py` (frames, close codes) → `app/realtime/room_hub.py` (hints, reconciliation, access) → `app/realtime/connection.py` (the four tasks, the drain loop) → `app/realtime/subscriptions.py` (hints, degraded mode) → `app/realtime/presence.py` / `presence_hub.py` → `client/src/room-client.ts` → the tests named below.
+
+### Tests
+Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 test isolation: database `*_test`, Redis index 15, a unique channel prefix per test). New: `test_sync.py`, `test_protocol_frames.py`, `test_ws_replay.py`, `test_ws_flow.py`, `test_ws_presence.py`, `test_presence_store.py`, `test_ws_access.py`, `test_ws_stress.py` (24 clients, random drops, 4 writers: every client applies exactly `1..event_seq` once in order), `test_client_e2e.py`, `test_manual_part5_sequence.py`. Intervals are configurable and shrunk in tests; waits are wait-until-condition helpers, not fixed sleeps; fault injection (`hub.suppress_hints`, monkeypatched database functions, a failing presence store) is test-only. Client: `cd client && npm test`. Lint: `uv run ruff check . && uv run ruff format --check .` and `npx tsc --noEmit`.
+
+### Part 5 limitations, handbook deviations and unverified assumptions
+* **Verification at completion:** `cd backend && uv run pytest`: **961 passed** (real PostgreSQL 16 and Redis 7 in Docker); `cd client && npm test`: **61 passed**; `ruff check`, `ruff format --check`, `tsc --noEmit` and `alembic check` are clean. The realtime suites were repeated three times to look for flakes: the only one found was an environment effect (the Redis container's clock stepping back, see below), fixed in the tests by polling.
+* **Flaws found by the end-to-end pass and fixed:** (1) a removed member could still be sent their own `member_removed` frame through a cached access verdict: a hint now invalidates the cache; (2) a refused handshake is invisible to a browser (close 1006), so a removed or signed-out client would retry forever: it now re-bootstraps over HTTP, where 401/404 are definitive; (3) the client waited for `sync_complete` before processing, which deadlocks against the server's ack window on a long replay: batches now run during replay; (4) after a bootstrap raised the cursor the client could acknowledge more than the server had sent (a 4400): acks are capped to what the socket delivered; (5) a hung (not failing) database would have stalled connections past the grace period: every call has a timeout; (6) a presence snapshot could go out unfiltered if the member lookup failed: nothing is sent instead; (7) presence bookkeeping for rooms nobody is in is pruned; (8) the demonstration script did not reconnect A after restarting A's API process.
+* **Lost-hint delay: up to one reconcile interval** (default 5 s, 2 s while Redis is unhealthy).
+* **Access-loss detection: up to the check interval** (default 15 s) when no hint arrives (logout, expiry, disabled account, a lost removal hint). A removal normally closes the socket within a moment.
+* **In-flight frames cannot be recalled** (the page being written when access is revoked).
+* **Availability is per room, per user** (not global); display only.
+* **Hidden-tab timer throttling** in browsers can delay heartbeats and cause a reconnect; the cursor makes it safe. Not verified against current browser versions.
+* **No event pruning** (`room_events` grows without bound), so `too_far_behind` triggers only on `REPLAY_MAX_EVENTS`; the resync path exists so retention can be added.
+* The live path does one page read per woken connection (no shared per-room event cache): see the load notes.
+* `hub.suppress_hints` is test-only fault injection that lives in production code (default off; not configurable).
+* **Handbook deviations (deliberate):** no event pruning (the handbook keeps 7 days of replay events); snapshot-style presence frames (a full list, not deltas); custom close codes (4400–4429) and the 1008 → 4400 change.
+* **Unverified assumptions:**
+  * Real Google login and **real browsers**: the backend was tested with the `websockets` library and the client with Node + `ws` (and fakes). A browser cannot read the HTTP status of a rejected handshake; the client handles that by re-bootstrapping.
+  * A reverse proxy in front of the API (WebSocket upgrade, `Origin` pass-through, idle timeouts versus the ping/heartbeat intervals) was not exercised.
+  * **Redis Cluster**: the presence scripts touch two keys of one room (`…:conns` and `…:avail`) that do not share a hash tag, so they assume a single Redis instance (the supported deployment). `rediss://` with a password was validated in configuration only; Valkey and managed Redis were not tested.
+  * **Wall clocks**: presence expiry uses Redis `TIME` (wall clock). A clock step on the Redis host can delay or hasten an expiry by the size of the step. **Measured on this development VM:** while 2.2 s of real time passed, the Redis container's clock advanced only about 0.65 s in some iterations (a step of roughly 1.5 s; the same instability seen with PostgreSQL's `clock_timestamp()` in Part 3), which is why the expiry tests poll instead of sleeping a fixed time. Redis's own key TTLs use the same clock, so this cannot be avoided in the application.
+  * Scripting facts (atomicity, `TIME` followed by writes with effects replication, keys in `KEYS`, `SCRIPT FLUSH` recovery) come from the Redis documentation, and the flush recovery is covered by a test. The PostgreSQL isolation facts come from its documentation and tests. I could not fetch the Starlette WebSocket documentation site; its behaviour was read from the installed source and confirmed by tests.
+  * Development and tests ran on Windows with Docker Desktop; Linux signal handling was not run. Scale was tested up to a few dozen concurrent connections on one machine, not thousands.
 
 ---
 
@@ -650,14 +803,18 @@ backend/app/        main.py config.py db.py middleware.py body_limit.py request_
                     rooms.py memberships.py invitations.py   (Part 2: ALL room/membership writes)
                     messages.py                              (Part 3: ALL message writes)
                     room_lock.py room_events.py outbox.py    (Part 4: lock handle, events, outbox queries)
-                    realtime_access.py                       (Part 4: read-only WebSocket DB reads)
-  realtime/         channels.py publisher.py notifications.py subscriptions.py hub.py protocol.py
+                    realtime_access.py                       (Part 4/5: read-only WebSocket DB reads)
+                    sync.py                                  (Part 5: the bootstrap snapshot)
+  realtime/         channels.py publisher.py notifications.py subscriptions.py protocol.py
+                    room_hub.py connection.py        (Part 5: hints, reconciliation, access, 4 tasks)
+                    presence.py presence_hub.py      (Part 5: Redis-only presence and typing)
   workers/          outbox_dispatcher.py                     (Part 4: standalone process)
   dependencies/     auth.py (CurrentUser, require_csrf)  rooms.py (member/owner pre-checks)
   models/ schemas/  commands/cleanup_auth.py outbox_status.py outbox_requeue.py
 backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py, 0002_rooms_...py,
                     0003_messages.py, 0004_room_events_outbox.py
-backend/scripts/    manual_part2_check.py, manual_part3_check.py, manual_part4_check.py
+backend/scripts/    manual_part2_check.py ... manual_part4_check.py, manual_part5_check.py
+client/             Part 5: TypeScript room client (src/, test/ with vitest, demo/)
 backend/tests/      pytest suite (fake Google in tests/fake_google.py; real PostgreSQL and Redis)
 compose.yaml        PostgreSQL 16 and Redis 7
 .env.example

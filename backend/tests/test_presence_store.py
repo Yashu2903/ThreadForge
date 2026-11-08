@@ -12,6 +12,7 @@ import pytest_asyncio
 from app.realtime.presence import PresenceStore, PresenceUnavailable
 from app.realtime.publisher import create_redis_client
 from tests.factories import make_settings
+from tests.realtime_helpers import wait_until
 
 pytestmark = pytest.mark.asyncio
 
@@ -24,6 +25,20 @@ async def store(settings, redis_client):
     s = PresenceStore(quick)
     yield s
     await s.aclose()
+
+
+async def gone(store, room):
+    """Wait for expiry by POLLING. Redis expiry uses the Redis host's wall clock, which on the
+    Docker development VM was measured stepping back by about 1.5 s, so a fixed sleep flakes."""
+    await wait_until(lambda: snapshot_empty(store, room), 10)
+
+
+async def snapshot_empty(store, room):
+    return await store.snapshot(room) == []
+
+
+async def typing_gone(store, room):
+    return await store.typing_snapshot(room) == []
 
 
 def ids():
@@ -62,8 +77,7 @@ async def test_an_abrupt_disconnect_expires_by_itself_and_a_refresh_keeps_it(sto
         await asyncio.sleep(0.25)
         await store.register(room, alice, a_conn)
     assert list(await users(store, room)) == [alice]
-    await asyncio.sleep(2.2)  # now alice stops too
-    assert await store.snapshot(room) == []
+    await gone(store, room)  # now alice stops too: only the TTL can remove her
 
 
 async def test_scores_use_redis_time_not_the_api_servers_clock(store, redis_client):
@@ -106,7 +120,7 @@ async def test_availability_of_an_expired_user_is_dropped_even_without_a_remove(
     room, alice, conn = ids()
     await store.register(room, alice, conn)
     await store.set_availability(room, alice, "busy")
-    await asyncio.sleep(2.2)  # crashed: the entry expired
+    await gone(store, room)  # crashed: the entry expires
     assert await store.snapshot(room) == []
     assert not await redis_client.hget(store.avail_key(room), str(alice))
     await store.register(room, alice, uuid.uuid4())  # back online: reset
@@ -140,7 +154,7 @@ async def test_typing_expires_by_itself(store):
     room, alice, conn = ids()
     await store.typing_start(room, alice, conn)
     assert await store.typing_snapshot(room) == [alice]
-    await asyncio.sleep(2.2)
+    await wait_until(lambda: typing_gone(store, room), 10)
     assert await store.typing_snapshot(room) == []
 
 

@@ -362,6 +362,8 @@ class PresenceCoordinator:
         while True:
             base = self.settings.presence_tick_seconds
             await asyncio.sleep(base * (1 + random.random() * 0.2))  # noqa: S311 - jitter
+            for key in [k for k in self._last_run if k[0] not in self.hub.rooms]:
+                del self._last_run[key]  # bounded: only rooms that have local connections
             for room_id in list(self.hub.rooms):
                 try:
                     await self.tick(room_id, "presence")

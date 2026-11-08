@@ -74,6 +74,8 @@ class HubCounters:
     reconcile_wakes: int = 0
     reconcile_failures: int = 0
     access_checks: int = 0
+    access_periodic_runs: int = 0
+    database_grace_closes: int = 0
     hints_applied: int = 0
     closes: Counter = field(default_factory=Counter)  # by close code
     resyncs: Counter = field(default_factory=Counter)  # by reason
@@ -141,6 +143,7 @@ class RealtimeHub:
         await self.presence.start()
         self._tasks = [
             asyncio.create_task(self._reconcile_loop(), name="ws-reconcile"),
+            asyncio.create_task(self._access_loop(), name="ws-access-check"),
             asyncio.create_task(self._stats_loop(), name="ws-stats"),
         ]
 
@@ -294,23 +297,43 @@ class RealtimeHub:
         delay = 0.1
         while True:
             try:
-                result = await fn(*args)
+                # a HUNG database (no error, no answer) must count as a failure too
+                async with asyncio.timeout(self._db_call_timeout()):
+                    result = await fn(*args)
             except asyncio.CancelledError:
                 raise
-            except (SQLAlchemyError, OSError) as exc:
-                now = self.clock()
-                if self.db_fail_since is None:
-                    self.db_fail_since = now
-                    log.warning("ws_database_unavailable error_type=%s", type(exc).__name__)
-                if now - self.db_fail_since >= self.settings.access_db_grace_seconds:
+            except (SQLAlchemyError, OSError, TimeoutError) as exc:
+                if self.database_failed(exc):
                     raise CloseConnection(
                         protocol.CLOSE_TRY_AGAIN_LATER, reason="database_unavailable"
                     ) from None
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 2.0)
             else:
-                self.db_fail_since = None
+                self.database_ok()
                 return result
+
+    def _db_call_timeout(self) -> float:
+        return min(10.0, max(0.3, self.settings.access_db_grace_seconds / 3))
+
+    def database_ok(self) -> None:
+        self.db_fail_since = None
+
+    def database_failed(self, exc: BaseException) -> bool:
+        """Record a database failure. Past ACCESS_DB_GRACE_SECONDS EVERY connection is closed with
+        1013 (idle ones too: nothing can be verified, so nothing may stay open on a stale
+        assumption). Returns True once the grace period is over."""
+        now = self.clock()
+        if self.db_fail_since is None:
+            self.db_fail_since = now
+            log.warning("ws_database_unavailable error_type=%s", type(exc).__name__)
+        if now - self.db_fail_since < self.settings.access_db_grace_seconds:
+            return False
+        for conn in list(self._serving):
+            if not conn.closing:
+                self.counters.database_grace_closes += 1
+                conn.request_close(protocol.CLOSE_TRY_AGAIN_LATER, discard=True)
+        return True
 
     # ---- access checks (one query per room, cached for ACCESS_CACHE_SECONDS) ---------
 
@@ -340,18 +363,19 @@ class RealtimeHub:
             and conn.access_epoch == state.access_epoch
         )
 
-    async def _check_room_access(self, state: RoomState) -> None:
+    async def _check_room_access(self, state: RoomState, *, patient: bool = True) -> None:
         conns = [c for c in state.connections.values() if not c.closing]
         if not conns:
             return
         started, epoch = self.clock(), state.access_epoch
         self.counters.access_checks += 1
-        verdicts = await self.db(
-            realtime_access.check_access,
-            self.sessionmaker,
-            state.room_id,
-            list({c.session_id for c in conns}),
-        )
+        args = (self.sessionmaker, state.room_id, list({c.session_id for c in conns}))
+        if patient:  # a drain waiting to send: retry for the grace period, never send unchecked
+            verdicts = await self.db(realtime_access.check_access, *args)
+        else:  # the periodic sweep: one attempt per interval, failures feed the grace clock
+            async with asyncio.timeout(self._db_call_timeout()):
+                verdicts = await realtime_access.check_access(*args)
+            self.database_ok()
         for conn in conns:
             verdict = verdicts.get(conn.session_id)
             if verdict is None or not verdict.session_ok:
@@ -381,6 +405,33 @@ class RealtimeHub:
     async def on_connection_closed(self, conn: Connection) -> None:
         self.presence.connection_closed(conn)
 
+    # ---- the periodic access sweep: the backstop for lost hints, logout and idle sockets --
+
+    async def _access_loop(self) -> None:
+        """Every ACCESS_CHECK_INTERVAL seconds, ONE batched query per room with local connections
+        (idle connections included). A removal normally closes a socket within a moment, through
+        the hint-triggered check; this sweep bounds the cases with no hint: a lost hint, or a
+        logout / expiry / disabled account, which emit no room event at all."""
+        while True:
+            base = self.settings.access_check_interval_seconds
+            await asyncio.sleep(base * (1 + random.random() * 0.2))  # noqa: S311 - jitter
+            await self.access_sweep()
+
+    async def access_sweep(self) -> None:
+        self.counters.access_periodic_runs += 1
+        for state in list(self.rooms.values()):
+            if not state.connections:
+                continue
+            try:
+                async with state.access_lock:
+                    await self._check_room_access(state, patient=False)
+            except asyncio.CancelledError:
+                raise
+            except (SQLAlchemyError, OSError, TimeoutError) as exc:
+                self.database_failed(exc)
+            except Exception as exc:
+                log.error("ws_access_sweep_failed error_type=%s", type(exc).__name__)
+
     # ---- reconciliation: find what a lost hint hid ------------------------------------
 
     async def _reconcile_loop(self) -> None:
@@ -399,6 +450,8 @@ class RealtimeHub:
             except Exception as exc:
                 self.counters.reconcile_failures += 1
                 log.warning("ws_reconcile_failed error_type=%s", type(exc).__name__)
+                if isinstance(exc, SQLAlchemyError | OSError | TimeoutError):
+                    self.database_failed(exc)
 
     async def reconcile_once(self) -> int:
         """ONE query for every room that has local connections; wake the connections that are
@@ -406,7 +459,9 @@ class RealtimeHub:
         room_ids = list(self.rooms)
         if not room_ids:
             return 0
-        seqs = await realtime_access.read_event_seqs(self.sessionmaker, room_ids)
+        async with asyncio.timeout(self._db_call_timeout()):
+            seqs = await realtime_access.read_event_seqs(self.sessionmaker, room_ids)
+        self.database_ok()
         self.counters.reconcile_runs += 1
         woken = 0
         for room_id, seq in seqs.items():
