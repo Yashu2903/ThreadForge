@@ -7,9 +7,10 @@ scheduler or task queue in this part.
 Deletes, in batches (each batch is its own short transaction, so it never holds long locks):
   * oidc_login_attempts whose expires_at has passed (consumed or not);
   * sessions that expired more than --expired-retention-days ago;
-  * sessions revoked more than --revoked-retention-days ago.
-Live sessions, users and identities are never touched. Safe to run concurrently and repeatedly
-(rows are claimed with FOR UPDATE SKIP LOCKED).
+  * sessions revoked more than --revoked-retention-days ago;
+  * message_write_buckets (rate-limit counters) whose window started more than 24 hours ago.
+Messages are NEVER deleted here. Live sessions, users and identities are never touched. Safe to
+run concurrently and repeatedly (rows are claimed with FOR UPDATE SKIP LOCKED).
 
 Needs only DATABASE_URL, not the other application settings.
 """
@@ -23,27 +24,30 @@ import sys
 from dataclasses import dataclass
 from datetime import timedelta
 
-from sqlalchemy import ColumnElement, Table, delete, func, or_, select
+from sqlalchemy import ColumnElement, Table, delete, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import ConfigError, load_database_url
 from app.db import create_engine_from_url, create_sessionmaker
-from app.models import OIDCLoginAttempt, Session
+from app.models import MessageWriteBucket, OIDCLoginAttempt, Session
 
 log = logging.getLogger("threadforge.cleanup")
 
 DEFAULT_BATCH_SIZE = 1000
 DEFAULT_EXPIRED_RETENTION_DAYS = 1
 DEFAULT_REVOKED_RETENTION_DAYS = 7
+BUCKET_RETENTION_HOURS = 24
 
 _ATTEMPTS = OIDCLoginAttempt.__table__
 _SESSIONS = Session.__table__
+_BUCKETS = MessageWriteBucket.__table__
 
 
 @dataclass(frozen=True)
 class CleanupResult:
     login_attempts: int
     sessions: int
+    message_write_buckets: int = 0
 
 
 async def _delete_in_batches(
@@ -63,6 +67,30 @@ async def _delete_in_batches(
                 .with_for_update(skip_locked=True)
             )
             deleted = (await db.execute(delete(table).where(table.c.id.in_(victims)))).rowcount
+        total += deleted
+        if deleted < batch_size:
+            return total
+
+
+async def _delete_buckets_in_batches(
+    sessionmaker: async_sessionmaker[AsyncSession], batch_size: int
+) -> int:
+    """Same batching, but this table has a composite key and no id: rows are claimed by ctid
+    (PostgreSQL's physical row id), which is stable within one statement."""
+    ctid = literal_column("ctid")
+    total = 0
+    while True:
+        async with sessionmaker() as db, db.begin():
+            victims = (
+                select(ctid)
+                .select_from(_BUCKETS)
+                .where(
+                    _BUCKETS.c.window_start < func.now() - timedelta(hours=BUCKET_RETENTION_HOURS)
+                )
+                .limit(batch_size)
+                .with_for_update(skip_locked=True)
+            )
+            deleted = (await db.execute(delete(_BUCKETS).where(ctid.in_(victims)))).rowcount
         total += deleted
         if deleted < batch_size:
             return total
@@ -90,7 +118,8 @@ async def cleanup_auth(
         ),
         batch_size,
     )
-    return CleanupResult(login_attempts=attempts, sessions=sessions)
+    buckets = await _delete_buckets_in_batches(sessionmaker, batch_size)
+    return CleanupResult(login_attempts=attempts, sessions=sessions, message_write_buckets=buckets)
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -133,7 +162,10 @@ def main(argv: list[str] | None = None) -> int:
     except (ConfigError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    print(f"deleted {result.login_attempts} login attempts and {result.sessions} sessions")
+    print(
+        f"deleted {result.login_attempts} login attempts and {result.sessions} sessions; "
+        f"deleted {result.message_write_buckets} message write buckets"
+    )
     return 0
 
 
