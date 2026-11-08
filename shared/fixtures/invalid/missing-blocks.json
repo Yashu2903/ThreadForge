@@ -1,0 +1,10 @@
+{
+  "name": "missing-blocks",
+  "document": {
+    "schema_version": 1
+  },
+  "error": {
+    "path": "/blocks",
+    "code": "missing_field"
+  }
+}

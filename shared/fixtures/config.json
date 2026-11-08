@@ -1,0 +1,13 @@
+{
+  "description": "Settings both validators run the fixtures with (the defaults).",
+  "fonts": [
+    "sans",
+    "serif",
+    "mono",
+    "calibri",
+    "cambria",
+    "arial",
+    "times_new_roman",
+    "courier_new"
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "name": "nested-lists",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "list",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "list_item",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "children": [
+              {
+                "type": "paragraph",
+                "id": "00000000-0000-4000-8000-000000000003",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              },
+              {
+                "type": "list",
+                "id": "00000000-0000-4000-8000-000000000004",
+                "children": [
+                  {
+                    "type": "list_item",
+                    "id": "00000000-0000-4000-8000-000000000005",
+                    "children": [
+                      {
+                        "type": "paragraph",
+                        "id": "00000000-0000-4000-8000-000000000006",
+                        "children": [
+                          {
+                            "type": "text",
+                            "text": "a.1"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "list",
+                        "id": "00000000-0000-4000-8000-000000000007",
+                        "children": [
+                          {
+                            "type": "list_item",
+                            "id": "00000000-0000-4000-8000-000000000008",
+                            "children": [
+                              {
+                                "type": "paragraph",
+                                "id": "00000000-0000-4000-8000-000000000009",
+                                "children": [
+                                  {
+                                    "type": "text",
+                                    "text": "a.1.1"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "ordered": true
+              }
+            ]
+          },
+          {
+            "type": "list_item",
+            "id": "00000000-0000-4000-8000-000000000010",
+            "children": [
+              {
+                "type": "paragraph",
+                "id": "00000000-0000-4000-8000-000000000011",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "b"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "id": "00000000-0000-4000-8000-000000000012",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "b continued"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

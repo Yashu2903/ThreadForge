@@ -1,0 +1,74 @@
+{
+  "name": "headings-and-paragraph-attrs",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "heading",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "level": 1,
+        "attrs": {
+          "align": "center"
+        },
+        "children": [
+          {
+            "type": "text",
+            "text": "Title"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "id": "00000000-0000-4000-8000-000000000002",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Sub"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "id": "00000000-0000-4000-8000-000000000003",
+        "level": 3,
+        "children": [
+          {
+            "type": "text",
+            "text": "Third"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000004",
+        "attrs": {
+          "align": "justify",
+          "line_spacing": 1.5,
+          "space_before_pt": 6,
+          "space_after_pt": 12.5,
+          "indent_level": 2
+        },
+        "children": [
+          {
+            "type": "text",
+            "text": "Spaced"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000005",
+        "attrs": {
+          "line_spacing": 2
+        },
+        "children": [
+          {
+            "type": "text",
+            "text": "Double"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "heading-level-4",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "heading",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "level": 4,
+        "children": [
+          {
+            "type": "text",
+            "text": "x"
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/level",
+    "code": "invalid_value"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "cell-without-paragraphs",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "table",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "table_row",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "children": [
+              {
+                "type": "table_cell",
+                "id": "00000000-0000-4000-8000-000000000003",
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/children/0/children",
+    "code": "invalid_structure"
+  }
+}

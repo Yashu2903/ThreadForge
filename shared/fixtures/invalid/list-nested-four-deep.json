@@ -1,0 +1,76 @@
+{
+  "name": "list-nested-four-deep",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "list",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "list_item",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "children": [
+              {
+                "type": "paragraph",
+                "id": "00000000-0000-4000-8000-000000000003"
+              },
+              {
+                "type": "list",
+                "id": "00000000-0000-4000-8000-000000000004",
+                "children": [
+                  {
+                    "type": "list_item",
+                    "id": "00000000-0000-4000-8000-000000000005",
+                    "children": [
+                      {
+                        "type": "paragraph",
+                        "id": "00000000-0000-4000-8000-000000000006"
+                      },
+                      {
+                        "type": "list",
+                        "id": "00000000-0000-4000-8000-000000000007",
+                        "children": [
+                          {
+                            "type": "list_item",
+                            "id": "00000000-0000-4000-8000-000000000008",
+                            "children": [
+                              {
+                                "type": "paragraph",
+                                "id": "00000000-0000-4000-8000-000000000009"
+                              },
+                              {
+                                "type": "list",
+                                "id": "00000000-0000-4000-8000-000000000010",
+                                "children": [
+                                  {
+                                    "type": "list_item",
+                                    "id": "00000000-0000-4000-8000-000000000011",
+                                    "children": [
+                                      {
+                                        "type": "paragraph",
+                                        "id": "00000000-0000-4000-8000-000000000012"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/children/1/children/0/children/1/children/0/children/1",
+    "code": "limit_exceeded"
+  }
+}

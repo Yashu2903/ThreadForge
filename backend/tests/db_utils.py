@@ -18,7 +18,8 @@ PART1_TABLES = ("users", "auth_identities", "sessions", "oidc_login_attempts")
 PART2_TABLES = ("rooms", "memberships", "invitations")
 PART3_TABLES = ("messages", "message_write_buckets")
 PART4_TABLES = ("room_events", "outbox")
-APP_TABLES = (*PART1_TABLES, *PART2_TABLES, *PART3_TABLES, *PART4_TABLES)
+PART6_TABLES = ("documents", "room_assets", "document_asset_refs", "document_write_buckets")
+APP_TABLES = (*PART1_TABLES, *PART2_TABLES, *PART3_TABLES, *PART4_TABLES, *PART6_TABLES)
 
 
 def alembic_config(url: str = TEST_DATABASE_URL) -> Config:

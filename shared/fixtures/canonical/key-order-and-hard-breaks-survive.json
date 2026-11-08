@@ -1,0 +1,53 @@
+{
+  "name": "key-order-and-hard-breaks-survive",
+  "input": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "hard_break"
+          },
+          {
+            "type": "hard_break"
+          },
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "hard_break"
+          },
+          {
+            "type": "hard_break"
+          },
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    ]
+  }
+}

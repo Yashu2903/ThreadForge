@@ -1,0 +1,22 @@
+{
+  "name": "hard-break-with-field",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "hard_break",
+            "x": 1
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/x",
+    "code": "unknown_field"
+  }
+}

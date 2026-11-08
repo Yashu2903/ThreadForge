@@ -1,0 +1,19 @@
+{
+  "name": "bad-line-spacing",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "attrs": {
+          "line_spacing": 1.3
+        }
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/attrs/line_spacing",
+    "code": "invalid_value"
+  }
+}

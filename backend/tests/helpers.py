@@ -133,6 +133,9 @@ class Actor:
     async def patch(self, url, **kw):
         return await self.request("PATCH", url, **kw)
 
+    async def put(self, url, **kw):
+        return await self.request("PUT", url, **kw)
+
     async def delete(self, url, **kw):
         return await self.request("DELETE", url, **kw)
 

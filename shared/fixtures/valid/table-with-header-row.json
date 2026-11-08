@@ -1,0 +1,96 @@
+{
+  "name": "table-with-header-row",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "table",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "table_row",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "children": [
+              {
+                "type": "table_cell",
+                "id": "00000000-0000-4000-8000-000000000003",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "id": "00000000-0000-4000-8000-000000000004",
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "H1"
+                      }
+                    ]
+                  }
+                ],
+                "header": true
+              },
+              {
+                "type": "table_cell",
+                "id": "00000000-0000-4000-8000-000000000005",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "id": "00000000-0000-4000-8000-000000000006",
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "H2"
+                      }
+                    ]
+                  }
+                ],
+                "header": true
+              }
+            ]
+          },
+          {
+            "type": "table_row",
+            "id": "00000000-0000-4000-8000-000000000007",
+            "children": [
+              {
+                "type": "table_cell",
+                "id": "00000000-0000-4000-8000-000000000008",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "id": "00000000-0000-4000-8000-000000000009",
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "table_cell",
+                "id": "00000000-0000-4000-8000-000000000010",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "id": "00000000-0000-4000-8000-000000000011"
+                  },
+                  {
+                    "type": "paragraph",
+                    "id": "00000000-0000-4000-8000-000000000012",
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "two paragraphs"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

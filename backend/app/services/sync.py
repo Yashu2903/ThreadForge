@@ -84,6 +84,8 @@ async def build_sync(
             owner_id=row.owner_id,
             created_at=row.created_at,
             updated_at=row.updated_at,
+            active_document_id=row.active_document_id,
+            active_document_version=row.active_document_version,
         ),
         role=row.my_role,
         membership_epoch=row.membership_epoch,

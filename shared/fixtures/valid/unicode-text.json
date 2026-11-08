@@ -1,0 +1,18 @@
+{
+  "name": "unicode-text",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "emoji \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67 and \ud83d\udc4d\ud83c\udffd, e\u0301 combining, \u05e9\u05dc\u05d5\u05dd RTL, \u65e5\u672c\u8a9e"
+          }
+        ]
+      }
+    ]
+  }
+}

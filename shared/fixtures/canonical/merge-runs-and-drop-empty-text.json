@@ -1,0 +1,69 @@
+{
+  "name": "merge-runs-and-drop-empty-text",
+  "input": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "He"
+          },
+          {
+            "type": "text",
+            "text": ""
+          },
+          {
+            "type": "text",
+            "text": "llo"
+          },
+          {
+            "type": "text",
+            "text": " world",
+            "marks": {
+              "bold": true
+            }
+          },
+          {
+            "type": "text",
+            "text": "!",
+            "marks": {
+              "bold": true
+            }
+          },
+          {
+            "type": "text",
+            "text": "",
+            "marks": {
+              "italic": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "Hello"
+          },
+          {
+            "type": "text",
+            "text": " world!",
+            "marks": {
+              "bold": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

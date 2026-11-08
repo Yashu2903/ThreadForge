@@ -27,6 +27,8 @@ import {
   type ClientFrame,
   type Member,
   type Message,
+  type DocumentChange,
+  type DocumentSignals,
   type RoomEvent,
   type RoomInfo,
   SCHEMA_VERSION,
@@ -95,6 +97,13 @@ export interface Options {
   httpBase: string; // e.g. https://api.example.com
   wsBase: string; // e.g. wss://api.example.com
   tunables?: Partial<Tunables>;
+  /**
+   * Part 6. Called with the document-related part of each batch BEFORE the cursor advances (and
+   * acks are sent): if it throws, the batch is retried, then the socket is reconnected and the
+   * batch replayed. So "the cursor moved" means "the app has seen and acted on these events".
+   * Also called with reset: true after a fresh bootstrap replaced the room state.
+   */
+  onDocumentSignals?: (signals: DocumentSignals) => Promise<void> | void;
 }
 
 export interface State {
@@ -143,6 +152,10 @@ class AccessLost extends Error {
   }
 }
 class FetchFailed extends Error {}
+
+function emptySignals(): DocumentSignals {
+  return { listChanged: false, documents: new Map(), active: null, reset: false };
+}
 
 export class RoomClient {
   readonly state: State;
@@ -326,6 +339,7 @@ export class RoomClient {
     s.messages = new Map(boot.messages.map((m) => [m.id, m]));
     s.nextBefore = boot.next_before;
     s.cursor = boot.through_seq;
+    this.pendingReset = true;
     // frames already buffered beyond the bootstrap stay (they continue it); the rest is covered
     this.buffer = this.buffer.filter((e) => e.room_seq > boot.through_seq);
     this.lastQueuedSeq = Math.max(boot.through_seq, this.buffer.at(-1)?.room_seq ?? 0);
@@ -518,7 +532,9 @@ export class RoomClient {
     const messageIds = new Set<string>();
     let roomDirty = false;
     let membersDirty = false;
+    const signals = emptySignals();
     for (const e of batch) {
+      if (e.resource_type === "document" && e.resource_id) this.collectDocumentEvent(signals, e);
       if (e.event_type === "member_removed" && (e.payload as { user_id?: string }).user_id === this.opts.userId) {
         return this.terminal("access_lost", true); // I was removed: stop everything, clear
       }
@@ -531,7 +547,6 @@ export class RoomClient {
       const boot = await this.withRetries(gen, () => this.fetchBootstrap(gen));
       if (gen !== this.generation) return;
       this.installBootstrap(boot); // state and cursor together; the cursor is >= `last`
-      this.state.cursor = Math.max(this.state.cursor, last);
     } else {
       await this.fetchMessages(gen, [...messageIds]);
       if (membersDirty) {
@@ -545,19 +560,71 @@ export class RoomClient {
           return (await res.json()) as RoomInfo & { role?: string };
         });
         if (gen !== this.generation) return;
+        const known = this.state.room;
+        // the selection only moves forward, whichever source (event or fetch) reports it first
+        const newer = !known || room.active_document_version >= known.active_document_version;
         this.state.room = {
           id: room.id,
           name: room.name,
           owner_id: room.owner_id,
           created_at: room.created_at,
           updated_at: room.updated_at,
+          active_document_id: newer ? room.active_document_id : known!.active_document_id,
+          active_document_version: newer ? room.active_document_version : known!.active_document_version,
         };
       }
-      this.state.cursor = Math.max(this.state.cursor, last); // ONLY now: all fetches succeeded
     }
+    if (signals.active) this.applyActive(signals.active.documentId, signals.active.selectionVersion);
+    // The application acts on the document news BEFORE the cursor moves, like every other fetch.
+    await this.deliverDocumentSignals(gen, signals);
+    if (gen !== this.generation) return;
+    this.state.cursor = Math.max(this.state.cursor, last); // ONLY now: all fetches and handlers succeeded
     this.lastQueuedSeq = Math.max(this.lastQueuedSeq, this.state.cursor);
     this.emit();
     this.scheduleAck(gen);
+  }
+
+  /** Fold one document event into the batch's coalesced signals (one entry per document id). */
+  private collectDocumentEvent(signals: DocumentSignals, e: RoomEvent): void {
+    const id = e.resource_id!;
+    const change: DocumentChange = signals.documents.get(id) ?? { created: false, renamed: false, contentVersion: null };
+    signals.documents.set(id, change);
+    signals.listChanged = true;
+    if (e.event_type === "document_created") change.created = true;
+    else if (e.event_type === "document_renamed") change.renamed = true;
+    else if (e.event_type === "document_content_updated") {
+      change.contentVersion = Math.max(change.contentVersion ?? 0, e.resource_version ?? 0);
+    } else if (e.event_type === "active_document_changed") {
+      const version = Number((e.payload as { selection_version?: unknown }).selection_version);
+      if (Number.isInteger(version) && (!signals.active || version > signals.active.selectionVersion)) {
+        signals.active = { documentId: id, selectionVersion: version };
+      }
+    }
+  }
+
+  /** The selection moves forward only: a stale or repeated announcement changes nothing. */
+  private applyActive(documentId: string, selectionVersion: number): void {
+    const room = this.state.room;
+    if (room && selectionVersion > room.active_document_version) {
+      room.active_document_id = documentId;
+      room.active_document_version = selectionVersion;
+    }
+  }
+
+  private pendingReset = false; // a bootstrap replaced the state and the app has not been told yet
+
+  private async deliverDocumentSignals(gen: number, signals: DocumentSignals): Promise<void> {
+    signals.reset = this.pendingReset;
+    const news = signals.listChanged || signals.documents.size > 0 || signals.active !== null || signals.reset;
+    const handler = this.opts.onDocumentSignals;
+    if (!news || !handler) {
+      if (!handler) this.pendingReset = false;
+      return;
+    }
+    await this.withRetries(gen, async () => {
+      await handler(signals);
+    });
+    if (gen === this.generation && signals.reset) this.pendingReset = false;
   }
 
   private async fetchMessages(gen: number, ids: string[]): Promise<void> {
@@ -687,6 +754,8 @@ export class RoomClient {
     this.scheduleAck(gen);
     this.emit();
     void this.retryPending();
+    // after a (re)bootstrap the app must refetch what it holds: tell it once we are live
+    if (this.pendingReset) void this.deliverDocumentSignals(gen, emptySignals()).catch(() => undefined);
   }
 
   /** Acks are batched (the server accepts 10/second) and sent only for processed events. */
@@ -796,6 +865,7 @@ export class RoomClient {
   private clearRoomState(): void {
     const s = this.state;
     s.room = null;
+    this.pendingReset = false;
     s.role = null;
     s.members = [];
     s.messages = new Map();

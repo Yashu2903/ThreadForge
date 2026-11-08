@@ -6,6 +6,7 @@ Run with:  uvicorn app.main:create_app --factory --no-access-log --no-proxy-head
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -16,6 +17,8 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api import (
     auth,
+    capabilities,
+    documents,
     health,
     invitations,
     members,
@@ -76,6 +79,8 @@ def create_app(
     app.include_router(invitations.router)
     app.include_router(members.router)
     app.include_router(messages.router)
+    app.include_router(documents.router)
+    app.include_router(capabilities.router)
     app.include_router(room_events.router)
     app.include_router(sync.router)
     app.include_router(realtime.router)
@@ -83,7 +88,17 @@ def create_app(
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the
     # request-context middleware (and its logs) see the real client address.
     # Innermost of the three: the 413 it produces still gets a request id and no-store.
-    app.add_middleware(BodySizeLimitMiddleware)
+    # 128 KiB for every JSON route, except the document content save (2 MiB by default).
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        rules=(
+            (
+                "PUT",
+                re.compile(r"/rooms/[^/]+/documents/[^/]+/content"),
+                settings.document_save_body_limit_bytes,
+            ),
+        ),
+    )
     app.add_middleware(RequestContextMiddleware)
     if settings.trusted_proxy_ips:
         app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.trusted_proxy_ips)

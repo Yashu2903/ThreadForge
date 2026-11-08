@@ -18,6 +18,7 @@ request id in the error body, and Cache-Control: no-store like every other respo
 from __future__ import annotations
 
 import json
+import re
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -25,17 +26,34 @@ MAX_BODY_BYTES = 128 * 1024
 
 
 class BodySizeLimitMiddleware:
-    def __init__(self, app: ASGIApp, max_bytes: int = MAX_BODY_BYTES) -> None:
+    """`rules` are per-route overrides: (METHOD, compiled path regex, max_bytes). The first rule
+    that matches wins; everything else gets `max_bytes`. (Part 6: a document save may be 2 MiB
+    while every other JSON route stays at 128 KiB.)"""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        max_bytes: int = MAX_BODY_BYTES,
+        rules: tuple[tuple[str, re.Pattern[str], int], ...] = (),
+    ) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self.rules = rules
+
+    def limit_for(self, scope: Scope) -> int:
+        for method, pattern, limit in self.rules:
+            if scope.get("method") == method and pattern.fullmatch(scope.get("path", "")):
+                return limit
+        return self.max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
+        limit = self.limit_for(scope)
         declared = _content_length(scope)
-        if declared is not None and declared > self.max_bytes:
+        if declared is not None and declared > limit:
             await self._reject(scope, send)
             return
 
@@ -49,7 +67,7 @@ class BodySizeLimitMiddleware:
                 return
             body = message.get("body", b"")
             total += len(body)
-            if total > self.max_bytes:
+            if total > limit:
                 await self._reject(scope, send)
                 return
             chunks.append(body)

@@ -17,6 +17,8 @@ class SyncRoom(BaseModel):
     owner_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    active_document_id: uuid.UUID | None
+    active_document_version: int
 
 
 class SyncOut(BaseModel):

@@ -36,10 +36,19 @@ class MemberRemovedPayload(_Strict):
     user_id: uuid.UUID
 
 
+class DocumentPayload(_Strict):
+    document_id: uuid.UUID
+
+
+class ActiveDocumentPayload(_Strict):
+    document_id: uuid.UUID
+    selection_version: Annotated[int, Field(strict=True, ge=1)]
+
+
 @dataclass(frozen=True)
 class EventSpec:
     resource_type: str
-    versioned: bool  # message events carry the resource_version; others must not
+    versioned: bool  # message and content events carry the resource_version; others must not
     payload_model: type[_Strict]
 
 
@@ -52,6 +61,12 @@ EVENT_SPECS: dict[str, EventSpec] = {
     "message_created": EventSpec("message", True, EmptyPayload),
     "message_edited": EventSpec("message", True, EmptyPayload),
     "message_deleted": EventSpec("message", True, EmptyPayload),
+    # Part 6. References and versions only: never a title or any content.
+    "document_created": EventSpec("document", False, DocumentPayload),
+    "document_renamed": EventSpec("document", False, DocumentPayload),
+    "active_document_changed": EventSpec("document", False, ActiveDocumentPayload),
+    # resource_version is the document's NEW content_version
+    "document_content_updated": EventSpec("document", True, DocumentPayload),
 }
 
 

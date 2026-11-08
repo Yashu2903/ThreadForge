@@ -148,10 +148,44 @@ class Settings(BaseSettings):
     typing_expiry_seconds: float = 5.0
     typing_state_min_interval_seconds: float = 0.5  # at most 2 typing_state frames/s per room
 
+    # Part 6: Google Drive import (a SEPARATE authorization from login). If any of these is missing
+    # the feature is simply unavailable and GET /capabilities says not_configured.
+    google_drive_client_id: str = ""
+    google_drive_client_secret: SecretStr = SecretStr("")
+    google_picker_api_key: str = ""
+    google_cloud_project_number: str = ""
+    # key_id:base64key pairs, comma separated; the FIRST is the active encryption key.
+    cloud_token_encryption_keys: SecretStr = SecretStr("")
+
+    # Part 6: documents. The limits mirror docs/document-schema.md; exceeding one is an error,
+    # never a truncation.
+    document_max_serialized_bytes: int = 1024 * 1024
+    document_max_text_codepoints: int = 100_000
+    document_max_total_nodes: int = 60_000
+    document_max_blocks: int = 5_000  # block nodes plus list items
+    document_max_inline_nodes: int = 20_000
+    document_max_images: int = 100
+    document_max_list_depth: int = 3
+    document_max_link_length: int = 2048
+    document_font_keys: Annotated[list[str], NoDecode] = [
+        "sans",
+        "serif",
+        "mono",
+        "calibri",
+        "cambria",
+        "arial",
+        "times_new_roman",
+        "courier_new",
+    ]
+    max_documents_per_room: int = 200
+    document_writes_per_minute: int = 120  # per user per room; separate from chat's quota
+    document_save_body_limit_bytes: int = 2 * 1024 * 1024  # PUT .../content
+    # Also bounds a save's JSON overhead; the default document limit is 1 MiB of canonical text.
+
     trusted_proxy_ips: Annotated[list[str], NoDecode] = []
     cookie_secure: bool | None = None
 
-    @field_validator("trusted_origins", "trusted_proxy_ips", mode="before")
+    @field_validator("trusted_origins", "trusted_proxy_ips", "document_font_keys", mode="before")
     @classmethod
     def _csv(cls, value: object) -> object:
         return _split_csv(value)
@@ -178,6 +212,20 @@ class Settings(BaseSettings):
     def oidc_configured(self) -> bool:
         return not is_placeholder(self.google_client_id) and not is_placeholder(
             self.google_client_secret.get_secret_value()
+        )
+
+    @property
+    def drive_configured(self) -> bool:
+        """True only when EVERY Drive setting is present (and not an unfilled placeholder)."""
+        return not any(
+            is_placeholder(value)
+            for value in (
+                self.google_drive_client_id,
+                self.google_drive_client_secret.get_secret_value(),
+                self.google_picker_api_key,
+                self.google_cloud_project_number,
+                self.cloud_token_encryption_keys.get_secret_value(),
+            )
         )
 
     @property
@@ -295,6 +343,7 @@ class Settings(BaseSettings):
                 f"{MIN_PRODUCTION_SECRET_LENGTH} characters in production."
             )
         problems += self._validate_part4(prod)
+        problems += self._validate_part6()
         if self.message_writes_per_minute < 1:
             problems.append("MESSAGE_WRITES_PER_MINUTE must be at least 1.")
 
@@ -396,6 +445,38 @@ class Settings(BaseSettings):
                 "so a claim cannot expire while its publish is still in flight."
             )
         problems += self._validate_part5()
+        return problems
+
+    def _validate_part6(self) -> list[str]:
+        """Document limits must be positive and consistent with each other."""
+        problems: list[str] = []
+        for name, value in (
+            ("DOCUMENT_MAX_SERIALIZED_BYTES", self.document_max_serialized_bytes),
+            ("DOCUMENT_MAX_TEXT_CODEPOINTS", self.document_max_text_codepoints),
+            ("DOCUMENT_MAX_TOTAL_NODES", self.document_max_total_nodes),
+            ("DOCUMENT_MAX_BLOCKS", self.document_max_blocks),
+            ("DOCUMENT_MAX_INLINE_NODES", self.document_max_inline_nodes),
+            ("DOCUMENT_MAX_IMAGES", self.document_max_images),
+            ("DOCUMENT_MAX_LINK_LENGTH", self.document_max_link_length),
+            ("MAX_DOCUMENTS_PER_ROOM", self.max_documents_per_room),
+            ("DOCUMENT_WRITES_PER_MINUTE", self.document_writes_per_minute),
+        ):
+            if value < 1:
+                problems.append(f"{name} must be at least 1.")
+        if not 1 <= self.document_max_list_depth <= 3:
+            problems.append("DOCUMENT_MAX_LIST_DEPTH must be between 1 and 3.")
+        if self.document_save_body_limit_bytes < self.document_max_serialized_bytes:
+            problems.append(
+                "DOCUMENT_SAVE_BODY_LIMIT_BYTES must be at least DOCUMENT_MAX_SERIALIZED_BYTES, "
+                "or a maximum-size document could never be saved."
+            )
+        if not self.document_font_keys or any(
+            not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", key) for key in self.document_font_keys
+        ):
+            problems.append(
+                "DOCUMENT_FONT_KEYS must be a comma-separated list of lowercase keys "
+                "(letters, digits, underscore)."
+            )
         return problems
 
     def _validate_part5(self) -> list[str]:

@@ -1,0 +1,69 @@
+{
+  "name": "formatted-text",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "Plain "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": {
+              "bold": true
+            }
+          },
+          {
+            "type": "text",
+            "text": " and ",
+            "marks": {
+              "italic": true,
+              "underline": true
+            }
+          },
+          {
+            "type": "text",
+            "text": "struck",
+            "marks": {
+              "strike": true,
+              "color": "#FF0000",
+              "highlight": "#FFFF00"
+            }
+          },
+          {
+            "type": "text",
+            "text": "x2",
+            "marks": {
+              "script": "superscript",
+              "font": "calibri",
+              "size_pt": 11.5
+            }
+          },
+          {
+            "type": "text",
+            "text": "link",
+            "marks": {
+              "link": {
+                "href": "https://example.com/a?b=c#d"
+              }
+            }
+          },
+          {
+            "type": "text",
+            "text": "mail",
+            "marks": {
+              "link": {
+                "href": "mailto:someone@example.com"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

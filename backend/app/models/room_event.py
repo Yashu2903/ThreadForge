@@ -28,6 +28,10 @@ EVENT_TYPES = (
     "message_created",
     "message_edited",
     "message_deleted",
+    "document_created",
+    "document_renamed",
+    "active_document_changed",
+    "document_content_updated",
 )
 _TYPE_LIST = ", ".join(f"'{t}'" for t in EVENT_TYPES)
 
@@ -53,7 +57,8 @@ class RoomEvent(Base):
         CheckConstraint("schema_version >= 1", name="schema_version_positive"),
         CheckConstraint(f"type IN ({_TYPE_LIST})", name="type_valid"),
         CheckConstraint(
-            "resource_type IN ('room', 'membership', 'message')", name="resource_type_valid"
+            "resource_type IN ('room', 'membership', 'message', 'document')",
+            name="resource_type_valid",
         ),
         CheckConstraint("jsonb_typeof(payload) = 'object'", name="payload_is_object"),
         CheckConstraint("octet_length(payload::text) <= 2048", name="payload_size"),

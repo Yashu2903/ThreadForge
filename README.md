@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 5 of 5 — authentication, rooms, messages, durable events, reconnect recovery, presence and live access
+## Status: Part 6 in progress (documents, checkpoint 1 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -743,6 +743,126 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
   * **Wall clocks**: presence expiry uses Redis `TIME` (wall clock). A clock step on the Redis host can delay or hasten an expiry by the size of the step. **Measured on this development VM:** while 2.2 s of real time passed, the Redis container's clock advanced only about 0.65 s in some iterations (a step of roughly 1.5 s; the same instability seen with PostgreSQL's `clock_timestamp()` in Part 3), which is why the expiry tests poll instead of sleeping a fixed time. Redis's own key TTLs use the same clock, so this cannot be avoided in the application.
   * Scripting facts (atomicity, `TIME` followed by writes with effects replication, keys in `KEYS`, `SCRIPT FLUSH` recovery) come from the Redis documentation, and the flush recovery is covered by a test. The PostgreSQL isolation facts come from its documentation and tests. I could not fetch the Starlette WebSocket documentation site; its behaviour was read from the installed source and confirmed by tests.
   * Development and tests ran on Windows with Docker Desktop; Linux signal handling was not run. Scale was tested up to a few dozen concurrent connections on one machine, not thousands.
+
+---
+
+## Part 6: documents (in progress: checkpoint 1 of 9, backend foundation)
+
+Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
+the document format is [docs/document-schema.md](docs/document-schema.md).
+
+### What exists after checkpoint 1
+
+* **Document model** (`backend/app/documents/`): one validator/canonicalizer in Python and its
+  TypeScript twin (`client/src/document-schema.ts`), both run against 76 golden files in
+  `shared/fixtures/`; deterministic canonical JSON and SHA-256 `content_hash`; five server-defined
+  templates.
+* **Tables** (migration `0005`): `documents`, `room_assets`, `document_asset_refs`,
+  `document_write_buckets`, plus `rooms.active_document_id` / `active_document_version` and four new
+  room event types. Tables for imports and cloud connections arrive with the checkpoints that use
+  them.
+* **API** (`backend/app/api/documents.py`, `backend/app/services/documents.py`): create, list, read,
+  rename, choose the active document, save content.
+* **Realtime**: `document_created`, `document_renamed`, `active_document_changed`,
+  `document_content_updated` events; `GET /rooms/{id}/sync` and `GET /rooms/{id}` carry
+  `active_document_id` / `active_document_version`; the Part 5 client folds document events into
+  coalesced `DocumentSignals` and moves its cursor only after the application handled them.
+
+### Routes
+
+| Route | Who | Notes |
+|---|---|---|
+| `POST /rooms/{room}/documents` | owner | body `title`, `template_key`, `client_request_id`; 201 new, 200 matching retry |
+| `GET /rooms/{room}/documents` | member | keyset pagination, metadata only (never content), `is_active`, `requires_review` |
+| `GET /rooms/{room}/documents/{doc}` | member | content, versions, `can_edit`, `ETag`; `If-None-Match` gives 304 |
+| `PATCH /rooms/{room}/documents/{doc}` | owner | `title` only; bumps `metadata_version` only |
+| `PUT /rooms/{room}/active-document` | owner | `document_id`, optional `expected_selection_version` |
+| `PUT /rooms/{room}/documents/{doc}/content` | owner, editor | `schema_version`, `expected_content_version`, `content`; up to 2 MiB |
+
+Gate order on every route: body-size limit (413), authentication (401), CSRF (403), unlocked
+membership/role pre-check (404 `room_not_found` / 403 `insufficient_role`), validation (422), then a
+transaction that locks the room and **rechecks** membership and role. A document, asset or import is
+looked up by room **and** id, so another room's id is simply `document_not_found`.
+
+### Error codes added
+
+| Status | Code | Meaning |
+|---|---|---|
+| 404 | `document_not_found` | no such document in this room |
+| 403 | `insufficient_role` | active member without the needed role |
+| 409 | `document_version_conflict` | stale `expected_content_version`; carries `current_content_version`; returned even when the content is identical |
+| 409 | `document_request_id_reused` | same `client_request_id`, different title/template |
+| 409 | `document_limit_reached` | room already has `MAX_DOCUMENTS_PER_ROOM` documents |
+| 409 | `selection_conflict` | stale `expected_selection_version`; carries `current_selection_version` |
+| 422 | `invalid_document_content` | `error.errors: [{path, code, message}]`, a JSON Pointer path |
+| 422 | `asset_not_found` | the content references an asset that is missing, expired or in another room; `error.asset_ids` |
+| 413 | `payload_too_large` | over the route's limit (2 MiB for content saves, 128 KiB elsewhere), counted on received bytes |
+| 429 | `rate_limited` | `DOCUMENT_WRITES_PER_MINUTE` per user per room; `Retry-After` set |
+
+(`unsupported_media_type`, `quota_exceeded`, `import_*`, `provider_*` arrive with assets, imports and Drive.)
+
+### The save, step by step (`services/documents.save_content`)
+
+Outside any lock: size limit, CSRF, pre-check, JSON parse, **validate and canonicalize**, hash,
+collect referenced asset ids. Then one transaction:
+
+1. lock the room (`FOR NO KEY UPDATE`), recheck membership and role;
+2. load the document `FOR UPDATE`, scoped to the room;
+3. `expected_content_version` differs: 409 (even if the text is identical);
+4. canonical hash equals the stored hash: return the current state with `unchanged: true` (no
+   version bump, no event, no rate-limit use);
+5. referenced assets exist in this room and are not expired, else 422 (asset rows locked);
+6. consume the rate-limit bucket (one `INSERT … ON CONFLICT DO UPDATE … WHERE count < limit`);
+7. update content, hash, timestamps, `content_version + 1`; maintain `document_asset_refs`; record
+   `document_content_updated`; commit.
+
+Every step that can refuse is before every step that writes, and all writes share one transaction, so
+a conflict, a rate limit or a crash leaves nothing behind (a test injects a failure after the event
+insert and checks that the version, content, refs, bucket and outbox are unchanged). There is no
+force option and no merge.
+
+**Lock order:** room, then document, then asset rows, then the rate-limit bucket. Because every
+document write takes the room lock first, writes in one room are serialized, which is what makes
+"exactly one of two concurrent saves wins" a database property.
+
+### Creation, retries and the active document
+
+`POST …/documents` is one transaction: lock room, recheck owner, look up `(room, user,
+client_request_id)`; a match with the same HMAC fingerprint returns 200 with the existing document
+and changes **nothing** (it does not re-activate it, even if another document is active now); a
+different fingerprint is 409; otherwise the per-room cap is checked, the document inserted, the
+room's `active_document_id` set (`active_document_version + 1`; `rooms.version` and `updated_at`
+untouched) and `document_created` then `active_document_changed` recorded. The composite foreign key
+`rooms (id, active_document_id) → documents (room_id, id)` makes a foreign-room active document
+impossible; PostgreSQL's default `MATCH SIMPLE` skips the check when `active_document_id` is NULL
+(verified in `tests/test_documents_constraints.py`).
+
+### Migration order (`0005`)
+
+Create `documents` with `UNIQUE (room_id, id)`, add the nullable `rooms` columns, then add the
+composite foreign key (it needs the unique key and the columns to exist). Existing rooms get NULL and
+version 0; no events are invented. **Downgrade refuses** if document events exist (events are
+append-only and gapless) instead of deleting them.
+
+### Configuration added (checkpoint 1)
+
+`DOCUMENT_MAX_SERIALIZED_BYTES`, `DOCUMENT_MAX_TEXT_CODEPOINTS`, `DOCUMENT_MAX_TOTAL_NODES`,
+`DOCUMENT_MAX_BLOCKS`, `DOCUMENT_MAX_INLINE_NODES`, `DOCUMENT_MAX_IMAGES`, `DOCUMENT_MAX_LIST_DEPTH`,
+`DOCUMENT_MAX_LINK_LENGTH`, `DOCUMENT_FONT_KEYS`, `MAX_DOCUMENTS_PER_ROOM` (200),
+`DOCUMENT_WRITES_PER_MINUTE` (120), `DOCUMENT_SAVE_BODY_LIMIT_BYTES` (2 MiB; must be at least the
+serialized limit). All validated at startup; see `.env.example`.
+
+### Known limitation (by design in this part)
+
+There is no collaborative merge. Two editors changing the same document will hit version conflicts;
+the design makes them early and lossless (a stale save is refused, nothing is overwritten, the
+losing client keeps its text) but does not remove them.
+
+### Not built (and no UI will show them)
+
+Simultaneous collaborative editing, revision history, comments, tracked changes, DOCX/PDF export,
+AI, document deletion, other cloud providers, merged/nested table cells, headers/footers,
+pagination, formatted paste, mobile editing, antivirus scanning.
 
 ---
 

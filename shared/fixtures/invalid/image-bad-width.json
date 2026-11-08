@@ -1,0 +1,25 @@
+{
+  "name": "image-bad-width",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "image",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "asset_id": "00000000-0000-4000-8000-000000000900",
+            "width_px": 0,
+            "height_px": 200
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/width_px",
+    "code": "invalid_value"
+  }
+}

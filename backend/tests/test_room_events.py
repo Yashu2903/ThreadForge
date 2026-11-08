@@ -503,7 +503,7 @@ def test_payload_schemas_are_strict(event_type, resource_type, version, payload)
 def test_every_supported_event_type_has_a_spec_and_nothing_else_does():
     from app.models.room_event import EVENT_TYPES
 
-    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 8
+    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 12
 
 
 # ---- privacy ------------------------------------------------------------------------------------------------
@@ -528,7 +528,7 @@ async def test_events_and_outbox_never_contain_text_tokens_or_credentials(alice,
 # ---- completeness audit ---------------------------------------------------------------------------------------
 
 
-SERVICE_FILES = ["rooms", "memberships", "invitations", "messages"]
+SERVICE_FILES = ["rooms", "memberships", "invitations", "messages", "documents"]
 # Functions that open a transaction and mutate: which events each must record.
 EXPECTED_EVENTS = {
     "create_room": {"room_created"},
@@ -539,7 +539,14 @@ EXPECTED_EVENTS = {
     "send_message": {"message_created"},
     "edit_message": {"message_edited"},
     "delete_message": {"message_deleted"},
+    # Part 6: set_active_document records its event through the _activate helper (see below)
+    "create_document": {"document_created", "active_document_changed"},
+    "rename_document": {"document_renamed"},
+    "set_active_document": {"active_document_changed"},
+    "save_content": {"document_content_updated"},
 }
+# Helpers that record an event on behalf of the functions that call them.
+HELPER_EVENTS = {"_activate(": {"active_document_changed"}}
 # Deliberately event-less (invitations are not room events: spec section 5).
 NO_EVENT_BY_DESIGN = {"create_invitation", "revoke_invitation"}
 
@@ -547,13 +554,14 @@ NO_EVENT_BY_DESIGN = {"create_invitation", "revoke_invitation"}
 def _transaction_functions():
     found = {}
     for module in SERVICE_FILES:
-        tree = ast.parse(Path(f"app/services/{module}.py").read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
+        text = Path(f"app/services/{module}.py").read_text(encoding="utf-8")
+        for node in ast.walk(ast.parse(text)):
             if isinstance(node, ast.AsyncFunctionDef):
-                source = ast.get_source_segment(
-                    Path(f"app/services/{module}.py").read_text(encoding="utf-8"), node
+                source = ast.get_source_segment(text, node)
+                mutates = re.search(r"\b(insert|update|delete)\(", source) or any(
+                    helper in source for helper in HELPER_EVENTS
                 )
-                if ".begin()" in source and re.search(r"\b(insert|update|delete)\(", source):
+                if ".begin()" in source and mutates:
                     found[node.name] = source
     return found
 
@@ -564,13 +572,19 @@ def test_every_mutating_service_function_records_its_event():
     assert set(functions) == set(EXPECTED_EVENTS) | NO_EVENT_BY_DESIGN, sorted(functions)
     for name, expected in EXPECTED_EVENTS.items():
         source = functions[name]
-        assert "record_room_event(" in source, f"{name} does not record a room event"
-        assert set(re.findall(r'event_type="(\w+)"', source)) == expected, name
+        produced = set(re.findall(r'event_type="(\w+)"', source))
+        for helper, helper_events in HELPER_EVENTS.items():
+            if helper in source:
+                produced |= helper_events
+        assert produced, f"{name} does not record a room event"
+        assert "record_room_event(" in source or any(h in source for h in HELPER_EVENTS), name
+        assert produced == expected, name
     for name in NO_EVENT_BY_DESIGN:
         assert "record_room_event(" not in functions[name]
-    assert set().union(*EXPECTED_EVENTS.values()) == set(
-        EVENT_SPECS
-    )  # all eight types are produced
+    # the helper itself must record the event it is credited with
+    helper_source = Path("app/services/documents.py").read_text(encoding="utf-8")
+    assert 'event_type="active_document_changed"' in helper_source
+    assert set().union(*EXPECTED_EVENTS.values()) == set(EVENT_SPECS)  # every type has a producer
 
 
 def test_no_route_or_other_module_writes_events_or_the_outbox():

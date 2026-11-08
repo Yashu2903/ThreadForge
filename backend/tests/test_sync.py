@@ -28,7 +28,10 @@ async def test_sync_returns_state_and_through_seq_together(alice, bob, sessionma
     assert response.headers["cache-control"] == "no-store"
     assert body["room"]["id"] == room_id and body["room"]["name"] == "Planning"
     assert body["room"]["owner_id"] == str(alice.id) and body["role"] == "viewer"
-    assert set(body["room"]) == {"id", "name", "owner_id", "created_at", "updated_at"}
+    assert set(body["room"]) == {
+        "id", "name", "owner_id", "created_at", "updated_at",
+        "active_document_id", "active_document_version",
+    }  # fmt: skip
     assert sorted(m["role"] for m in body["members"]) == ["owner", "viewer"]
     assert set(body["members"][0]) == {"user_id", "display_name", "role", "joined_at"}  # no email
     assert [m["body"] for m in body["messages"]] == [None, "two"]  # tombstone, then live; ascending

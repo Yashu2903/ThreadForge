@@ -1,0 +1,25 @@
+{
+  "name": "unknown-mark",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "x",
+            "marks": {
+              "blink": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/marks/blink",
+    "code": "unknown_field"
+  }
+}

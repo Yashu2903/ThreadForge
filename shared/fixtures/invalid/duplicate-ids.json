@@ -1,0 +1,20 @@
+{
+  "name": "duplicate-ids",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001"
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/1/id",
+    "code": "duplicate_id"
+  }
+}

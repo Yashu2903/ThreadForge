@@ -1,0 +1,11 @@
+{
+  "name": "empty-blocks",
+  "document": {
+    "schema_version": 1,
+    "blocks": []
+  },
+  "error": {
+    "path": "/blocks",
+    "code": "invalid_structure"
+  }
+}

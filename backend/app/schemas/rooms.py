@@ -48,6 +48,9 @@ class RoomOut(BaseModel):
     membership_epoch: int
     created_at: datetime
     updated_at: datetime
+    # Part 6: the room's one shared active document (null until one is created or chosen)
+    active_document_id: uuid.UUID | None = None
+    active_document_version: int = 0
 
 
 class MemberOut(BaseModel):

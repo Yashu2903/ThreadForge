@@ -183,14 +183,66 @@ def message_deleted() -> AppError:
     return AppError(409, "message_deleted", "This message was deleted and cannot be edited.")
 
 
-def rate_limited(retry_after: int) -> AppError:
-    return AppError(
-        429,
-        "rate_limited",
-        "Too many message writes. Try again shortly.",
-        headers={"Retry-After": str(retry_after)},
-    )
+def rate_limited(
+    retry_after: int, message: str = "Too many message writes. Try again shortly."
+) -> AppError:
+    return AppError(429, "rate_limited", message, headers={"Retry-After": str(retry_after)})
 
 
 def payload_too_large() -> AppError:
     return AppError(413, "payload_too_large", "The request body is too large.")
+
+
+# ---- Part 6 error constructors (documents) ------------------------------------------------------
+
+
+def document_not_found() -> AppError:
+    return AppError(404, "document_not_found", "Document not found.")
+
+
+def document_version_conflict(current_content_version: int) -> AppError:
+    return AppError(
+        409,
+        "document_version_conflict",
+        "Another session saved a newer version of this document.",
+        extra={"current_content_version": current_content_version},
+    )
+
+
+def document_request_id_reused() -> AppError:
+    return AppError(
+        409,
+        "document_request_id_reused",
+        "This client_request_id was already used for a different document.",
+    )
+
+
+def document_limit_reached() -> AppError:
+    return AppError(
+        409, "document_limit_reached", "This room has reached its maximum number of documents."
+    )
+
+
+def selection_conflict(current_selection_version: int) -> AppError:
+    return AppError(
+        409,
+        "selection_conflict",
+        "The active document changed since you loaded it.",
+        extra={"current_selection_version": current_selection_version},
+    )
+
+
+def invalid_document_content(errors: list[dict[str, str]]) -> AppError:
+    """422 with machine-readable field paths. Messages are fixed strings chosen by the validator
+    (they never echo document text), so they are safe to return."""
+    return AppError(
+        422,
+        "invalid_document_content",
+        "The document content is not valid.",
+        extra={"errors": errors},
+    )
+
+
+def asset_not_found(asset_ids: list[str] | None = None) -> AppError:
+    extra = {"asset_ids": asset_ids[:20]} if asset_ids else None
+    return AppError(422 if asset_ids else 404, "asset_not_found", "Asset not found.", extra=extra)

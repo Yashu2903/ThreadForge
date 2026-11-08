@@ -1,0 +1,17 @@
+{
+  "name": "unknown-block-field",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "style": "x"
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/style",
+    "code": "unknown_field"
+  }
+}

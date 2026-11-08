@@ -1,0 +1,25 @@
+{
+  "name": "font-not-allowlisted",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "x",
+            "marks": {
+              "font": "Comic Sans"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/marks/font",
+    "code": "invalid_value"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "spacing-above-72",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "attrs": {
+          "space_before_pt": 72.5
+        }
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/attrs/space_before_pt",
+    "code": "invalid_value"
+  }
+}

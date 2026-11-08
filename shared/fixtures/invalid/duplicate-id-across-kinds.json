@@ -1,0 +1,38 @@
+{
+  "name": "duplicate-id-across-kinds",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "image",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "asset_id": "00000000-0000-4000-8000-000000000900",
+            "width_px": 320,
+            "height_px": 200
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000003",
+        "children": [
+          {
+            "type": "image",
+            "id": "00000000-0000-4000-8000-000000000001",
+            "asset_id": "00000000-0000-4000-8000-000000000900",
+            "width_px": 320,
+            "height_px": 200
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/1/children/0/id",
+    "code": "duplicate_id"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "wrong-schema-version",
+  "document": {
+    "schema_version": 2,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001"
+      }
+    ]
+  },
+  "error": {
+    "path": "/schema_version",
+    "code": "invalid_value"
+  }
+}

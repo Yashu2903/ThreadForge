@@ -1,0 +1,25 @@
+{
+  "name": "serialized-size-limit",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "hello world"
+          }
+        ]
+      }
+    ]
+  },
+  "limits": {
+    "max_serialized_bytes": 40
+  },
+  "error": {
+    "path": "",
+    "code": "limit_exceeded"
+  }
+}

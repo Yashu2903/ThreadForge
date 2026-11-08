@@ -1,0 +1,16 @@
+{
+  "name": "id-not-a-uuid",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "abc"
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/id",
+    "code": "invalid_id"
+  }
+}

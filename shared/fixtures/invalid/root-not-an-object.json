@@ -1,0 +1,8 @@
+{
+  "name": "root-not-an-object",
+  "document": [],
+  "error": {
+    "path": "",
+    "code": "invalid_type"
+  }
+}

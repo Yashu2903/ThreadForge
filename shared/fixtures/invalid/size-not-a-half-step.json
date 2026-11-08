@@ -1,0 +1,25 @@
+{
+  "name": "size-not-a-half-step",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "x",
+            "marks": {
+              "size_pt": 10.25
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/marks/size_pt",
+    "code": "invalid_value"
+  }
+}

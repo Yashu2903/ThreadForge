@@ -8,7 +8,10 @@ from app.services import rooms as rooms_service
 from tests.factories import make_settings
 from tests.helpers import add_member, execute, room_row, rows, scalar
 
-ROOM_FIELDS = {"id", "name", "owner_id", "role", "membership_epoch", "created_at", "updated_at"}
+ROOM_FIELDS = {
+    "id", "name", "owner_id", "role", "membership_epoch", "created_at", "updated_at",
+    "active_document_id", "active_document_version",
+}  # fmt: skip
 
 
 async def create(actor, name="Planning", **kw):

@@ -134,7 +134,15 @@ export function member(userId: string, role: Member["role"] = "editor"): Member 
 
 export function bootstrap(through: number, messages: Message[] = [], members?: Member[]): Bootstrap {
   return {
-    room: { id: ROOM, name: "Room", owner_id: ME, created_at: "x", updated_at: "x" },
+    room: {
+      id: ROOM,
+      name: "Room",
+      owner_id: ME,
+      created_at: "x",
+      updated_at: "x",
+      active_document_id: null,
+      active_document_version: 0,
+    },
     role: "owner",
     membership_epoch: 1,
     members: members ?? [member(ME, "owner")],
@@ -145,7 +153,13 @@ export function bootstrap(through: number, messages: Message[] = [], members?: M
 }
 
 export function event(seq: number, type: string, resourceId: string | null, extra: Partial<RoomEvent> = {}): RoomEvent {
-  const resource = type.startsWith("message_") ? "message" : type.startsWith("member_") ? "membership" : "room";
+  const resource = type.startsWith("message_")
+    ? "message"
+    : type.startsWith("member_")
+      ? "membership"
+      : type.includes("document")
+        ? "document"
+        : "room";
   return {
     type: "room_event",
     schema_version: 1,

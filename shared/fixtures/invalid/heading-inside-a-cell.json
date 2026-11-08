@@ -1,0 +1,41 @@
+{
+  "name": "heading-inside-a-cell",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "table",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "table_row",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "children": [
+              {
+                "type": "table_cell",
+                "id": "00000000-0000-4000-8000-000000000003",
+                "children": [
+                  {
+                    "type": "heading",
+                    "id": "00000000-0000-4000-8000-000000000004",
+                    "level": 1,
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "x"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/children/0/children/0/type",
+    "code": "invalid_structure"
+  }
+}

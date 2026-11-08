@@ -1,0 +1,17 @@
+{
+  "name": "list-without-items",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "list",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": []
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children",
+    "code": "invalid_structure"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "unknown-top-level-field",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "extra": 1
+  },
+  "error": {
+    "path": "/extra",
+    "code": "unknown_field"
+  }
+}

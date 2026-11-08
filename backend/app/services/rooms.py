@@ -54,6 +54,8 @@ class RoomView:
     membership_epoch: int
     created_at: datetime
     updated_at: datetime
+    active_document_id: uuid.UUID | None
+    active_document_version: int
 
 
 def log_event(
@@ -79,6 +81,8 @@ def to_view(row, role: str) -> RoomView:
         membership_epoch=row.membership_epoch,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        active_document_id=row.active_document_id,
+        active_document_version=row.active_document_version,
     )
 
 

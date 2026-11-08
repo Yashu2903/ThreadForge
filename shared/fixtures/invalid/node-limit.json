@@ -1,0 +1,28 @@
+{
+  "name": "node-limit",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "paragraph",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "hard_break"
+          }
+        ]
+      }
+    ]
+  },
+  "limits": {
+    "max_total_nodes": 2
+  },
+  "error": {
+    "path": "/blocks/0/children/1",
+    "code": "limit_exceeded"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "unknown-block-type",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "div",
+        "id": "00000000-0000-4000-8000-000000000001"
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/type",
+    "code": "invalid_structure"
+  }
+}

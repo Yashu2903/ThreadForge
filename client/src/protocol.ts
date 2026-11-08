@@ -48,6 +48,26 @@ export interface RoomInfo {
   owner_id: string;
   created_at: string;
   updated_at: string;
+  /** Part 6: the room's one shared active document. Moves forward only (active_document_version). */
+  active_document_id: string | null;
+  active_document_version: number;
+}
+
+/** What one batch of events says about documents, coalesced by document id (Part 6). */
+export interface DocumentChange {
+  created: boolean;
+  renamed: boolean;
+  /** The highest content_version announced in the batch (null if no content event). */
+  contentVersion: number | null;
+}
+export interface DocumentSignals {
+  /** The document list (metadata) may be stale. */
+  listChanged: boolean;
+  documents: Map<string, DocumentChange>;
+  /** The newest selection announced in the batch, if any (already applied to state.room). */
+  active: { documentId: string; selectionVersion: number } | null;
+  /** The room state was replaced by a fresh bootstrap: refetch everything you hold. */
+  reset: boolean;
 }
 
 /** GET /rooms/{id}/sync */

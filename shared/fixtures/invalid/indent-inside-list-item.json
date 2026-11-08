@@ -1,0 +1,37 @@
+{
+  "name": "indent-inside-list-item",
+  "document": {
+    "schema_version": 1,
+    "blocks": [
+      {
+        "type": "list",
+        "id": "00000000-0000-4000-8000-000000000001",
+        "children": [
+          {
+            "type": "list_item",
+            "id": "00000000-0000-4000-8000-000000000002",
+            "children": [
+              {
+                "type": "paragraph",
+                "id": "00000000-0000-4000-8000-000000000003",
+                "attrs": {
+                  "indent_level": 1
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "error": {
+    "path": "/blocks/0/children/0/children/0/attrs/indent_level",
+    "code": "invalid_value"
+  }
+}

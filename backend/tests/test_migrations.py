@@ -35,7 +35,7 @@ def test_upgrade_on_empty_database_creates_exactly_the_part1_and_part2_tables(em
 
 def test_no_tables_for_later_parts_exist(empty_database):
     upgrade_to_head()
-    forbidden = {"documents", "uploads", "presence", "message_versions", "consumer_receipts"}
+    forbidden = {"uploads", "presence", "message_versions", "consumer_receipts", "document_imports"}
     assert not forbidden & table_names()
 
 
