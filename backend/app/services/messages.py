@@ -14,7 +14,7 @@ LOCK ORDER for every write:
     2. message row      SELECT ... FOR UPDATE          (edit / delete)
     3. rate-limit row   INSERT ... ON CONFLICT DO UPDATE on message_write_buckets
 Every membership mutation also takes the room lock first, so holding it guarantees the caller's
-membership and role cannot change underneath the request; no FOR SHARE on the membership row is
+membership cannot change underneath the request; no FOR SHARE on the membership row is
 needed. TRADE-OFF: all message writes in one room are serialized. At ThreadForge room sizes and
 write limits that is cheap, and Part 4's per-room event sequence needs this same lock anyway.
 Reads (GETs) take no locks.
@@ -45,7 +45,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import Settings
 from app.db import db_error_details
 from app.errors import (
-    insufficient_role,
     invalid_cursor,
     message_deleted,
     message_id_reused,
@@ -64,7 +63,6 @@ _MESSAGES = Message.__table__
 _BUCKETS = MessageWriteBucket.__table__
 _USERS = User.__table__
 
-WRITER_ROLES = ("owner", "editor")
 UNIQUE_VIOLATION = "23505"
 CLIENT_ID_CONSTRAINT = "uq_messages_room_author_client"
 FINGERPRINT_VERSION = b"msg-create-v1"
@@ -179,12 +177,15 @@ async def get_message(
     return row_to_view(row) if row else None
 
 
-async def _authorize_writer(db: AsyncSession, room_id: uuid.UUID, actor_id: uuid.UUID) -> str:
-    """Step 1 of every write: lock the room, THEN recheck membership and role in-transaction.
-    Nonmember/removed -> room_not_found (404); viewer -> insufficient_role (403)."""
+async def _authorize_member(db: AsyncSession, room_id: uuid.UUID, actor_id: uuid.UUID) -> str:
+    """Step 1 of every write: lock the room, THEN recheck ACTIVE MEMBERSHIP in-transaction.
+
+    Chat depends only on being an active member: role never gates sending, editing or deleting
+    your own message (role restrictions belong to documents and uploads in later parts). A
+    nonmember or removed user gets room_not_found (404). The role is returned only so that
+    delete_message can apply the one role rule left in chat: the owner may delete anyone's message.
+    """
     _room, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
-    if role not in WRITER_ROLES:
-        raise insufficient_role()
     return role
 
 
@@ -249,7 +250,7 @@ async def send_message(
 ) -> SendResult:
     """Create a message, or answer a retry of an earlier send. Single commit point per attempt.
 
-    In the transaction, after the room lock: (1) recheck membership and write role; (2) look up
+    In the transaction, after the room lock: (1) recheck active membership (any role); (2) look up
     (room, author, client_message_id); (3) found: matching fingerprint -> return it unchanged (no
     write, no rate-limit use), different fingerprint -> 409 message_id_reused; (4) not found:
     consume rate-limit capacity; (5) INSERT with version 1, the fingerprint and clock_timestamp();
@@ -267,7 +268,7 @@ async def send_message(
     for attempt in (1, 2):
         try:
             async with sessionmaker() as db, db.begin():
-                await _authorize_writer(db, room_id, actor_id)
+                await _authorize_member(db, room_id, actor_id)
                 existing = (
                     await db.execute(
                         select(_MESSAGES.c.id, _MESSAGES.c.initial_request_fingerprint).where(
@@ -428,8 +429,8 @@ async def edit_message(
 ) -> MessageView:
     """Edit with conflict protection. Single commit point. After the room lock, in this order:
 
-    1. recheck membership and write role (404 room_not_found / 403 insufficient_role: the author
-       must STILL be an active owner or editor);
+    1. recheck active membership (404 room_not_found; the author must STILL be an active member,
+       of any role: a viewer may edit their own messages);
     2. load the message, scoped to the room, FOR UPDATE            -> 404 message_not_found;
     3. caller is not the author (the owner cannot edit others')     -> 403 message_not_author;
     4. already deleted (a tombstone is final)                       -> 409 message_deleted;
@@ -448,7 +449,7 @@ async def edit_message(
         raise message_not_found()
     changed = False
     async with sessionmaker() as db, db.begin():
-        await _authorize_writer(db, room_id, actor_id)
+        await _authorize_member(db, room_id, actor_id)
         message = await _lock_message(db, room_id, message_id)
         if message is None:
             raise message_not_found()
@@ -489,9 +490,9 @@ async def delete_message(
     """Soft delete: the row stays as a tombstone (body NULL); text is never recoverable. Single
     commit point. After the room lock, in this order:
 
-    1. recheck membership (active owner or editor only);
+    1. recheck active membership (any role; 404 room_not_found otherwise);
     2. load the message, scoped to the room, FOR UPDATE            -> 404 message_not_found;
-    3. owner may delete anyone's, an editor only their own         -> 403 message_not_author;
+    3. the owner may delete anyone's, every other member only their own -> 403 message_not_author;
     4. already deleted: success (204), no change, no rate-limit use, REGARDLESS of expected_version;
     5. expected_version != current version                         -> 409 message_version_conflict;
     6. consume rate-limit capacity                                 -> 429 rate_limited;
@@ -504,7 +505,7 @@ async def delete_message(
         raise message_not_found()
     changed = False
     async with sessionmaker() as db, db.begin():
-        role = await _authorize_writer(db, room_id, actor_id)
+        role = await _authorize_member(db, room_id, actor_id)
         message = await _lock_message(db, room_id, message_id)
         if message is None:
             raise message_not_found()

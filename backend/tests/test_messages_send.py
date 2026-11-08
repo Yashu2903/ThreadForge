@@ -82,17 +82,33 @@ async def test_message_is_visible_from_another_database_session(alice, sessionma
     )
 
 
-async def test_viewer_removed_member_nonmember_and_anonymous_cannot_send(
+async def test_every_active_member_can_send_whatever_their_role(alice, bob, carol, sessionmaker):
+    """Chat depends only on active membership: owner, editor and viewer all get 201, and a
+    matching retry gets 200 exactly as it does for an editor."""
+    room_id = await new_room(alice)
+    await add_member(sessionmaker, room_id, bob.id, "editor")
+    await add_member(sessionmaker, room_id, carol.id, "viewer")
+    for actor, role in ((alice, "owner"), (bob, "editor"), (carol, "viewer")):
+        cmid = str(uuid.uuid4())
+        created = await send(actor, room_id, f"hello from the {role}", cmid)
+        assert created.status_code == 201, role
+        assert created.json()["author_id"] == str(actor.id)
+        retry = await send(actor, room_id, f"hello from the {role}", cmid)
+        assert (retry.status_code, retry.json()["id"]) == (200, created.json()["id"]), role
+    assert len(await message_rows(sessionmaker)) == 3
+
+
+async def test_removed_member_nonmember_and_anonymous_cannot_send(
     alice, bob, carol, make_actor, client, sessionmaker
 ):
     room_id = await new_room(alice)
-    await add_member(sessionmaker, room_id, bob.id, "viewer")
     removed = await make_actor("Removed")
     await add_member(sessionmaker, room_id, removed.id, "editor", "removed")
+    removed_viewer = await make_actor("RemovedViewer")
+    await add_member(sessionmaker, room_id, removed_viewer.id, "viewer", "removed")
 
-    viewer = await send(bob, room_id)
-    assert (viewer.status_code, viewer.json()["error"]["code"]) == (403, "insufficient_role")
-    for actor in (removed, carol):  # removed member, and a user who was never a member
+    # a removed member of ANY role, and a user who was never a member: 404, no role code at all
+    for actor in (removed, removed_viewer, carol):
         response = await send(actor, room_id)
         assert (response.status_code, response.json()["error"]["code"]) == (404, "room_not_found")
     anonymous = await client.post(
@@ -116,8 +132,9 @@ async def test_gate_order_is_auth_then_csrf_then_access_then_validation(
     no_csrf = await alice.post(path, content=junk, headers=headers, csrf=False)
     assert (no_csrf.status_code, no_csrf.json()["error"]["code"]) == (403, "csrf_failed")
     assert (await carol.post(path, content=junk, headers=headers)).status_code == 404  # nonmember
-    assert (await bob.post(path, content=junk, headers=headers)).status_code == 403  # viewer
-    assert (await alice.post(path, content=junk, headers=headers)).status_code == 422  # finally
+    # any ACTIVE member, viewer included, passes the access gate and reaches validation
+    assert (await bob.post(path, content=junk, headers=headers)).status_code == 422  # viewer
+    assert (await alice.post(path, content=junk, headers=headers)).status_code == 422  # owner
 
 
 async def test_csrf_is_required(alice, sessionmaker):
@@ -382,16 +399,22 @@ async def test_the_same_client_id_is_independent_across_authors_and_rooms(alice,
     assert len({r.json()["id"] for r in results}) == 3
 
 
-async def test_retry_by_a_downgraded_or_removed_user_fails(alice, bob, sessionmaker):
+async def test_a_retry_is_unaffected_by_role_changes_but_a_removed_user_gets_nothing(
+    alice, bob, sessionmaker
+):
     room_id = await editor_room(alice, bob, sessionmaker)
     cmid = str(uuid.uuid4())
-    assert (await send(bob, room_id, "mine", cmid)).status_code == 201
-    await add_member(sessionmaker, room_id, bob.id, "viewer")  # downgraded
-    response = await send(bob, room_id, "mine", cmid)
-    assert (response.status_code, response.json()["error"]["code"]) == (403, "insufficient_role")
-    await add_member(sessionmaker, room_id, bob.id, "editor", "removed")
+    first = await send(bob, room_id, "mine", cmid)
+    assert first.status_code == 201
+    await add_member(sessionmaker, room_id, bob.id, "viewer")  # downgraded: no effect on chat
+    retry = await send(bob, room_id, "mine", cmid)
+    assert (retry.status_code, retry.json()["id"]) == (200, first.json()["id"])
+    await add_member(sessionmaker, room_id, bob.id, "editor")  # and back up again
+    assert (await send(bob, room_id, "mine", cmid)).json()["id"] == first.json()["id"]
+    await add_member(sessionmaker, room_id, bob.id, "editor", "removed")  # removal DOES block
     response = await send(bob, room_id, "mine", cmid)
     assert (response.status_code, response.json()["error"]["code"]) == (404, "room_not_found")
+    assert "mine" not in response.text and first.json()["id"] not in response.text  # no data
 
 
 async def test_a_matching_retry_writes_nothing(alice, sessionmaker):
@@ -450,7 +473,7 @@ async def test_the_unique_violation_recovery_path_answers_as_a_retry_not_a_500(
         await asyncio.wait_for(barrier.wait(), timeout=5)  # both have looked up: nothing found
         await real_consume(db, settings_, room, user)
 
-    monkeypatch.setattr(messages_service, "_authorize_writer", unlocked_authorize)
+    monkeypatch.setattr(messages_service, "_authorize_member", unlocked_authorize)
     monkeypatch.setattr(messages_service, "_consume_write_capacity", after_lookup_before_insert)
 
     results = await asyncio.gather(

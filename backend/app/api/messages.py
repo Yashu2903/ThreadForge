@@ -3,12 +3,13 @@
   1. body-size middleware (413)            app/body_limit.py
   2. authentication (401)                  CurrentUser
   3. CSRF on unsafe methods (403)          require_csrf
-  4. UNLOCKED membership pre-check         404 room_not_found / 403 insufficient_role
+  4. UNLOCKED membership pre-check         404 room_not_found (any active member passes)
   5. request validation (422)              parse_json_body, run here AFTER the gates
   6. the transaction                       app/services/messages.py: room lock, recheck, write
 
 The pre-check is a fast rejection so people without access never take the room lock; it is never
-the authority (the service rechecks membership and role under the lock). The author is always the
+the authority (the service rechecks active membership under the lock). Chat is open to every
+active member whatever their role. The author is always the
 authenticated session user: no request field can name one.
 """
 
@@ -16,7 +17,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query, Request, Response
 
-from app.dependencies.rooms import MemberAccess, WriterAccessUnsafe, parse_uuid
+from app.dependencies.rooms import MemberAccess, MemberAccessUnsafe, parse_uuid
 from app.errors import message_not_found
 from app.request_body import json_body_docs, parse_json_body
 from app.schemas.auth import ErrorBody
@@ -35,7 +36,7 @@ _COMMON = {
     401: {"model": ErrorBody, "description": "unauthenticated"},
     403: {
         "model": ErrorBody,
-        "description": "csrf_failed / insufficient_role / message_not_author",
+        "description": "csrf_failed / message_not_author",
     },
     404: {"model": ErrorBody, "description": "room_not_found (also for non-members)"},
 }
@@ -55,7 +56,7 @@ _COMMON = {
     openapi_extra=json_body_docs(SendMessageRequest),
 )
 async def send_message(
-    request: Request, response: Response, access: WriterAccessUnsafe
+    request: Request, response: Response, access: MemberAccessUnsafe
 ) -> MessageOut:
     """Owner or editor. 201 for a new message; 200 for a matching retry of the same
     client_message_id (reusing the id with different text is 409 message_id_reused)."""
@@ -123,7 +124,7 @@ async def get_message(request: Request, access: MemberAccess, message_id: str) -
     },
     openapi_extra=json_body_docs(EditMessageRequest),
 )
-async def edit_message(request: Request, access: WriterAccessUnsafe, message_id: str) -> MessageOut:
+async def edit_message(request: Request, access: MemberAccessUnsafe, message_id: str) -> MessageOut:
     """Author only (and the author must still be an active owner or editor). Send the version you
     last saw as expected_version; a stale version is 409 message_version_conflict."""
     body = await parse_json_body(request, EditMessageRequest)
@@ -151,7 +152,7 @@ async def edit_message(request: Request, access: WriterAccessUnsafe, message_id:
 )
 async def delete_message(
     request: Request,
-    access: WriterAccessUnsafe,
+    access: MemberAccessUnsafe,
     message_id: str,
     expected_version: int = Query(..., ge=1, le=MAX_BIGINT),
 ) -> Response:

@@ -64,7 +64,7 @@ async def test_all_message_responses_success_and_error_are_no_store(alice, bob, 
         created,  # 201
         await send(alice, room_id, "x", cmid),  # 200 retry
         await send(alice, room_id, "other", cmid),  # 409
-        await send(bob, room_id, "viewer"),  # 403
+        await edit(bob, room_id, mid, "not mine", 1),  # 403 message_not_author (a viewer)
         await send(alice, room_id, ""),  # 422
         await alice.get(f"/rooms/{room_id}/messages"),
         await alice.get(f"/rooms/{room_id}/messages/{mid}"),

@@ -84,28 +84,46 @@ async def test_an_editor_cannot_edit_another_editors_message(alice, bob, make_ac
     assert (response.status_code, response.json()["error"]["code"]) == (403, "message_not_author")
 
 
-async def test_an_author_who_was_downgraded_or_removed_cannot_edit(alice, bob, carol, sessionmaker):
+async def test_an_author_who_was_downgraded_can_still_edit_but_a_removed_one_cannot(
+    alice, bob, carol, sessionmaker
+):
     room_id = await setup_room(alice, bob, carol, sessionmaker)
     sent = (await send(bob, room_id, "written as editor")).json()
-    await add_member(sessionmaker, room_id, bob.id, "viewer")  # downgraded
-    response = await edit(bob, room_id, sent["id"], "sneaky", 1)
-    assert (response.status_code, response.json()["error"]["code"]) == (403, "insufficient_role")
-    await add_member(sessionmaker, room_id, bob.id, "editor", "removed")  # removed
-    response = await edit(bob, room_id, sent["id"], "sneaky", 1)
+    await add_member(sessionmaker, room_id, bob.id, "viewer")  # downgraded: chat is unaffected
+    response = await edit(bob, room_id, sent["id"], "edited as a viewer", 1)
+    assert (response.status_code, response.json()["version"]) == (200, 2)
+    await add_member(sessionmaker, room_id, bob.id, "editor")  # upgraded again: same behaviour
+    assert (await edit(bob, room_id, sent["id"], "edited as an editor", 2)).status_code == 200
+    await add_member(sessionmaker, room_id, bob.id, "editor", "removed")  # removal DOES block
+    response = await edit(bob, room_id, sent["id"], "sneaky", 3)
     assert (response.status_code, response.json()["error"]["code"]) == (404, "room_not_found")
-    assert (await row(sessionmaker, uuid.UUID(sent["id"])))["body"] == "written as editor"
+    assert (await row(sessionmaker, uuid.UUID(sent["id"])))["body"] == "edited as an editor"
 
 
-async def test_viewers_and_outsiders_cannot_edit(alice, bob, carol, make_actor, sessionmaker):
+async def test_a_viewer_can_edit_their_own_message_but_not_anothers(
+    alice, bob, carol, sessionmaker
+):
+    room_id = await setup_room(alice, bob, carol, sessionmaker)  # carol is a viewer
+    mine = (await send(carol, room_id, "viewer's first draft")).json()
+    theirs = (await send(bob, room_id, "the editor's message")).json()
+    response = await edit(carol, room_id, mine["id"], "viewer's second draft", 1)
+    assert (response.status_code, response.json()["body"], response.json()["version"]) == (
+        200,
+        "viewer's second draft",
+        2,
+    )
+    assert response.json()["edited_at"] is not None
+    other = await edit(carol, room_id, theirs["id"], "rewritten by a viewer", 1)
+    assert (other.status_code, other.json()["error"]["code"]) == (403, "message_not_author")
+    assert (await row(sessionmaker, uuid.UUID(theirs["id"])))["body"] == "the editor's message"
+
+
+async def test_outsiders_cannot_edit(alice, bob, carol, make_actor, sessionmaker):
     room_id = await setup_room(alice, bob, carol, sessionmaker)
     sent = (await send(bob, room_id, "x")).json()
     outsider = await make_actor("Outsider")
-    assert (await edit(carol, room_id, sent["id"], "y", 1)).json()["error"][
-        "code"
-    ] == "insufficient_role"
-    assert (await edit(outsider, room_id, sent["id"], "y", 1)).json()["error"][
-        "code"
-    ] == "room_not_found"
+    response = await edit(outsider, room_id, sent["id"], "y", 1)
+    assert (response.status_code, response.json()["error"]["code"]) == (404, "room_not_found")
 
 
 async def test_unknown_malformed_and_cross_room_message_ids_are_message_not_found(
@@ -222,7 +240,8 @@ async def test_edit_gate_order(alice, bob, carol, make_actor, client, sessionmak
     assert (await client.patch(path, json=bad)).status_code == 401
     assert (await bob.patch(path, json=bad, csrf=False)).json()["error"]["code"] == "csrf_failed"
     assert (await outsider.patch(path, json=bad)).status_code == 404  # outsider + bad body
-    assert (await carol.patch(path, json=bad)).status_code == 403  # viewer + bad body
+    # any ACTIVE member, viewer included, passes the access gate and reaches validation
+    assert (await carol.patch(path, json=bad)).status_code == 422  # viewer + bad body
     assert (
         await bob.patch(path, json=bad)
     ).status_code == 422  # a member finally reaches validation
@@ -280,16 +299,36 @@ async def test_an_editor_deletes_their_own_but_not_anothers(
     assert (await row(sessionmaker, uuid.UUID(theirs["id"])))["body"] == "theirs"
 
 
-async def test_a_viewer_cannot_delete_even_a_message_they_wrote_before_being_downgraded(
+async def test_a_viewer_can_delete_their_own_message_but_not_anothers(
+    alice, bob, carol, sessionmaker
+):
+    room_id = await setup_room(alice, bob, carol, sessionmaker)  # carol is a viewer
+    mine = (await send(carol, room_id, "viewer's message")).json()
+    theirs = (await send(bob, room_id, "the editor's message")).json()
+    assert (await delete(carol, room_id, mine["id"], 1)).status_code == 204
+    stored = await row(sessionmaker, uuid.UUID(mine["id"]))
+    assert (stored["body"], stored["deleted_by"], stored["version"]) == (None, carol.id, 2)
+    response = await delete(carol, room_id, theirs["id"], 1)
+    assert (response.status_code, response.json()["error"]["code"]) == (403, "message_not_author")
+    assert (await row(sessionmaker, uuid.UUID(theirs["id"])))["body"] == "the editor's message"
+
+
+async def test_the_owner_can_delete_a_viewers_message(alice, bob, carol, sessionmaker):
+    room_id = await setup_room(alice, bob, carol, sessionmaker)
+    sent = (await send(carol, room_id, "a viewer's words")).json()
+    assert (await delete(alice, room_id, sent["id"], 1)).status_code == 204
+    stored = await row(sessionmaker, uuid.UUID(sent["id"]))
+    assert (stored["body"], stored["deleted_by"], stored["author_id"]) == (None, alice.id, carol.id)
+
+
+async def test_a_downgraded_author_can_still_delete_their_own_message(
     alice, bob, carol, sessionmaker
 ):
     room_id = await setup_room(alice, bob, carol, sessionmaker)
     sent = (await send(bob, room_id, "written as editor")).json()
     await add_member(sessionmaker, room_id, bob.id, "viewer")
-    response = await delete(bob, room_id, sent["id"], 1)
-    assert (response.status_code, response.json()["error"]["code"]) == (403, "insufficient_role")
-    assert (await delete(carol, room_id, sent["id"], 1)).status_code == 403  # a plain viewer
-    assert (await row(sessionmaker, uuid.UUID(sent["id"])))["body"] == "written as editor"
+    assert (await delete(bob, room_id, sent["id"], 1)).status_code == 204
+    assert (await row(sessionmaker, uuid.UUID(sent["id"])))["body"] is None
 
 
 async def test_removed_and_outsider_users_cannot_delete(
@@ -406,7 +445,8 @@ async def test_expected_version_is_required_on_delete(
     assert (await client.delete(path)).status_code == 401
     assert (await alice.delete(path, csrf=False)).json()["error"]["code"] == "csrf_failed"
     assert (await outsider.delete(path)).json()["error"]["code"] == "room_not_found"
-    assert (await carol.delete(path)).json()["error"]["code"] == "insufficient_role"
+    # a viewer is an active member: they pass the gates and then see the missing parameter
+    assert (await carol.delete(path)).json()["error"]["code"] == "validation_error"
 
 
 # ---- concurrent edits and deletes ---------------------------------------------------------------------------

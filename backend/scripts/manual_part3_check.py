@@ -1,8 +1,11 @@
 """Manual Part 3 demonstration: three REAL signed-in accounts exchange, edit and delete messages.
 
-Accounts: A = owner, B = editor (removed near the end), C = viewer. Sign in as each through the
-real Google flow in three separate browser profiles, then copy each `tf_session` cookie VALUE into
-an environment variable without putting it on a command line or into a transcript (PowerShell):
+Accounts: A = owner, B = editor (removed near the end), C = viewer. Chat is open to every
+active member, so C can send, edit and delete their own messages like anyone else.
+
+Sign in as each through the real Google flow in three separate browser profiles, then copy each
+`tf_session` cookie VALUE into an environment variable without putting it on a command line or
+into a transcript (PowerShell):
 
     $env:TF_COOKIE_A = Read-Host "cookie A" -MaskInput
     $env:TF_COOKIE_B = Read-Host "cookie B" -MaskInput
@@ -195,17 +198,39 @@ async def run(
     )
     await show("after step 8: deleted")
 
-    # 9. C (viewer) cannot send, but can read.
+    # 9. C (viewer) CAN chat: sends successfully. Role only limits documents/uploads (later parts).
+    #    C may only touch their own messages: editing or deleting B's gets 403 message_not_author.
+    live = await b.post(
+        f"/rooms/{room}/messages",
+        json={"client_message_id": str(uuid.uuid4()), "body": "A live message from B"},
+        headers=headers["b"],
+    )
+    b_live = live.json() if live.status_code == 201 else {"id": str(uuid.uuid4()), "version": 1}
     r = await c.post(
         f"/rooms/{room}/messages",
-        json={"client_message_id": str(uuid.uuid4()), "body": "viewer"},
+        json={"client_message_id": str(uuid.uuid4()), "body": "Hello from the viewer"},
         headers=headers["c"],
     )
-    read = await c.get(f"/rooms/{room}/messages")
     report.check(
-        r.status_code == 403 and _code(r) == "insufficient_role" and read.status_code == 200,
-        "9. C (viewer) cannot send but can read",
-        _code(r),
+        live.status_code == 201 and r.status_code == 201 and r.json()["version"] == 1,
+        "9a. C (viewer) sends a message successfully",
+        f"HTTP {r.status_code}",
+    )
+    edit_other = await c.patch(
+        f"/rooms/{room}/messages/{b_live['id']}",
+        json={"body": "C rewriting B", "expected_version": b_live["version"]},
+        headers=headers["c"],
+    )
+    delete_other = await c.delete(
+        f"/rooms/{room}/messages/{b_live['id']}",
+        params={"expected_version": b_live["version"]},
+        headers=headers["c"],
+    )
+    report.check(
+        (edit_other.status_code, delete_other.status_code) == (403, 403)
+        and _code(edit_other) == _code(delete_other) == "message_not_author",
+        "9b. C cannot edit or delete B's message (403 message_not_author)",
+        f"{_code(edit_other)}, {_code(delete_other)}",
     )
 
     # 10. A removes B; B can no longer read or write.

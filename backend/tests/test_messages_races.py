@@ -89,28 +89,75 @@ async def test_removal_versus_edit_and_delete_by_the_removed_author(
 
 
 @pytest.mark.parametrize("round_", range(3))
-async def test_downgrade_versus_send_is_consistent_in_either_order(
+@pytest.mark.parametrize(("start_role", "new_role"), [("editor", "viewer"), ("viewer", "editor")])
+async def test_a_role_change_racing_a_send_never_affects_the_send(
+    alice, bob, sessionmaker, round_, start_role, new_role
+):
+    """Role does not affect chat, so a role change racing a message write ends with BOTH
+    succeeding, whichever the lock order (a downgrade and an upgrade behave the same)."""
+    room_id = await new_room(alice)
+    await add_member(sessionmaker, room_id, bob.id, start_role)
+    send_response, patch_response = await contended(
+        sessionmaker,
+        room_id,
+        send(bob, room_id, "racing the role change"),
+        alice.patch(member_path(room_id, bob), json={"role": new_role}),
+    )
+    assert (send_response.status_code, patch_response.status_code) == (201, 200)
+    assert await scalar(sessionmaker, "SELECT count(*) FROM messages") == 1
+    assert (
+        await scalar(sessionmaker, "SELECT role FROM memberships WHERE user_id = :u", u=bob.id)
+        == new_role
+    )
+    assert (await send(bob, room_id, "after the change")).status_code == 201  # still works
+
+
+async def test_a_role_change_racing_a_send_both_orderings_are_deterministic(
+    alice, bob, sessionmaker
+):
+    room_id = await new_room(alice)
+    await add_member(sessionmaker, room_id, bob.id, "editor")
+    change = lambda role: alice.patch(member_path(room_id, bob), json={"role": role})  # noqa: E731
+
+    # Ordering 1: the send is ahead of the downgrade.
+    sent, changed = await ordered(
+        sessionmaker, room_id, send(bob, room_id, "before"), change("viewer")
+    )
+    assert (sent.status_code, changed.status_code) == (201, 200)
+    # Ordering 2: the upgrade is ahead of the send (bob is a viewer now).
+    changed, sent = await ordered(
+        sessionmaker, room_id, change("editor"), send(bob, room_id, "after")
+    )
+    assert (changed.status_code, sent.status_code) == (200, 201)
+    # Ordering 3: the downgrade is ahead of the send: it still succeeds, as a viewer.
+    changed, sent = await ordered(
+        sessionmaker, room_id, change("viewer"), send(bob, room_id, "as viewer")
+    )
+    assert (changed.status_code, sent.status_code) == (200, 201)
+    assert await scalar(sessionmaker, "SELECT count(*) FROM messages") == 3
+
+
+@pytest.mark.parametrize("round_", range(2))
+async def test_a_role_change_racing_an_edit_or_delete_of_own_messages_never_blocks_them(
     alice, bob, sessionmaker, round_
 ):
     room_id = await new_room(alice)
     await add_member(sessionmaker, room_id, bob.id, "editor")
-    send_response, patch_response = await contended(
+    mine, doomed = await insert_messages(sessionmaker, room_id, bob.id, 2)
+    edit_response, delete_response, patch_response = await contended(
         sessionmaker,
         room_id,
-        send(bob, room_id, "racing the downgrade"),
+        edit(bob, room_id, mine, "edited during the downgrade", 1),
+        delete(bob, room_id, doomed, 1),
         alice.patch(member_path(room_id, bob), json={"role": "viewer"}),
     )
-    assert patch_response.status_code == 200
-    if send_response.status_code == 201:
-        assert await scalar(sessionmaker, "SELECT count(*) FROM messages") == 1
-    else:
-        assert (send_response.status_code, send_response.json()["error"]["code"]) == (
-            403,
-            "insufficient_role",
-        )
-        assert await scalar(sessionmaker, "SELECT count(*) FROM messages") == 0
-    assert (await send(bob, room_id, "now a viewer")).status_code == 403
-    assert (await bob.get(f"/rooms/{room_id}/messages")).status_code == 200  # viewers still read
+    assert (edit_response.status_code, delete_response.status_code, patch_response.status_code) == (
+        200,
+        204,
+        200,
+    )
+    assert (await row(sessionmaker, mine))["version"] == 2
+    assert (await row(sessionmaker, doomed))["deleted_at"] is not None
 
 
 async def test_a_mixed_burst_of_message_and_membership_writes_keeps_every_invariant(
@@ -233,9 +280,10 @@ async def ordered(sessionmaker, room_id, first, second):
     return await asyncio.wait_for(asyncio.gather(task_first, task_second), timeout=10)
 
 
-async def test_removal_versus_send_both_orderings_are_deterministic(alice, bob, sessionmaker):
+@pytest.mark.parametrize("role", ["editor", "viewer"])
+async def test_removal_versus_send_both_orderings_are_deterministic(alice, bob, sessionmaker, role):
     room_id = await new_room(alice)
-    await add_member(sessionmaker, room_id, bob.id, "editor")
+    await add_member(sessionmaker, room_id, bob.id, role)
 
     # Ordering 1: the send is ahead of the removal -> it commits, and the message stays.
     send_response, remove_response = await ordered(
@@ -249,7 +297,7 @@ async def test_removal_versus_send_both_orderings_are_deterministic(alice, bob, 
 
     # Ordering 2 (bob rejoins first): the removal is ahead of the send -> the send fails its
     # in-transaction membership check and writes nothing.
-    await add_member(sessionmaker, room_id, bob.id, "editor")
+    await add_member(sessionmaker, room_id, bob.id, role)
     remove_response, send_response = await ordered(
         sessionmaker,
         room_id,

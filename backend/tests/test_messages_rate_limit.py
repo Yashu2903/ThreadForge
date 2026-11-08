@@ -295,3 +295,27 @@ async def test_cleanup_deletes_only_old_buckets_in_batches_and_never_messages(
     )  # 23 h + now
     assert await rows(sessionmaker, "SELECT * FROM messages ORDER BY id") == messages_before
     assert (await cleanup_auth(sessionmaker)).message_write_buckets == 0  # idempotent
+
+
+@pytest.mark.parametrize("role", ["editor", "viewer"])
+async def test_the_rate_limit_applies_equally_to_every_role(
+    make_actor, limited, sessionmaker, role
+):
+    """Viewers can chat now, and their writes are limited at exactly the same threshold as an
+    editor's: LIMIT successes, then 429 with Retry-After."""
+    owner, writer, room_id = await room_for(make_actor, limited, sessionmaker, role=role)
+    for i in range(LIMIT):
+        assert (await send(writer, room_id, f"{role} {i}")).status_code == 201
+    blocked = await send(writer, room_id, "one too many")
+    assert (blocked.status_code, blocked.json()["error"]["code"]) == (429, "rate_limited")
+    assert blocked.headers["retry-after"].isdigit() and int(blocked.headers["retry-after"]) >= 1
+    assert await bucket_total(sessionmaker, room_id) == LIMIT
+
+
+async def test_a_viewer_under_concurrency_gets_exactly_the_limit(make_actor, limited, sessionmaker):
+    owner, viewer, room_id = await room_for(make_actor, limited, sessionmaker, role="viewer")
+    results = await contended(
+        sessionmaker, room_id, *[send(viewer, room_id, f"burst {i}") for i in range(LIMIT + 10)]
+    )
+    assert sorted(r.status_code for r in results) == [201] * LIMIT + [429] * 10
+    assert await scalar(sessionmaker, "SELECT count(*) FROM messages") == LIMIT
