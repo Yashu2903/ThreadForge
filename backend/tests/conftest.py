@@ -23,7 +23,9 @@ from app.config import Settings
 from app.db import create_engine
 from app.main import create_app
 from tests.db_utils import APP_TABLES, build_fresh_schema
-from tests.factories import TEST_DATABASE_URL, make_settings
+from tests.factories import TEST_CLIENT_ID, TEST_CLIENT_SECRET, TEST_DATABASE_URL, make_settings
+from tests.fake_google import FakeGoogle
+from tests.helpers import make_client
 
 
 def require_test_database(url: str) -> None:
@@ -87,12 +89,20 @@ def sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 
 
 @pytest.fixture
-def app(settings: Settings, engine: AsyncEngine):
-    return create_app(settings, engine=engine)
+def google(settings: Settings) -> FakeGoogle:
+    return FakeGoogle(
+        client_id=TEST_CLIENT_ID,
+        client_secret=TEST_CLIENT_SECRET,
+        callback_url=settings.oidc_callback_url,
+    )
+
+
+@pytest.fixture
+def app(settings: Settings, engine: AsyncEngine, google: FakeGoogle):
+    return create_app(settings, engine=engine, oidc_transport=google.transport)
 
 
 @pytest_asyncio.fixture
-async def client(app) -> AsyncIterator[httpx2.AsyncClient]:
-    transport = httpx2.ASGITransport(app=app, raise_app_exceptions=False)
-    async with httpx2.AsyncClient(transport=transport, base_url="http://localhost:8000") as c:
+async def client(settings, engine, google) -> AsyncIterator[httpx2.AsyncClient]:
+    async with make_client(settings, engine, google) as c:
         yield c
