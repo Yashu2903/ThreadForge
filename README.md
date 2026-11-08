@@ -295,7 +295,7 @@ Plain-text messages in a room: send, read paginated history, read one, edit, del
 
 ### Product rules
 - A message belongs to exactly one room and one author; the author is always the authenticated session user (no request field can name one).
-- Active **owners and editors** can send. Active **viewers** can read. Only the **author** can edit, and the author must still be an active owner or editor. The **owner can delete anyone's** message; an **editor only their own**; a **viewer cannot delete** (even a message they wrote before being downgraded). The owner **cannot edit** another person's message.
+- **Chat is open to every active member, whatever their role.** Owners, editors and viewers can all read, send, edit their own messages and delete their own messages. Only the **author** can edit, and the **owner can delete anyone's** message; every other member can delete only their own. The owner **cannot edit** another person's message. Role restrictions (viewers cannot edit documents or upload sources) apply only to **documents and source uploads in later parts**; chat depends only on being an active member. A role change (editor ↔ viewer) never changes what a user can do with messages; **removal** does.
 - Removed members cannot read or modify room messages.
 - A deleted message becomes a **tombstone** (body `NULL`) and can never be edited or restored.
 - **History visibility:** every active member reads the room's *complete* history, including messages sent before they joined or while they were removed. There is no per-member visibility window. Messages written by since-removed members remain visible.
@@ -306,13 +306,22 @@ Every route needs authentication (401); every mutation also needs CSRF (403 `csr
 
 | Method | Route | Owner | Editor | Viewer | Nonmember / removed |
 |---|---|---|---|---|---|
-| POST | `/rooms/{id}/messages` — body `{client_message_id, body}` → **201** new, **200** matching retry | ✓ | ✓ | 403 `insufficient_role` | 404 `room_not_found` |
+| POST | `/rooms/{id}/messages` — body `{client_message_id, body}` → **201** new, **200** matching retry | ✓ | ✓ | ✓ | 404 `room_not_found` |
 | GET | `/rooms/{id}/messages?limit=50&before=<cursor>` | ✓ | ✓ | ✓ | 404 |
 | GET | `/rooms/{id}/messages/{message_id}` | ✓ | ✓ | ✓ | 404 |
-| PATCH | `/rooms/{id}/messages/{message_id}` — body `{body, expected_version}` | own messages only | own messages only | 403 `insufficient_role` | 404 |
-| DELETE | `/rooms/{id}/messages/{message_id}?expected_version=N` → 204 | any message | own messages only | 403 `insufficient_role` | 404 |
+| PATCH | `/rooms/{id}/messages/{message_id}` — body `{body, expected_version}` | own messages only | own messages only | own messages only | 404 |
+| DELETE | `/rooms/{id}/messages/{message_id}?expected_version=N` → 204 | **any** message | own messages only | own messages only | 404 |
 
-**Gate order** for every message route: (1) body-size middleware → 413; (2) authentication → 401; (3) CSRF on unsafe methods → 403; (4) an **unlocked** membership pre-check → 404 for a nonmember or removed user, 403 for a viewer on a write route (people with no access can never take the room lock; the pre-check is never the authority); (5) request validation → 422; (6) the transaction: lock the room, **recheck** membership and role inside it, then write. Message routes read and validate the JSON body themselves after steps 2–4 (FastAPI would otherwise parse it before authentication runs), so the order holds even for malformed JSON.
+Permission summary (a "403" below is always `message_not_author`; **no message route returns `insufficient_role`**):
+
+| Role | Read | Send | Edit own | Delete own | Edit others' | Delete others' |
+|---|---|---|---|---|---|---|
+| Owner | ✓ | ✓ | ✓ | ✓ | 403 | ✓ |
+| Editor | ✓ | ✓ | ✓ | ✓ | 403 | 403 |
+| Viewer | ✓ | ✓ | ✓ | ✓ | 403 | 403 |
+| Removed member / nonmember | 404 | 404 | 404 | 404 | 404 | 404 |
+
+**Gate order** for every message route: (1) body-size middleware → 413; (2) authentication → 401; (3) CSRF on unsafe methods → 403; (4) an **unlocked** membership pre-check → 404 for a nonmember or removed user; any *active* member passes whatever their role (people with no access can never take the room lock; the pre-check is never the authority); (5) request validation → 422; (6) the transaction: lock the room, **recheck active membership** inside it (never role), then write. Message routes read and validate the JSON body themselves after steps 2–4 (FastAPI would otherwise parse it before authentication runs), so the order holds even for malformed JSON.
 
 ### Message representation
 One shape everywhere: `id, room_id, author_id, author_display_name, client_message_id, body, created_at, edited_at, deleted_at, deleted_by, version, is_deleted`. Tombstones have `body: null`; deleted text is never returned. `author_display_name` is read from `users.display_name` at query time (not copied into message rows), or `"Deleted user"` when the user is deleted. No emails, provider identity, session data, fingerprint or exception text.
@@ -343,16 +352,16 @@ Permission is checked *before* the existing row is returned, so a removed or dow
 The cursor is an opaque URL-safe base64 of a versioned payload (`m1 | room_id | created_at with microseconds | id`). It is parsed strictly: anything malformed, non-canonical, of another version, or naming a different room is 422 `invalid_cursor`. It is **unsigned**: a cursor is a pagination position, never an authorization credential. Forging one can only move the position within a room the caller can already read; every request is authorized on its own. This is **history pagination, not a synchronization protocol**, and not a frozen snapshot: messages written between two requests appear on a later newest-page fetch, and edits and deletions show up on re-fetch.
 
 ### Editing and deleting (checks run in exactly this order, after the room lock)
-**PATCH**: recheck membership/role (the author must still be an active owner or editor) → load the message **scoped to the room** `FOR UPDATE`, else 404 `message_not_found` → not the author, 403 `message_not_author` → already deleted, 409 `message_deleted` → `expected_version` ≠ current, 409 `message_version_conflict` with `current_version` in the error body (a stale version conflicts *even if the text matches*) → body exactly equals the current body: 200, nothing changes (no version bump, no timestamp, no rate-limit use) → rate limit → update body, `edited_at = clock_timestamp()`, `version + 1`. There is no separate edit idempotency key in this part. Only the latest text is kept (no `message_versions` table).
+**PATCH**: recheck active membership (the author must still be an active member, of any role: a viewer may edit their own messages) → load the message **scoped to the room** `FOR UPDATE`, else 404 `message_not_found` → not the author, 403 `message_not_author` → already deleted, 409 `message_deleted` → `expected_version` ≠ current, 409 `message_version_conflict` with `current_version` in the error body (a stale version conflicts *even if the text matches*) → body exactly equals the current body: 200, nothing changes (no version bump, no timestamp, no rate-limit use) → rate limit → update body, `edited_at = clock_timestamp()`, `version + 1`. There is no separate edit idempotency key in this part. Only the latest text is kept (no `message_versions` table).
 
-**DELETE** (`expected_version` is a required query parameter, else 422): recheck membership (owner/editor only) → load the message scoped to the room `FOR UPDATE`, else 404 → owner may delete any, an editor only their own, else 403 `message_not_author` → **already deleted: 204, no change, no rate-limit use, regardless of `expected_version`** → stale `expected_version`, 409 `message_version_conflict` → rate limit → `body = NULL`, `deleted_at = clock_timestamp()`, `deleted_by = actor`, `version + 1`. The row is never physically deleted. Authorization comes before the already-deleted shortcut so that someone who may not touch a message learns nothing about its state.
+**DELETE** (`expected_version` is a required query parameter, else 422): recheck active membership (any role) → load the message scoped to the room `FOR UPDATE`, else 404 → the owner may delete any, every other member only their own, else 403 `message_not_author` → **already deleted: 204, no change, no rate-limit use, regardless of `expected_version`** → stale `expected_version`, 409 `message_version_conflict` → rate limit → `body = NULL`, `deleted_at = clock_timestamp()`, `deleted_by = actor`, `version + 1`. The row is never physically deleted. Authorization comes before the already-deleted shortcut so that someone who may not touch a message learns nothing about its state.
 
 Two concurrent edits with the same `expected_version`: exactly one succeeds and the other gets `message_version_conflict`. No silent last-write-wins.
 
 ### Locks and transactions
 Same single pattern as Part 2: every operation is a service function in `app/services/messages.py` that takes the sessionmaker, opens its own session and `begin()`s one transaction, with **one commit point** per function (so Part 4 can add its inserts in the same transaction). Isolation stays at PostgreSQL's default `READ COMMITTED` (the in-lock lookups rely on each statement seeing the latest committed data) and **must not be raised**. The response is built only after the commit, from a fresh read. No network calls in transactions.
 
-**Lock order:** (1) the room row `FOR NO KEY UPDATE`, (2) the message row `FOR UPDATE`, (3) the rate-limit bucket row. Every membership mutation also takes the room lock first, so holding it guarantees the caller's membership and role cannot change underneath the request; no extra `FOR SHARE` on the membership row is needed. **Trade-off:** all message writes in one room are serialized. At ThreadForge room sizes and write limits that is cheap, and Part 4's per-room event sequence counter needs this same lock anyway. A write committed before a removal is valid; a write ordered after it fails its in-transaction membership check (tested in both orders).
+**Lock order:** (1) the room row `FOR NO KEY UPDATE`, (2) the message row `FOR UPDATE`, (3) the rate-limit bucket row. Every membership mutation also takes the room lock first, so holding it guarantees the caller's membership cannot change underneath the request; no extra `FOR SHARE` on the membership row is needed. **Trade-off:** all message writes in one room are serialized. At ThreadForge room sizes and write limits that is cheap, and Part 4's per-room event sequence counter needs this same lock anyway. A write committed before a removal is valid; a write ordered after it fails its in-transaction membership check (tested in both orders).
 
 ### Rate limit (PostgreSQL, no Redis)
 Fixed window: `MESSAGE_WRITES_PER_MINUTE` (default 30) successful writes per user per room per minute, counting **new sends, edits that change content, and deletions of live messages** in one bucket for the acting user. **Not counted:** matching send retries, unchanged edits, repeated deletes, and any request that fails before the write. One atomic statement in the same transaction as the message change, using the *database* clock:
@@ -369,12 +378,13 @@ No row returned means the window is full: the transaction rolls back and the res
 
 ### Error codes
 
+`insufficient_role` is **not** used by any message route (it remains for the Part 2 owner-only routes: invitations, role changes, removal, room rename).
+
 | Code | Status | Meaning |
 |---|---|---|
 | `unauthenticated` | 401 | No valid session |
 | `csrf_failed` | 403 | Missing/invalid CSRF token or untrusted Origin |
 | `room_not_found` | 404 | Room missing, or the caller is not an active member |
-| `insufficient_role` | 403 | Active member lacks the role (a viewer writing) |
 | `message_not_found` | 404 | Message not in this room |
 | `message_not_author` | 403 | Editing, or deleting, a message the caller may not |
 | `message_id_reused` | 409 | Same `client_message_id`, different original content |
@@ -388,20 +398,20 @@ No row returned means the window is full: the transaction rolls back and the res
 Message bodies, cookies, CSRF tokens and fingerprints are never logged. Each committed write emits one structured line: `action=<message_sent|message_edited|message_deleted> room_id=… message_id=… actor_id=… request_id=…` (no content).
 
 ### Where Part 4 hooks in
-Add the room-event and outbox inserts, and the per-room event-sequence increment, **inside the same transaction** in the three service functions, immediately before their single commit point: `send_message`, `edit_message`, `delete_message` in `app/services/messages.py`. The room lock they already hold is the lock the sequence counter needs. Emit an event only at the points where `created` (send) or `changed` (edit, delete) is set to true: those are exactly the writes that changed something. Matching retries, no-op edits and repeated deletes also reach the end of those blocks and must **not** emit events. Routes never write these tables (a test enforces it).
+Add the room-event and outbox inserts, and the per-room event-sequence increment, **inside the same transaction** in the three service functions, immediately before their single commit point: `send_message`, `edit_message`, `delete_message` in `app/services/messages.py`. The room lock they already hold is the lock the sequence counter needs. Room events delivered later go to **all active members regardless of role** (chat is open to viewers too). Emit an event only at the points where `created` (send) or `changed` (edit, delete) is set to true: those are exactly the writes that changed something. Matching retries, no-op edits and repeated deletes also reach the end of those blocks and must **not** emit events. Routes never write these tables (a test enforces it).
 
 ### Manual demonstration (three real Google accounts)
 **Status: pending**: no Google credentials were available. `tests/test_manual_part3_sequence.py` runs the same script against fixture users (sessions created by Part 1's `create_session()`), which proves the script and the flow but **not** the real Google login.
 
 1. Start the backend with a small limit, e.g. `MESSAGE_WRITES_PER_MINUTE=5`.
-2. Sign in as **A** (owner), **B** (editor) and **C** (viewer) through the real Google flow in three separate browser profiles.
+2. Sign in as **A** (owner), **B** (editor) and **C** (viewer; viewers can chat) through the real Google flow in three separate browser profiles.
 3. Copy each `tf_session` cookie *value* into `TF_COOKIE_A/B/C` without putting it on a command line or in a transcript (PowerShell: `$env:TF_COOKIE_A = Read-Host "cookie A" -MaskInput`).
 4. From `backend/`: `uv run python -m scripts.manual_part3_check` (add `$env:TF_INSPECT_DB = "1"` to print message and bucket rows: lengths and a tombstone flag, never text or fingerprints).
 
-The script: A creates a room and invitations, B joins as editor, C as viewer → B sends → A fetches history → B retries (same id returned, 200) → B reuses the id with different text (409) → B edits with the current version, then an old one (409) → A deletes B's message → history shows a tombstone and a retry of the original send does not restore the text → C cannot send (403) → A removes B and B can no longer read or write (404) → exceeding the limit returns 429 with `Retry-After`. It prints PASS/FAIL per step and never prints cookies, tokens or CSRF values. Other clients see changes only by fetching history.
+The script: A creates a room and invitations, B joins as editor, C as viewer → B sends → A fetches history → B retries (same id returned, 200) → B reuses the id with different text (409) → B edits with the current version, then an old one (409) → A deletes B's message → history shows a tombstone and a retry of the original send does not restore the text → C (the viewer) **sends a message successfully**, then tries to edit and delete B's message and gets 403 `message_not_author` → A removes B and B can no longer read or write (404) → exceeding the limit returns 429 with `Retry-After`. It prints PASS/FAIL per step and never prints cookies, tokens or CSRF values. Other clients see changes only by fetching history.
 
 ### Part 3 limitations, handbook deviations and unverified assumptions
-- **Handbook deviations (deliberate):** 5,000 characters, not 8,000; no `message_versions` table, so edited text is overwritten; `expected_version` with **409**, not `If-Match` with 412; the owner cannot edit another person's message.
+- **Handbook deviations (deliberate):** 5,000 characters, not 8,000; no `message_versions` table, so edited text is overwritten; `expected_version` with **409**, not `If-Match` with 412; the owner cannot edit another person's message; **viewers can send messages, edit their own, and delete their own** (handbook section 5.2 says viewers cannot send chat; here viewer restrictions apply only to documents and sources in later parts, and chat depends only on being an active member).
 - **No rate limit on reads.** A failed request from an *active member* that gets past validation (version conflict, not-author, message-not-found, `message_id_reused`, `rate_limited`) still takes the room lock briefly; requests that fail earlier (auth, CSRF, pre-check, validation, 413) never do. Proxy-level request limiting is advisable.
 - **No per-room message retention cap** (rooms grow without bound until a later part decides).
 - **Fixed-window burst** of up to twice the limit at a minute boundary.
