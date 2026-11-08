@@ -14,13 +14,23 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app.api import auth, health, invitations, members, messages, rooms
+from app.api import (
+    auth,
+    health,
+    invitations,
+    members,
+    messages,
+    realtime,
+    room_events,
+    rooms,
+)
 from app.body_limit import BodySizeLimitMiddleware
 from app.config import Settings, get_settings
 from app.db import create_engine, create_sessionmaker
 from app.errors import install_error_handlers
 from app.logging_config import configure_logging
 from app.middleware import RequestContextMiddleware
+from app.realtime.hub import RealtimeHub
 from app.services.oidc import OIDCClient
 
 
@@ -35,8 +45,12 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # No schema creation here. Schema changes happen only through Alembic.
-        # No network calls here either: Google metadata is fetched lazily on first login.
+        # No network calls needed to start: Google metadata is fetched lazily on first login, and
+        # the realtime hub connects to Redis in the background (the API serves HTTP, and
+        # /health/ready stays database-only, whether or not Redis is reachable).
+        await app.state.realtime.start()
         yield
+        await app.state.realtime.stop()  # closes every WebSocket with 1001, then Redis
         await app.state.engine.dispose()
 
     app = FastAPI(
@@ -52,6 +66,7 @@ def create_app(
     # No network I/O at construction: discovery and JWKS are fetched lazily on first login.
     # oidc_transport exists so tests can stub Google at the HTTP level.
     app.state.oidc = OIDCClient(settings, transport=oidc_transport)
+    app.state.realtime = RealtimeHub(settings, app.state.sessionmaker)
 
     install_error_handlers(app)
     app.include_router(health.router)
@@ -60,6 +75,8 @@ def create_app(
     app.include_router(invitations.router)
     app.include_router(members.router)
     app.include_router(messages.router)
+    app.include_router(room_events.router)
+    app.include_router(realtime.router)
 
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the
     # request-context middleware (and its logs) see the real client address.

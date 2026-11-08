@@ -92,6 +92,7 @@ class Actor:
         self.client = client
         self.id = user_id
         self.name = name
+        self.secret: str | None = None  # the raw session cookie value (tests only), for WS clients
         self._csrf: str | None = None
 
     async def csrf_token(self) -> str:

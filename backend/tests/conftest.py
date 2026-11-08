@@ -37,6 +37,7 @@ from tests.factories import (
 )
 from tests.fake_google import FakeGoogle
 from tests.helpers import Actor, make_client, put_cookie
+from tests.realtime_helpers import Pump, live_server
 
 
 def require_test_database(url: str) -> None:
@@ -182,7 +183,10 @@ async def make_actor(settings, engine, sessionmaker, google):
                 session = await create_session(db, app_settings, user_id)
             client = await stack.enter_async_context(make_client(app_settings, engine, google))
             put_cookie(client, app_settings.session_cookie_name, session.secret)
-            return Actor(client, user_id, name)
+            actor = Actor(client, user_id, name)
+            actor.secret = session.secret
+            actor.session_id = session.id
+            return actor
 
         yield factory
 
@@ -200,3 +204,18 @@ async def bob(make_actor) -> Actor:
 @pytest_asyncio.fixture
 async def carol(make_actor) -> Actor:
     return await make_actor("Carol")
+
+
+@pytest_asyncio.fixture
+async def live(settings, engine, redis_client):
+    """The API under a real uvicorn server (real lifespan: the hub starts and stops for real)."""
+    async with live_server(settings, engine) as server:
+        yield server
+
+
+@pytest_asyncio.fixture
+async def pump(settings, sessionmaker, redis_client):
+    """An in-process outbox dispatcher publishing to the real Redis."""
+    pump = Pump(sessionmaker, settings)
+    yield pump
+    await pump.aclose()
