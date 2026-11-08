@@ -12,6 +12,8 @@ dependencies = [
     "pydantic-settings>=2.7",
     "authlib>=1.4",
     "httpx2>=2.16",
+    "redis>=8.1.0",
+    "websockets>=17.4",
 ]
 
 [dependency-groups]

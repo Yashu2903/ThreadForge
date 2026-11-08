@@ -451,8 +451,15 @@ async def test_the_unique_violation_recovery_path_answers_as_a_retry_not_a_500(
     cmid = uuid.uuid4()
 
     async def unlocked_authorize(db, room, actor):  # membership check WITHOUT the room lock
+        from sqlalchemy import text
+
+        from app.services.room_lock import adopt_new_room
+
         role = await scalar_role(db, room, actor)
-        return role
+        row = (await db.execute(text("SELECT * FROM rooms WHERE id = :r"), {"r": room})).one()
+        # Deliberately NOT holding the lock (this test exercises the unique-constraint safeguard).
+        # Only the winning transaction ever reaches record_room_event, so no sequence race here.
+        return adopt_new_room(row), role
 
     async def scalar_role(db, room, actor):
         from sqlalchemy import text

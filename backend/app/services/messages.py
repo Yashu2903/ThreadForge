@@ -55,6 +55,7 @@ from app.errors import (
 )
 from app.logging_config import APP_LOGGER, request_id_var
 from app.models import Message, MessageWriteBucket, User
+from app.services.room_events import record_room_event
 from app.services.rooms import lock_room_and_actor
 
 log = logging.getLogger(f"{APP_LOGGER}.messages")
@@ -177,16 +178,17 @@ async def get_message(
     return row_to_view(row) if row else None
 
 
-async def _authorize_member(db: AsyncSession, room_id: uuid.UUID, actor_id: uuid.UUID) -> str:
+async def _authorize_member(db: AsyncSession, room_id: uuid.UUID, actor_id: uuid.UUID):
     """Step 1 of every write: lock the room, THEN recheck ACTIVE MEMBERSHIP in-transaction.
 
     Chat depends only on being an active member: role never gates sending, editing or deleting
     your own message (role restrictions belong to documents and uploads in later parts). A
     nonmember or removed user gets room_not_found (404). The role is returned only so that
     delete_message can apply the one role rule left in chat: the owner may delete anyone's message.
+    Returns (LockedRoom, role): the handle record_room_event() needs to record the room event.
     """
-    _room, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
-    return role
+    locked, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
+    return locked, role
 
 
 async def _consume_write_capacity(
@@ -268,7 +270,7 @@ async def send_message(
     for attempt in (1, 2):
         try:
             async with sessionmaker() as db, db.begin():
-                await _authorize_member(db, room_id, actor_id)
+                locked, _role = await _authorize_member(db, room_id, actor_id)
                 existing = (
                     await db.execute(
                         select(_MESSAGES.c.id, _MESSAGES.c.initial_request_fingerprint).where(
@@ -286,7 +288,7 @@ async def send_message(
                     message_id, created = existing.id, False
                 else:
                     await _consume_write_capacity(db, settings, room_id, actor_id)
-                    message_id = (
+                    inserted = (
                         await db.execute(
                             insert(_MESSAGES)
                             .values(
@@ -299,9 +301,21 @@ async def send_message(
                                 # now(): that is the transaction's START time).
                                 created_at=func.clock_timestamp(),
                             )
-                            .returning(_MESSAGES.c.id)
+                            .returning(_MESSAGES.c.id, _MESSAGES.c.version)
                         )
-                    ).scalar_one()
+                    ).one()
+                    message_id = inserted.id
+                    # the message, its room event and its outbox row commit TOGETHER
+                    await record_room_event(
+                        db,
+                        locked,
+                        event_type="message_created",
+                        resource_type="message",
+                        resource_id=message_id,
+                        resource_version=inserted.version,
+                        actor_id=actor_id,
+                        payload={},
+                    )
                     created = True
             break  # committed
         except IntegrityError as exc:
@@ -449,7 +463,7 @@ async def edit_message(
         raise message_not_found()
     changed = False
     async with sessionmaker() as db, db.begin():
-        await _authorize_member(db, room_id, actor_id)
+        locked, _role = await _authorize_member(db, room_id, actor_id)
         message = await _lock_message(db, room_id, message_id)
         if message is None:
             raise message_not_found()
@@ -461,14 +475,27 @@ async def edit_message(
             raise message_version_conflict(message.version)
         if body != message.body:
             await _consume_write_capacity(db, settings, room_id, actor_id)
-            await db.execute(
-                update(_MESSAGES)
-                .where(_MESSAGES.c.id == message_id)
-                .values(
-                    body=body,
-                    edited_at=func.clock_timestamp(),
-                    version=_MESSAGES.c.version + 1,
+            new_version = (
+                await db.execute(
+                    update(_MESSAGES)
+                    .where(_MESSAGES.c.id == message_id)
+                    .values(
+                        body=body,
+                        edited_at=func.clock_timestamp(),
+                        version=_MESSAGES.c.version + 1,
+                    )
+                    .returning(_MESSAGES.c.version)
                 )
+            ).scalar_one()
+            await record_room_event(
+                db,
+                locked,
+                event_type="message_edited",
+                resource_type="message",
+                resource_id=message_id,
+                resource_version=new_version,
+                actor_id=actor_id,
+                payload={},
             )
             changed = True
     view = await get_message(sessionmaker, room_id, message_id)
@@ -505,7 +532,7 @@ async def delete_message(
         raise message_not_found()
     changed = False
     async with sessionmaker() as db, db.begin():
-        role = await _authorize_member(db, room_id, actor_id)
+        locked, role = await _authorize_member(db, room_id, actor_id)
         message = await _lock_message(db, room_id, message_id)
         if message is None:
             raise message_not_found()
@@ -515,15 +542,28 @@ async def delete_message(
             if message.version != expected_version:
                 raise message_version_conflict(message.version)
             await _consume_write_capacity(db, settings, room_id, actor_id)
-            await db.execute(
-                update(_MESSAGES)
-                .where(_MESSAGES.c.id == message_id)
-                .values(
-                    body=None,
-                    deleted_at=func.clock_timestamp(),
-                    deleted_by=actor_id,
-                    version=_MESSAGES.c.version + 1,
+            new_version = (
+                await db.execute(
+                    update(_MESSAGES)
+                    .where(_MESSAGES.c.id == message_id)
+                    .values(
+                        body=None,
+                        deleted_at=func.clock_timestamp(),
+                        deleted_by=actor_id,
+                        version=_MESSAGES.c.version + 1,
+                    )
+                    .returning(_MESSAGES.c.version)
                 )
+            ).scalar_one()
+            await record_room_event(
+                db,
+                locked,
+                event_type="message_deleted",
+                resource_type="message",
+                resource_id=message_id,
+                resource_version=new_version,
+                actor_id=actor_id,
+                payload={},
             )
             changed = True
     if changed:

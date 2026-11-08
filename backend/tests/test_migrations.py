@@ -11,6 +11,7 @@ from tests.db_utils import (
     APP_TABLES,
     PART1_TABLES,
     PART2_TABLES,
+    PART3_TABLES,
     alembic_config,
     build_fresh_schema,
     reset_schema,
@@ -34,7 +35,7 @@ def test_upgrade_on_empty_database_creates_exactly_the_part1_and_part2_tables(em
 
 def test_no_tables_for_later_parts_exist(empty_database):
     upgrade_to_head()
-    forbidden = {"documents", "outbox", "room_events", "uploads", "presence", "message_versions"}
+    forbidden = {"documents", "uploads", "presence", "message_versions", "consumer_receipts"}
     assert not forbidden & table_names()
 
 
@@ -68,5 +69,14 @@ def test_part3_downgrade_leaves_part2_intact_and_reapplies(empty_database):
     command.upgrade(config, "head")
     command.downgrade(config, "0002")
     assert table_names() == {*PART1_TABLES, *PART2_TABLES, "alembic_version"}
+    command.upgrade(config, "head")
+    assert table_names() == {*APP_TABLES, "alembic_version"}
+
+
+def test_part4_downgrade_leaves_part3_intact_and_reapplies(empty_database):
+    config = alembic_config()
+    command.upgrade(config, "head")
+    command.downgrade(config, "0003")
+    assert table_names() == {*PART1_TABLES, *PART2_TABLES, *PART3_TABLES, "alembic_version"}
     command.upgrade(config, "head")
     assert table_names() == {*APP_TABLES, "alembic_version"}

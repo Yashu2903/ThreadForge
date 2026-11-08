@@ -363,9 +363,9 @@ async def test_a_message_committed_later_never_has_an_earlier_created_at(
     real = messages_service._authorize_member
 
     async def recording(db, room, actor):
-        role = await real(db, room, actor)
+        locked_and_role = await real(db, room, actor)
         lock_order.append(actor)  # recorded while the room lock is held
-        return role
+        return locked_and_role
 
     monkeypatch.setattr(messages_service, "_authorize_member", recording)
 

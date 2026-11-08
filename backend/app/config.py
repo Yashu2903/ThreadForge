@@ -6,6 +6,7 @@ message that names the setting and says what to do, and never echoes secret valu
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
@@ -19,6 +20,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 CALLBACK_PATH = "/auth/callback"
 GOOGLE_ISSUER = "https://accounts.google.com"
+DEFAULT_DEV_REDIS_URL = "redis://127.0.0.1:6390/0"
+_CHANNEL_PREFIX = re.compile(r"[A-Za-z0-9._-]{1,64}")
 
 # Any value containing one of these is treated as an unfilled placeholder.
 _PLACEHOLDER_MARKERS = ("replace-me", "replaceme", "change-me", "changeme", "placeholder", "your-")
@@ -95,6 +98,30 @@ class Settings(BaseSettings):
     message_fingerprint_secret: SecretStr
     message_writes_per_minute: int = 30
 
+    # Part 4: Redis/Valkey Pub/Sub. A live-notification hint, never storage. Production requires
+    # TLS (rediss://) and a password. Never exposed to browsers; the app works without it.
+    redis_url: SecretStr = SecretStr("")
+    redis_channel_prefix: str = "threadforge"
+    redis_socket_timeout_seconds: float = 5.0
+    redis_health_check_interval_seconds: int = 30
+
+    # Part 4: the outbox dispatcher (a separate process).
+    outbox_batch_size: int = 50
+    outbox_poll_interval_ms: int = 200
+    outbox_claim_lease_seconds: float = 30.0
+    outbox_publish_timeout_seconds: float = 2.0
+    outbox_retry_max_delay_seconds: float = 60.0
+    outbox_processed_retention_days: int = 7
+
+    # Part 4: WebSockets and the per-process notification pipeline.
+    realtime_queue_size: int = 1000  # reader -> workers; oldest dropped when full
+    ws_max_connections_per_user: int = 5  # per API process
+    ws_max_connections_per_process: int = 1000
+    ws_send_timeout_seconds: float = 5.0
+    ws_connection_queue_size: int = 100  # per-connection send queue; full => slow consumer
+    ws_forward_workers: int = 4
+    ws_subscribe_timeout_seconds: float = 5.0
+
     trusted_proxy_ips: Annotated[list[str], NoDecode] = []
     cookie_secure: bool | None = None
 
@@ -164,6 +191,8 @@ class Settings(BaseSettings):
             self.frontend_success_url = self.frontend_success_url or f"{base_origin}/auth/me"
             self.frontend_error_url = self.frontend_error_url or f"{base_origin}/auth/me"
             self.frontend_base_url = self.frontend_base_url or base_origin
+            if not self.redis_url.get_secret_value():
+                self.redis_url = SecretStr(DEFAULT_DEV_REDIS_URL)
             self.trusted_origins = self.trusted_origins or [base_origin]
         else:
             for name, value in (
@@ -239,6 +268,7 @@ class Settings(BaseSettings):
                 f"MESSAGE_FINGERPRINT_SECRET must be a real random value of at least "
                 f"{MIN_PRODUCTION_SECRET_LENGTH} characters in production."
             )
+        problems += self._validate_part4(prod)
         if self.message_writes_per_minute < 1:
             problems.append("MESSAGE_WRITES_PER_MINUTE must be at least 1.")
 
@@ -278,6 +308,48 @@ class Settings(BaseSettings):
         if problems:
             raise ValueError("Invalid configuration:\n- " + "\n- ".join(problems))
         return self
+
+    def _validate_part4(self, prod: bool) -> list[str]:
+        """Redis, outbox and WebSocket settings. Messages never include the Redis password."""
+        problems: list[str] = []
+        redis_url = urlsplit(self.redis_url.get_secret_value())
+        if redis_url.scheme not in ("redis", "rediss") or not redis_url.hostname:
+            problems.append("REDIS_URL must be a redis:// or rediss:// URL.")
+        elif prod:
+            if redis_url.scheme != "rediss":
+                problems.append("REDIS_URL must use TLS (rediss://) in production.")
+            if not redis_url.password:
+                problems.append("REDIS_URL must include a password in production.")
+        elif redis_url.scheme == "redis" and redis_url.hostname not in _LOCAL_HOSTS:
+            problems.append("REDIS_URL: plain redis:// is only allowed for localhost development.")
+        if not _CHANNEL_PREFIX.fullmatch(self.redis_channel_prefix):
+            problems.append("REDIS_CHANNEL_PREFIX must be 1-64 characters of A-Z a-z 0-9 . _ -")
+        positives = {
+            "REDIS_SOCKET_TIMEOUT_SECONDS": self.redis_socket_timeout_seconds,
+            "OUTBOX_BATCH_SIZE": self.outbox_batch_size,
+            "OUTBOX_POLL_INTERVAL_MS": self.outbox_poll_interval_ms,
+            "OUTBOX_CLAIM_LEASE_SECONDS": self.outbox_claim_lease_seconds,
+            "OUTBOX_PUBLISH_TIMEOUT_SECONDS": self.outbox_publish_timeout_seconds,
+            "OUTBOX_RETRY_MAX_DELAY_SECONDS": self.outbox_retry_max_delay_seconds,
+            "REALTIME_QUEUE_SIZE": self.realtime_queue_size,
+            "WS_MAX_CONNECTIONS_PER_USER": self.ws_max_connections_per_user,
+            "WS_MAX_CONNECTIONS_PER_PROCESS": self.ws_max_connections_per_process,
+            "WS_SEND_TIMEOUT_SECONDS": self.ws_send_timeout_seconds,
+            "WS_CONNECTION_QUEUE_SIZE": self.ws_connection_queue_size,
+            "WS_FORWARD_WORKERS": self.ws_forward_workers,
+            "WS_SUBSCRIBE_TIMEOUT_SECONDS": self.ws_subscribe_timeout_seconds,
+        }
+        problems += [
+            f"{name} must be greater than 0." for name, value in positives.items() if value <= 0
+        ]
+        if self.outbox_processed_retention_days < 0:
+            problems.append("OUTBOX_PROCESSED_RETENTION_DAYS must be 0 or more.")
+        if self.outbox_claim_lease_seconds < 2 * self.outbox_publish_timeout_seconds:
+            problems.append(
+                "OUTBOX_CLAIM_LEASE_SECONDS must be at least twice OUTBOX_PUBLISH_TIMEOUT_SECONDS "
+                "so a claim cannot expire while its publish is still in flight."
+            )
+        return problems
 
     def _check_url(self, name: str, value: str) -> list[str]:
         parts = urlsplit(value)

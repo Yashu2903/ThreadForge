@@ -45,6 +45,7 @@ def make_production_settings(**overrides: object) -> Settings:
         "frontend_base_url": "https://app.threadforge.test",
         "csrf_secret": secrets.token_urlsafe(48),
         "message_fingerprint_secret": secrets.token_urlsafe(48),
+        "redis_url": f"rediss://:{secrets.token_urlsafe(24)}@redis.threadforge.test:6380/0",
     }
     values.update(overrides)
     return make_settings(**values)

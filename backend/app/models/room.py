@@ -25,6 +25,7 @@ class Room(Base):
         ),
         CheckConstraint("membership_epoch >= 1", name="epoch_positive"),
         CheckConstraint("version >= 0", name="version_non_negative"),
+        CheckConstraint("event_seq >= 0", name="event_seq_non_negative"),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -36,6 +37,9 @@ class Room(Base):
         BigInteger, server_default=text("1"), nullable=False
     )
     version: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    # Last allocated room_events.seq. Separate from membership_epoch (access-policy version) and
+    # from version (entity version); bumping it changes neither them nor updated_at.
+    event_seq: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
     created_at: Mapped[datetime] = utc_now_column()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False

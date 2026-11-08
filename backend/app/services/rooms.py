@@ -36,6 +36,8 @@ from app.errors import insufficient_role, limit_reached, room_not_found
 from app.logging_config import APP_LOGGER, request_id_var
 from app.models import Membership, Room, User
 from app.pagination import decode_cursor, encode_cursor
+from app.services.room_events import record_room_event
+from app.services.room_lock import adopt_new_room, lock_room
 
 log = logging.getLogger(f"{APP_LOGGER}.rooms")
 
@@ -89,16 +91,13 @@ async def lock_room_and_actor(
     """Step 1 of every room mutation: lock the room row, THEN read the actor's role.
 
     Reading the role only after the lock is held means no concurrent removal or demotion can slip
-    in between the check and the write. Returns (room_row, actor_role).
+    in between the check and the write. Returns (LockedRoom, actor_role): the handle that
+    record_room_event() requires, so events can only be recorded while the lock is held.
     Raises room_not_found for a missing room or a non-member (indistinguishable on purpose), and
     insufficient_role for a member who lacks the owner role when owner_only.
     """
-    room = (
-        await db.execute(
-            select(_ROOMS).where(_ROOMS.c.id == room_id).with_for_update(key_share=True)
-        )
-    ).one_or_none()
-    if room is None:
+    locked = await lock_room(db, room_id)
+    if locked is None:
         raise room_not_found()
     role = (
         await db.execute(
@@ -113,7 +112,7 @@ async def lock_room_and_actor(
         raise room_not_found()
     if owner_only and role != "owner":
         raise insufficient_role()
-    return room, role
+    return locked, role
 
 
 async def bump_membership_epoch(db: AsyncSession, room_id: uuid.UUID) -> int:
@@ -168,6 +167,17 @@ async def create_room(
             insert(_MEMBERSHIPS).values(
                 room_id=room.id, user_id=user_id, role="owner", state="active"
             )
+        )
+        # room + owner membership + room_created (seq 1) + its outbox row: ONE transaction
+        await record_room_event(
+            db,
+            adopt_new_room(room),
+            event_type="room_created",
+            resource_type="room",
+            resource_id=room.id,
+            resource_version=None,
+            actor_id=user_id,
+            payload={},
         )
     log_event("room_created", room.id, user_id, user_id)
     return to_view(room, "owner")
@@ -228,8 +238,10 @@ async def rename_room(
     """Owner-only rename. Authorization is decided HERE under the room lock; any dependency
     pre-check is only a fast rejection. A same-name PATCH changes nothing (no version bump).
     Never touches membership_epoch: a rename is not an access change."""
+    changed = False
     async with sessionmaker() as db, db.begin():
-        room, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
+        locked, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
+        room = locked.row
         if room.name != name:
             room = (
                 await db.execute(
@@ -239,5 +251,17 @@ async def rename_room(
                     .returning(*_ROOMS.c)
                 )
             ).one()
-    log_event("room_renamed", room_id, actor_id, None)
+            await record_room_event(
+                db,
+                locked,
+                event_type="room_renamed",
+                resource_type="room",
+                resource_id=room_id,
+                resource_version=None,
+                actor_id=actor_id,
+                payload={},
+            )
+            changed = True
+    if changed:
+        log_event("room_renamed", room_id, actor_id, None)
     return to_view(room, role)

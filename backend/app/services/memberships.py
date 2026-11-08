@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.errors import member_not_found, owner_protected
 from app.models import Membership, User
 from app.pagination import decode_cursor, encode_cursor
+from app.services.room_events import record_room_event
 from app.services.rooms import bump_membership_epoch, lock_room_and_actor, log_event
 
 _MEMBERSHIPS = Membership.__table__
@@ -144,7 +145,7 @@ async def change_role(
     """
     changed = False
     async with sessionmaker() as db, db.begin():
-        await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
+        locked, _role = await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
         target = await lock_membership(db, room_id, target_id) if target_id else None
         if target is not None and target.role == "owner":
             raise owner_protected()
@@ -160,6 +161,16 @@ async def change_role(
                 )
             ).one()
             await bump_membership_epoch(db, room_id)
+            await record_room_event(
+                db,
+                locked,
+                event_type="member_role_changed",
+                resource_type="membership",
+                resource_id=target_id,
+                resource_version=None,
+                actor_id=actor_id,
+                payload={"user_id": str(target_id), "role": role},
+            )
             changed = True
         view = await member_view(db, target)
     if changed:
@@ -181,7 +192,7 @@ async def remove_member(
     """
     changed = False
     async with sessionmaker() as db, db.begin():
-        await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
+        locked, _role = await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
         target = await lock_membership(db, room_id, target_id) if target_id else None
         if target is None:
             raise member_not_found()
@@ -194,6 +205,16 @@ async def remove_member(
                 .values(state="removed", removed_at=func.now(), updated_at=func.now())
             )
             await bump_membership_epoch(db, room_id)
+            await record_room_event(
+                db,
+                locked,
+                event_type="member_removed",
+                resource_type="membership",
+                resource_id=target_id,
+                resource_version=None,
+                actor_id=actor_id,
+                payload={"user_id": str(target_id)},
+            )
             changed = True
     if changed:
         log_event("member_removed", room_id, actor_id, target_id)

@@ -31,6 +31,8 @@ from app.services.memberships import (
     lock_membership,
     member_view,
 )
+from app.services.room_events import record_room_event
+from app.services.room_lock import lock_room
 from app.services.rooms import (
     RoomView,
     bump_membership_epoch,
@@ -239,13 +241,10 @@ async def redeem_invitation(
             raise invitation_invalid()
 
         # Lock order: 1) room  2) invitation  3) membership.
-        room = (
-            await db.execute(
-                select(_ROOMS)
-                .where(_ROOMS.c.id == preliminary.room_id)
-                .with_for_update(key_share=True)
-            )
-        ).one()
+        locked = await lock_room(db, preliminary.room_id)
+        if locked is None:  # cannot happen: foreign keys are RESTRICT
+            raise invitation_invalid()
+        room = locked.row
         invitation = (
             await db.execute(
                 select(_INVITATIONS, (_INVITATIONS.c.expires_at <= func.now()).label("expired"))
@@ -295,6 +294,16 @@ async def redeem_invitation(
             .values(used_at=func.now(), used_by=user_id)
         )
         epoch = await bump_membership_epoch(db, room.id)
+        await record_room_event(
+            db,
+            locked,
+            event_type="member_joined",
+            resource_type="membership",
+            resource_id=user_id,
+            resource_version=None,
+            actor_id=user_id,
+            payload={"user_id": str(user_id), "role": new_membership.role},
+        )
         view = to_view(room, new_membership.role)
         result = RedeemResult(
             RoomView(**{**view.__dict__, "membership_epoch": epoch}),
