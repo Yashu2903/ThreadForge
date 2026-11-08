@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.db import db_error_details
 from app.logging_config import APP_LOGGER
 from app.models import AuthIdentity, User
 from app.services.oidc import FALLBACK_DISPLAY_NAME, VerifiedIdentity
@@ -45,16 +46,7 @@ def clean_display_name(name: str | None) -> str:
 
 def is_identity_unique_violation(exc: IntegrityError) -> bool:
     """True for a unique violation on (issuer, subject): the lost side of a first-login race."""
-    original = exc.orig
-    # SQLAlchemy wraps the asyncpg error; the asyncpg exception (with sqlstate and constraint
-    # name) is the wrapper's __cause__.
-    for candidate in (original, getattr(original, "__cause__", None)):
-        if (
-            getattr(candidate, "sqlstate", None) == UNIQUE_VIOLATION_SQLSTATE
-            and getattr(candidate, "constraint_name", None) == IDENTITY_UNIQUE
-        ):
-            return True
-    return False
+    return db_error_details(exc) == (UNIQUE_VIOLATION_SQLSTATE, IDENTITY_UNIQUE)
 
 
 async def _find_and_refresh(

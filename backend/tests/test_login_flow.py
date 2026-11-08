@@ -9,7 +9,16 @@ import httpx2
 from app.services.security import sha256_hex
 from tests.factories import make_production_settings, make_settings
 from tests.fake_google import AUTH_ENDPOINT, OMIT
-from tests.helpers import error_code, execute, make_client, rows, scalar, sign_in, start_login
+from tests.helpers import (
+    error_code,
+    execute,
+    make_client,
+    put_cookie,
+    rows,
+    scalar,
+    sign_in,
+    start_login,
+)
 
 SUCCESS = "http://localhost:8000/auth/me"
 
@@ -331,7 +340,7 @@ async def test_state_cannot_be_reused(client, google, sessionmaker):
     first = await client.get("/auth/callback", params={"code": code, "state": state})
     assert first.headers["location"] == SUCCESS
     # Even with the genuine binding cookie put back, the attempt is single use.
-    client.cookies.set("tf_login_binding", binding, domain="localhost")
+    put_cookie(client, "tf_login_binding", binding)
     replay = await client.get("/auth/callback", params={"code": code, "state": state})
     assert error_code(replay) == "invalid_login_attempt"
     assert await scalar(sessionmaker, "SELECT count(*) FROM sessions") == 1

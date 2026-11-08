@@ -123,10 +123,6 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "expires_at > created_at", name=op.f("ck_sessions_expires_after_created")
         ),
-        sa.CheckConstraint(
-            "revoked_at IS NULL OR revoked_at >= created_at",
-            name=op.f("ck_sessions_revoked_after_created"),
-        ),
     )
     op.create_index("ix_sessions_user_id", "sessions", ["user_id"])
     op.create_index("ix_sessions_expires_at", "sessions", ["expires_at"])
@@ -160,10 +156,6 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "expires_at > created_at", name=op.f("ck_oidc_login_attempts_expires_after_created")
-        ),
-        sa.CheckConstraint(
-            "consumed_at IS NULL OR consumed_at >= created_at",
-            name=op.f("ck_oidc_login_attempts_consumed_after_created"),
         ),
     )
     op.create_index("ix_oidc_login_attempts_expires_at", "oidc_login_attempts", ["expires_at"])

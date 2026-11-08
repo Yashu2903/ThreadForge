@@ -10,7 +10,9 @@ after the dependency returns (important for the OIDC callback, which then calls 
 
 from __future__ import annotations
 
-from fastapi import Request
+from typing import Annotated
+
+from fastapi import Depends, Request
 
 from app.errors import AppError
 from app.services.sessions import AuthContext, load_session
@@ -40,3 +42,9 @@ async def get_current_user(request: Request) -> AuthContext:
     if context is None or context.user.state != "active":
         raise AppError(401, "unauthenticated", "Authentication required.")
     return context
+
+
+# Annotated aliases so a route declares its auth requirement in one word:
+#     async def route(user: CurrentUser): ...
+CurrentUser = Annotated[AuthContext, Depends(get_current_user)]
+OptionalSession = Annotated[AuthContext | None, Depends(get_optional_session)]

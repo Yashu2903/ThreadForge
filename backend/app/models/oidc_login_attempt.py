@@ -16,6 +16,11 @@ class OIDCLoginAttempt(Base):
     stored raw because they must be replayed to Google or compared with the ID token. They are
     useless without the authorization code and the matching browser cookie, and they live at
     most ten minutes.
+
+    Deliberately no CHECK relating consumed_at to created_at: those values come from different
+    transactions (different backends), and database wall clocks are not guaranteed monotonic
+    across backends (observed: Docker Desktop VMs step back by hundreds of ms), so such a CHECK
+    would reject valid operations. expires_at > created_at is safe: same transaction, same now().
     """
 
     __tablename__ = "oidc_login_attempts"
@@ -27,9 +32,6 @@ class OIDCLoginAttempt(Base):
             "char_length(pkce_verifier) BETWEEN 43 AND 128", name="pkce_verifier_length"
         ),
         CheckConstraint("expires_at > created_at", name="expires_after_created"),
-        CheckConstraint(
-            "consumed_at IS NULL OR consumed_at >= created_at", name="consumed_after_created"
-        ),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()

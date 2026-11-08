@@ -45,3 +45,18 @@ async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
     """Request-scoped session. Handlers commit explicitly; anything uncommitted is rolled back."""
     async with request.app.state.sessionmaker() as session:
         yield session
+
+
+def db_error_details(exc: BaseException) -> tuple[str | None, str | None]:
+    """(sqlstate, constraint_name) of a database error, for safe logging and error handling.
+
+    Neither value contains row data. SQLAlchemy wraps the asyncpg exception (which carries the
+    SQLSTATE and constraint name); the asyncpg exception is the wrapper's __cause__.
+    """
+    original = getattr(exc, "orig", None)
+    candidates = (original, getattr(original, "__cause__", None))
+    sqlstate = next((c.sqlstate for c in candidates if getattr(c, "sqlstate", None)), None)
+    constraint = next(
+        (c.constraint_name for c in candidates if getattr(c, "constraint_name", None)), None
+    )
+    return sqlstate, constraint

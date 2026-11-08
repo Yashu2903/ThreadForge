@@ -28,6 +28,18 @@ async def make_client(
         yield client
 
 
+def put_cookie(client: httpx2.AsyncClient, name: str, value: str) -> None:
+    """Make the client send exactly this cookie value, replacing any existing one.
+
+    The stdlib cookie jar files server-set cookies for "localhost" under the domain
+    "localhost.local", so a plain cookies.set(..., domain="localhost") is silently never sent and
+    a rejection test would pass for the wrong reason. Deleting by name and setting with no domain
+    produces a cookie the jar really sends (test_injected_cookies_are_really_sent proves it).
+    """
+    client.cookies.delete(name)
+    client.cookies.set(name, value)
+
+
 async def start_login(client: httpx2.AsyncClient) -> httpx2.Response:
     return await client.get("/auth/login")
 

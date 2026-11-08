@@ -17,9 +17,6 @@ class Session(Base):
     __table_args__ = (
         CheckConstraint("secret_hash ~ '^[0-9a-f]{64}$'", name="secret_hash_format"),
         CheckConstraint("expires_at > created_at", name="expires_after_created"),
-        CheckConstraint(
-            "revoked_at IS NULL OR revoked_at >= created_at", name="revoked_after_created"
-        ),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()

@@ -10,12 +10,15 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, Response
 
 from app.config import Settings
-from app.dependencies.auth import get_optional_session
+from app.db import db_error_details
+from app.dependencies.auth import CurrentUser, OptionalSession, get_optional_session
 from app.errors import AppError
 from app.logging_config import APP_LOGGER
+from app.schemas.auth import CsrfOut, ErrorBody, UserOut
 from app.services import login_attempts
 from app.services.accounts import resolve_account
 from app.services.cookies import clear_cookie, set_cookie
+from app.services.csrf import csrf_token_for, enforce_csrf
 from app.services.login_attempts import LoginBusy, LoginSecrets
 from app.services.oidc import OIDCError, ProviderUnavailable
 from app.services.security import is_well_formed_secret
@@ -116,7 +119,13 @@ async def callback(request: Request) -> Response:
     try:
         return await _handle_callback(request, settings)
     except Exception as exc:  # last-resort: still a safe redirect, never a stack trace
-        log.error("callback crashed: %s", type(exc).__name__)
+        sqlstate, constraint = db_error_details(exc)
+        log.error(
+            "callback crashed: %s sqlstate=%s constraint=%s",
+            type(exc).__name__,
+            sqlstate,
+            constraint,
+        )
         return _error_redirect(settings, LOGIN_FAILED, clear_binding=True)
 
 
@@ -186,4 +195,53 @@ async def _handle_callback(request: Request, settings: Settings) -> Response:
         new_session.secret,
         settings.session_lifetime_seconds,
     )
+    return response
+
+
+# ---- GET /auth/me, GET /auth/csrf, POST /auth/logout ----------------------------------------
+
+_UNAUTHENTICATED = {401: {"model": ErrorBody, "description": "No valid session"}}
+
+
+@router.get("/me", response_model=UserOut, responses=_UNAUTHENTICATED)
+async def me(context: CurrentUser) -> UserOut:
+    """The signed-in user. 401 `unauthenticated` for a missing, invalid, expired or revoked
+    session, and also (same code and message) for a disabled or deleted user, so the response
+    never reveals account state."""
+    user = context.user
+    return UserOut(
+        id=user.id,
+        display_name=user.display_name,
+        email=user.email,
+        email_verified=user.email_verified,
+    )
+
+
+@router.get("/csrf", response_model=CsrfOut, responses=_UNAUTHENTICATED)
+async def csrf(request: Request, context: CurrentUser) -> CsrfOut:
+    """A CSRF token bound to this session. Send it back as X-CSRF-Token on mutating requests."""
+    settings: Settings = request.app.state.settings
+    return CsrfOut(csrf_token=csrf_token_for(settings, context.session_secret))
+
+
+@router.post(
+    "/logout",
+    status_code=204,
+    responses={403: {"model": ErrorBody, "description": "CSRF or Origin check failed"}},
+)
+async def logout(request: Request, context: OptionalSession) -> Response:
+    """Revoke the current browser session only (other devices stay signed in).
+
+    With a valid session: Origin and CSRF are checked first (403 csrf_failed, session untouched),
+    then the revocation is committed to the database, and only then do we report success.
+    Without a valid session there is nothing to protect or revoke: 204, and any stale cookie is
+    cleared. Repeating logout is safe.
+    """
+    settings: Settings = request.app.state.settings
+    if context is not None:
+        enforce_csrf(request, settings, context)
+        async with request.app.state.sessionmaker() as db, db.begin():
+            await revoke_session(db, context.session_id)
+    response = Response(status_code=204)
+    clear_cookie(response, settings, settings.session_cookie_name)
     return response
