@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app.api import auth, health, rooms
+from app.api import auth, health, invitations, rooms
 from app.config import Settings, get_settings
 from app.db import create_engine, create_sessionmaker
 from app.errors import install_error_handlers
@@ -56,6 +56,7 @@ def create_app(
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(rooms.router)
+    app.include_router(invitations.router)
 
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the
     # request-context middleware (and its logs) see the real client address.

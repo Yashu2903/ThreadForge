@@ -68,7 +68,7 @@ def log_event(
     )
 
 
-def _view(row, role: str) -> RoomView:
+def to_view(row, role: str) -> RoomView:
     return RoomView(
         id=row.id,
         name=row.name,
@@ -170,7 +170,7 @@ async def create_room(
             )
         )
     log_event("room_created", room.id, user_id, user_id)
-    return _view(room, "owner")
+    return to_view(room, "owner")
 
 
 async def get_room_for_member(
@@ -191,7 +191,7 @@ async def get_room_for_member(
         ).one_or_none()
     if row is None:
         raise room_not_found()
-    return _view(row, row.my_role)
+    return to_view(row, row.my_role)
 
 
 async def list_rooms(
@@ -214,7 +214,7 @@ async def list_rooms(
     async with sessionmaker() as db:
         rows = (await db.execute(query)).all()
     page, extra = rows[:limit], rows[limit:]
-    items = [_view(r, r.my_role) for r in page]
+    items = [to_view(r, r.my_role) for r in page]
     next_cursor = encode_cursor(page[-1].created_at, page[-1].id) if extra else None
     return items, next_cursor
 
@@ -240,4 +240,4 @@ async def rename_room(
                 )
             ).one()
     log_event("room_renamed", room_id, actor_id, None)
-    return _view(room, role)
+    return to_view(room, role)
