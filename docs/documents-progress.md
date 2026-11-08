@@ -8,8 +8,8 @@ Specification: the Part 6 task statement (documents, custom editor, DOCX import,
 | # | Checkpoint | State |
 |---|---|---|
 | 1 | Schema, migrations, shared schema + golden fixtures, validators, templates, document APIs, active selection, events, Part 5 integration | **done** |
-| 2 | Frontend shell: room layout, document list and dialogs, minimal chat, capabilities endpoint | next |
-| 3 | Editor core: model, renderer, selection mapping, beforeinput, composition, typing, Enter/Backspace/Delete, paste, undo/redo | not started |
+| 2 | Frontend shell: room layout, document list and dialogs, minimal chat, capabilities endpoint | **done** |
+| 3 | Editor core: model, renderer, selection mapping, beforeinput, composition, typing, Enter/Backspace/Delete, paste, undo/redo | next |
 | 4 | Formatting and structure, toolbar, accessibility | not started |
 | 5 | Assets and images: pipeline, storage, quotas, editor insert | not started |
 | 6 | Saving and conflicts: autosave, serialization, event-driven refresh, conflict UI, read-only, access loss | not started |
@@ -55,9 +55,31 @@ See the commit message and the README Part 6 section for the commands. Backend: 
 * `resource_version` on room events is an INTEGER column; `content_version` is BIGINT. A document
   would need over 2 billion saves to matter; noted, not changed.
 
+## Checkpoint 2: what is done
+
+* `frontend/` (React 18, TS strict, Vite, vitest, Playwright): `api.ts` (cookies, CSRF with one
+  retry on `csrf_failed`, error envelope), `documents/store.ts` (framework-free list + open document,
+  If-None-Match, 1 s refetch throttle, stale-answer discard), `useRoom.ts` (ONE `RoomClient` per room,
+  its `onDocumentSignals` feeds the store), components (`Dialog`, `StartDialog`, `OpenDialog`,
+  `ChatPanel`, `DocumentRead`), `RoomView`, `App` (hash routes).
+* Backend: `GET /capabilities`, Drive settings (`google_drive_*`, `google_picker_api_key`,
+  `google_cloud_project_number`, `cloud_token_encryption_keys`; `drive_configured`),
+  `scripts/seed_session.py` (test-only), `scripts/e2e_prepare.py` (test-only).
+
+Verified: `npm run typecheck`, `npm test` (33 tests: store, dialogs, read-only renderer, API client),
+`npm run build`, and `npx playwright test` (2 tests in Chromium against the real API, dispatcher,
+Redis and Vite: owner starts a template document; a viewer sees it read-only; chat works in both
+directions live; the owner creating a second document moves the viewer's active document live;
+removing a member shows "You no longer have access" without a reload). Backend:
+`tests/test_capabilities_and_seed.py` and a full backend run (1190 passed before the capabilities
+tests were added).
+
+Left out on purpose until their backend exists: "Upload from this device" (checkpoint 7), the Drive
+picker (checkpoint 8). Commit note: the small capabilities/Drive-settings backend pieces landed with
+the checkpoint 1 commit because `config.py` and `main.py` changed in both.
+
 ## Next step
 
-Checkpoint 2: create `frontend/` (React + TypeScript strict + Vite + vitest + Playwright), the room
-layout with the document list, the start/open dialogs, a minimal chat panel on top of
-`threadforge-client`, and `GET /capabilities` (or equivalent) reporting Drive as `available` or
-`not_configured`.
+Checkpoint 3: the editor core, as a framework-free island under `frontend/src/editor/` (model,
+renderer, selection mapping, beforeinput pipeline, composition handling, typing, Enter, Backspace/
+Delete, plain-text paste, undo/redo), mounted from React through a ref and an imperative interface.

@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 6 in progress (documents, checkpoint 1 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
+## Status: Part 6 in progress (documents, checkpoint 2 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -746,7 +746,7 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
 
 ---
 
-## Part 6: documents (in progress: checkpoint 1 of 9, backend foundation)
+## Part 6: documents (in progress: checkpoint 2 of 9, frontend shell)
 
 Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
 the document format is [docs/document-schema.md](docs/document-schema.md).
@@ -851,6 +851,47 @@ append-only and gapless) instead of deleting them.
 `DOCUMENT_MAX_LINK_LENGTH`, `DOCUMENT_FONT_KEYS`, `MAX_DOCUMENTS_PER_ROOM` (200),
 `DOCUMENT_WRITES_PER_MINUTE` (120), `DOCUMENT_SAVE_BODY_LIMIT_BYTES` (2 MiB; must be at least the
 serialized limit). All validated at startup; see `.env.example`.
+
+### Frontend (checkpoint 2): `frontend/`
+
+React 18 + TypeScript (strict) + Vite, tests with vitest and Playwright. It reuses the framework-free
+room client from `client/` (aliased as `threadforge-client`), so there is exactly one event client:
+chat and document events share one WebSocket.
+
+```
+cd backend && uv run uvicorn app.main:create_app --factory --port 8000 --no-access-log
+cd backend && uv run python -m app.workers.outbox_dispatcher        # publishes the live hints
+cd frontend && npm install && npm run dev                           # http://localhost:5173
+```
+
+The dev server proxies `/auth`, `/rooms`, `/capabilities` and `/health` to the API
+(`THREADFORGE_API`, default `http://127.0.0.1:8000`), so the browser sees ONE origin: the session
+cookie is first-party and there is no CORS. Add `http://localhost:5173` to the backend's
+`TRUSTED_ORIGINS` (CSRF and WebSocket Origin checks compare it exactly). Routes are `#/hash` routes,
+so no page path can collide with an API prefix.
+
+What the layout does: navigation (documents) | document area | chat. An empty room shows the owner
+**Start document** and **Open document** and everyone else a clear empty state. The start dialog has
+a title and five templates, blocks double submits, and a retry after a failure re-sends the SAME
+`client_request_id`. The open dialog lists saved documents (owners can *Make active*); Google Drive is
+shown as unavailable, with a setup explanation, when `GET /capabilities` says `not_configured`; no
+Dropbox/OneDrive UI exists. "Upload from this device" and the Drive picker are NOT shown until their
+backend exists. The document area currently renders the content **read-only** (a React renderer that
+creates only text nodes and attributes, never `innerHTML`); the editor replaces it for owners and
+editors in checkpoint 3 onward. A clean client follows `active_document_changed` and opens the new
+active document; an open document is refetched with `If-None-Match` at most once per second after a
+newer `document_content_updated`.
+
+`GET /capabilities` (authenticated) answers `{"google_drive": "available" | "not_configured"}` and
+nothing else: no keys, ids or secrets. Drive is `available` only when all five Drive settings are
+set and none is a placeholder.
+
+**Browser tests** (`frontend/e2e/`, `npm run e2e`): Playwright starts the real API (port 8100), the
+outbox dispatcher and Vite against a dedicated database `threadforge_e2e` (created, migrated and
+emptied by `backend/scripts/e2e_prepare.py`, which refuses any other name) and Redis database 14.
+Logged-in browsers are made by `backend/scripts/seed_session.py`, which writes a user and a session
+through the real session service and prints the cookie; Playwright sets that cookie. There is **no
+impersonation endpoint** in the API.
 
 ### Known limitation (by design in this part)
 
