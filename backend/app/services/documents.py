@@ -607,6 +607,9 @@ async def _sync_asset_refs(
         )
 
 
+sync_asset_refs = _sync_asset_refs  # public name for the collaboration snapshot path
+
+
 async def save_content(
     sessionmaker: async_sessionmaker[AsyncSession],
     settings: Settings,

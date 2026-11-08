@@ -39,5 +39,28 @@ services:
       timeout: 3s
       retries: 10
 
+  # The collaboration service (Hocuspocus). NOT published to the host: only the reverse proxy on the
+  # compose network reaches it, at /collab on the same origin as the app. This repository does not yet
+  # ship the proxy or an API container (the dev setup runs uvicorn and Vite on the host), so this
+  # service is behind a profile:  docker compose --profile collab up -d --build collab
+  # It reaches the API on the host through host.docker.internal; on a full deployment point
+  # COLLAB_API_BASE_URL at the private API service instead. INTERNAL_API_SECRET must match the API's.
+  collab:
+    profiles: ["collab"]
+    build:
+      context: .
+      dockerfile: collab/Dockerfile
+    restart: unless-stopped
+    environment:
+      COLLAB_ADDRESS: "0.0.0.0"
+      COLLAB_PORT: "4010"
+      COLLAB_API_BASE_URL: ${COLLAB_API_BASE_URL:-http://host.docker.internal:8000}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
+      COLLAB_ALLOWED_ORIGINS: ${COLLAB_ALLOWED_ORIGINS:-http://localhost:5173}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "4010"
+
 volumes:
   threadforge_pgdata:

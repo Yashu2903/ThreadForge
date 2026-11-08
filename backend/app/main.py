@@ -22,6 +22,7 @@ from app.api import (
     capabilities,
     documents,
     health,
+    internal_collab,
     invitations,
     members,
     messages,
@@ -91,6 +92,7 @@ def create_app(
     app.include_router(capabilities.router)
     app.include_router(room_events.router)
     app.include_router(sync.router)
+    app.include_router(internal_collab.router)
     app.include_router(realtime.router)
 
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the
@@ -103,6 +105,17 @@ def create_app(
             (
                 "PUT",
                 re.compile(r"/rooms/[^/]+/documents/[^/]+/content"),
+                settings.document_save_body_limit_bytes,
+            ),
+            # the collaboration service's full Yjs state (default 8 MiB) and validated snapshots
+            (
+                "PUT",
+                re.compile(r"/internal/collab/documents/[^/]+/state"),
+                settings.collab_max_state_bytes,
+            ),
+            (
+                "POST",
+                re.compile(r"/internal/collab/documents/[^/]+/snapshot"),
                 settings.document_save_body_limit_bytes,
             ),
             # image uploads are STREAMED (never buffered) and counted as they arrive

@@ -1,0 +1,35 @@
+{
+  "name": "@threadforge/collab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ThreadForge collaboration service: Hocuspocus (Yjs) server. Talks to the FastAPI /internal/collab API only; never to the database directly.",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hocuspocus/extension-throttle": "4.8.0",
+    "@hocuspocus/server": "4.8.0",
+    "@threadforge/editor-schema": "0.1.0",
+    "@tiptap/core": "3.33.0",
+    "@tiptap/pm": "3.33.0",
+    "@tiptap/y-tiptap": "3.2.0",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "@hocuspocus/provider": "4.8.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "4.23.15",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "ws": "8.22.2",
+    "pg": "8.23.1",
+    "@types/pg": "^8.11.0"
+  }
+}

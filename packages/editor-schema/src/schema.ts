@@ -3,6 +3,13 @@ import { canonicalStringify } from "./json.js";
 import type { Schema } from "@tiptap/pm/model";
 import { createExtensions, type CreateExtensionsOptions } from "./extensions.js";
 
+/**
+ * The name of the Yjs XmlFragment that holds the document. Tiptap's Collaboration extension uses
+ * "default" unless told otherwise; the browser (Collaboration `field`) and the collaboration service
+ * (seeding and snapshots) both import this constant so they can never disagree.
+ */
+export const YJS_FIELD = "default";
+
 let cached: Schema | null = null;
 
 /** The ProseMirror schema built from createExtensions(). Cached for the default (no options) case. */

@@ -60,6 +60,9 @@ class Document(Base):
         ),
         CheckConstraint(f"template_key IN ({_TEMPLATE_LIST})", name="template_key_valid"),
         CheckConstraint("schema_version >= 1", name="schema_version_positive"),
+        CheckConstraint(
+            "collab_state IN ('legacy', 'ready', 'needs_repair')", name="collab_state_valid"
+        ),
         CheckConstraint("jsonb_typeof(content) = 'object'", name="content_is_object"),
         CheckConstraint("octet_length(content_hash) = 32", name="content_hash_length"),
         CheckConstraint("content_version >= 1", name="content_version_positive"),
@@ -95,6 +98,11 @@ class Document(Base):
     client_request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     request_fingerprint: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     import_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # legacy -> ready (seeded into Yjs) | needs_repair. Once 'ready', document_yjs_state is the ONLY
+    # writable content and `content` above is read-only seed material.
+    collab_state: Mapped[str] = mapped_column(
+        String(16), server_default=text("'legacy'"), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     content_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -1,5 +1,6 @@
 from app.models.auth_identity import AuthIdentity
 from app.models.base import Base
+from app.models.collab import CollabLease, DocumentSnapshot, DocumentYjsState
 from app.models.document import Document, DocumentAssetRef, DocumentWriteBucket, RoomAsset
 from app.models.invitation import Invitation
 from app.models.membership import Membership
@@ -15,9 +16,12 @@ from app.models.user import User
 __all__ = [
     "AuthIdentity",
     "Base",
+    "CollabLease",
     "Document",
     "DocumentAssetRef",
+    "DocumentSnapshot",
     "DocumentWriteBucket",
+    "DocumentYjsState",
     "Invitation",
     "Membership",
     "Message",

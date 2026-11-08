@@ -4,6 +4,12 @@
   "description": "npm workspace root: ONE install of Tiptap/ProseMirror/Yjs shared by the browser editor, the collaboration service and the shared schema package (two copies of prosemirror-model would break instanceof checks and keyed plugins).",
   "workspaces": [
     "packages/editor-schema",
+    "collab",
     "frontend"
-  ]
+  ],
+  "scripts": {
+    "build": "npm run build -w @threadforge/editor-schema && npm run build -w @threadforge/collab",
+    "test:schema": "npm test -w @threadforge/editor-schema",
+    "test:collab": "npm test -w @threadforge/collab"
+  }
 }

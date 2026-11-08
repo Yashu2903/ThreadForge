@@ -12,12 +12,16 @@ from pathlib import Path
 from fastapi.routing import APIRoute
 
 import app.api
+from app.api.internal_collab import require_internal_secret
 from app.dependencies.auth import get_current_user, require_csrf
 
 UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 # Logout must answer 204 when there is no session at all, so it calls enforce_csrf itself, only
 # when a session exists (covered by test_logout.py). Nothing else may be exempt.
 CSRF_EXEMPT = {("POST", "/auth/logout")}
+# /internal/* is not a browser surface: no cookie, so no CSRF; it is authenticated by the shared
+# secret instead, and test_every_internal_route_requires_the_shared_secret proves that for each route.
+INTERNAL_PREFIX = "/internal/"
 PART2_ROUTE_MODULES = ("rooms.py", "invitations.py", "members.py", "messages.py")
 
 
@@ -38,7 +42,12 @@ def _calls(dependant) -> set:
 
 
 def test_every_unsafe_route_depends_on_require_csrf():
-    unsafe = [(m, r.path, r) for r in _api_routes() for m in r.methods & UNSAFE]
+    unsafe = [
+        (m, r.path, r)
+        for r in _api_routes()
+        if not r.path.startswith(INTERNAL_PREFIX)
+        for m in r.methods & UNSAFE
+    ]
     assert len(unsafe) >= 2, "vacuous: found no unsafe routes to check"
     for method, path, route in unsafe:
         if (method, path) in CSRF_EXEMPT:
@@ -59,8 +68,17 @@ def test_every_non_public_route_requires_authentication():
     routes = _api_routes()
     assert any(r.path.startswith("/rooms") for r in routes)
     for route in routes:
-        if route.path not in public:
+        if route.path not in public and not route.path.startswith(INTERNAL_PREFIX):
             assert get_current_user in _calls(route.dependant), route.path
+
+
+def test_every_internal_route_requires_the_shared_secret():
+    internal = [r for r in _api_routes() if r.path.startswith(INTERNAL_PREFIX)]
+    assert len(internal) >= 8, "vacuous: the internal collaboration routes were not found"
+    for route in internal:
+        calls = _calls(route.dependant)
+        assert require_internal_secret in calls, route.path
+        assert get_current_user not in calls, f"{route.path} must not accept browser sessions"
 
 
 def test_part2_route_modules_never_write_database_tables_directly():

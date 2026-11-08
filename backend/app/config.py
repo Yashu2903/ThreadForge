@@ -189,6 +189,13 @@ class Settings(BaseSettings):
         "courier_new",
     ]
     max_documents_per_room: int = 200
+
+    # Collaboration (Tiptap + Yjs + Hocuspocus). The Node collaboration service talks to the
+    # /internal/collab/* routes with this shared secret. Empty = the internal routes answer 503.
+    internal_api_secret: SecretStr = SecretStr("")
+    collab_lease_ttl_seconds: int = 30  # the service renews every 10 s
+    collab_max_state_bytes: int = 8 * 1024 * 1024  # a larger Yjs state is refused with 413
+    collab_snapshots_kept: int = 10  # newest N per document, plus the newest seed
     document_writes_per_minute: int = 120  # per user per room; separate from chat's quota
     document_save_body_limit_bytes: int = 2 * 1024 * 1024  # PUT .../content
     # Also bounds a save's JSON overhead; the default document limit is 1 MiB of canonical text.
@@ -355,6 +362,7 @@ class Settings(BaseSettings):
             )
         problems += self._validate_part4(prod)
         problems += self._validate_part6()
+        problems += self._validate_collab(prod)
         if self.message_writes_per_minute < 1:
             problems.append("MESSAGE_WRITES_PER_MINUTE must be at least 1.")
 
@@ -504,6 +512,25 @@ class Settings(BaseSettings):
                 "DOCUMENT_FONT_KEYS must be a comma-separated list of lowercase keys "
                 "(letters, digits, underscore)."
             )
+        return problems
+
+    def _validate_collab(self, prod: bool) -> list[str]:
+        problems: list[str] = []
+        secret = self.internal_api_secret.get_secret_value()
+        if prod and (len(secret) < MIN_PRODUCTION_SECRET_LENGTH or is_placeholder(secret)):
+            problems.append(
+                "INTERNAL_API_SECRET must be a real random value of at least "
+                f"{MIN_PRODUCTION_SECRET_LENGTH} characters in production "
+                "(the collaboration service authenticates to /internal/collab with it)."
+            )
+        elif secret and len(secret) < 16:
+            problems.append("INTERNAL_API_SECRET must be at least 16 characters when set.")
+        if not 10 <= self.collab_lease_ttl_seconds <= 600:
+            problems.append("COLLAB_LEASE_TTL_SECONDS must be between 10 and 600.")
+        if self.collab_max_state_bytes < 64 * 1024:
+            problems.append("COLLAB_MAX_STATE_BYTES must be at least 65536.")
+        if self.collab_snapshots_kept < 1:
+            problems.append("COLLAB_SNAPSHOTS_KEPT must be at least 1.")
         return problems
 
     def _validate_part5(self) -> list[str]:

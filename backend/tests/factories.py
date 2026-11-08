@@ -22,6 +22,7 @@ TEST_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
 TEST_CLIENT_SECRET = "test-client-secret-value"
 TEST_CSRF_SECRET = "test-csrf-secret-0123456789-abcdefghijklmnop"
 TEST_FINGERPRINT_SECRET = "test-fingerprint-secret-0123456789-abcdefghij"
+TEST_INTERNAL_SECRET = "test-internal-secret-0123456789-abcdefghijklmnop"
 
 
 def make_settings(**overrides: object) -> Settings:
@@ -33,6 +34,7 @@ def make_settings(**overrides: object) -> Settings:
         "public_base_url": "http://localhost:8000",
         "csrf_secret": TEST_CSRF_SECRET,
         "message_fingerprint_secret": TEST_FINGERPRINT_SECRET,
+        "internal_api_secret": TEST_INTERNAL_SECRET,
         "redis_url": TEST_REDIS_URL,
     }
     values.update(overrides)

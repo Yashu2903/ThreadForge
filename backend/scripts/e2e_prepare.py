@@ -25,13 +25,15 @@ from sqlalchemy.pool import NullPool
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 E2E_DB = "threadforge_e2e"
+# The collaboration service tests run the real API against their own database too.
+ALLOWED_DBS = (E2E_DB, "threadforge_collab_e2e")
 DEFAULT_URL = f"postgresql+asyncpg://threadforge:threadforge-dev-password@127.0.0.1:5442/{E2E_DB}"
 
 
 async def ensure_database(url: str) -> None:
     parsed = make_url(url)
-    if parsed.database != E2E_DB:
-        raise SystemExit(f"refusing to touch database {parsed.database!r}: only {E2E_DB!r}")
+    if parsed.database not in ALLOWED_DBS:
+        raise SystemExit(f"refusing to touch database {parsed.database!r}: only {ALLOWED_DBS!r}")
     assert re.fullmatch(r"[a-z0-9_]+", parsed.database)
     connection = await asyncpg.connect(
         user=parsed.username,
@@ -78,7 +80,7 @@ def main() -> None:
     config.attributes["configure_logging"] = False
     command.upgrade(config, "head")
     asyncio.run(truncate(url))
-    sys.stdout.write(f"{E2E_DB} ready\n")
+    sys.stdout.write(f"{make_url(url).database} ready\n")
 
 
 if __name__ == "__main__":
