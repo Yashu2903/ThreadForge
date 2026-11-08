@@ -30,6 +30,9 @@ def test_production_rejects_insecure_cookie_flag():
     ("override", "fragment"),
     [
         ({"csrf_secret": "short"}, "CSRF_SECRET"),
+        ({"message_fingerprint_secret": "short"}, "MESSAGE_FINGERPRINT_SECRET"),
+        ({"message_fingerprint_secret": "replace-me-" + "x" * 40}, "MESSAGE_FINGERPRINT_SECRET"),
+        ({"message_writes_per_minute": 0}, "MESSAGE_WRITES_PER_MINUTE"),
         ({"csrf_secret": "replace-me-" + "x" * 40}, "CSRF_SECRET"),
         ({"public_base_url": "http://api.threadforge.test"}, "https"),
         ({"google_client_id": ""}, "GOOGLE_CLIENT_ID"),
@@ -75,12 +78,15 @@ def test_config_error_message_has_no_secret_values(monkeypatch):
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:SUPERSECRETPW@h/db")
     monkeypatch.setenv("CSRF_SECRET", "tiny-SUPERSECRETCSRF")
+    monkeypatch.setenv("MESSAGE_FINGERPRINT_SECRET", "tiny-SUPERSECRETFP")
     monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
     monkeypatch.setitem(Settings.model_config, "env_file", None)
     with pytest.raises(ConfigError) as info:
         load_settings()
     assert "SUPERSECRET" not in str(info.value)
     assert "CSRF_SECRET" in str(info.value)
+    assert "MESSAGE_FINGERPRINT_SECRET" in str(info.value)
+    assert "SUPERSECRETFP" not in str(info.value)
 
 
 def test_env_example_is_valid_for_development_and_unsafe_for_production():

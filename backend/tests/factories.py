@@ -15,6 +15,7 @@ TEST_DATABASE_URL = os.environ.get(
 TEST_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
 TEST_CLIENT_SECRET = "test-client-secret-value"
 TEST_CSRF_SECRET = "test-csrf-secret-0123456789-abcdefghijklmnop"
+TEST_FINGERPRINT_SECRET = "test-fingerprint-secret-0123456789-abcdefghij"
 
 
 def make_settings(**overrides: object) -> Settings:
@@ -25,6 +26,7 @@ def make_settings(**overrides: object) -> Settings:
         "google_client_secret": TEST_CLIENT_SECRET,
         "public_base_url": "http://localhost:8000",
         "csrf_secret": TEST_CSRF_SECRET,
+        "message_fingerprint_secret": TEST_FINGERPRINT_SECRET,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)  # type: ignore[arg-type]
@@ -42,6 +44,7 @@ def make_production_settings(**overrides: object) -> Settings:
         "trusted_origins": "https://app.threadforge.test",
         "frontend_base_url": "https://app.threadforge.test",
         "csrf_secret": secrets.token_urlsafe(48),
+        "message_fingerprint_secret": secrets.token_urlsafe(48),
     }
     values.update(overrides)
     return make_settings(**values)

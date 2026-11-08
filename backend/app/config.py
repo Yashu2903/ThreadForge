@@ -89,6 +89,12 @@ class Settings(BaseSettings):
 
     csrf_secret: SecretStr
 
+    # Part 3. Keyed fingerprint of a message's creation request (see services/messages.py).
+    # Rotating it makes in-flight retries fail with message_id_reused; retries happen within
+    # seconds, so that is acceptable.
+    message_fingerprint_secret: SecretStr
+    message_writes_per_minute: int = 30
+
     trusted_proxy_ips: Annotated[list[str], NoDecode] = []
     cookie_secure: bool | None = None
 
@@ -219,6 +225,22 @@ class Settings(BaseSettings):
                 problems.append(
                     "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set in production."
                 )
+
+        fingerprint = self.message_fingerprint_secret.get_secret_value()
+        if not fingerprint:
+            problems.append(
+                "MESSAGE_FINGERPRINT_SECRET must be set "
+                "(generate one with secrets.token_urlsafe(48))."
+            )
+        elif prod and (
+            len(fingerprint) < MIN_PRODUCTION_SECRET_LENGTH or is_placeholder(fingerprint)
+        ):
+            problems.append(
+                f"MESSAGE_FINGERPRINT_SECRET must be a real random value of at least "
+                f"{MIN_PRODUCTION_SECRET_LENGTH} characters in production."
+            )
+        if self.message_writes_per_minute < 1:
+            problems.append("MESSAGE_WRITES_PER_MINUTE must be at least 1.")
 
         if prod and not self.frontend_base_url:
             problems.append("FRONTEND_BASE_URL must be set explicitly in production.")
