@@ -395,3 +395,34 @@ async def test_members_invalid_cursor_after_authorization(alice, bob):
     ).status_code == 404
     response = await alice.get(f"/rooms/{room['id']}/members", params={"cursor": "bad!"})
     assert response.status_code == 422 and response.json()["error"]["code"] == "invalid_cursor"
+
+
+async def test_user_with_no_membership_row_lists_no_rooms(alice, bob, carol, sessionmaker):
+    """carol has NO membership row anywhere, while rooms exist for other people."""
+    await create(alice, "alice's")
+    shared = await create(bob, "bob's")
+    await add_member(sessionmaker, shared["id"], alice.id, "viewer")
+    assert (
+        await scalar(
+            sessionmaker, "SELECT count(*) FROM memberships WHERE user_id = :u", u=carol.id
+        )
+        == 0
+    )
+
+    response = await carol.get("/rooms")
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "next_cursor": None}
+    # Nothing leaks by guessing ids either.
+    for room in await rows(sessionmaker, "SELECT id FROM rooms"):
+        assert (await carol.get(f"/rooms/{room['id']}")).status_code == 404
+
+
+async def test_list_tracks_membership_rows_as_they_change(alice, bob, sessionmaker):
+    room = await create(alice, "Toggle")
+    assert (await bob.get("/rooms")).json()["items"] == []  # no row
+    await add_member(sessionmaker, room["id"], bob.id, "viewer")
+    assert [r["id"] for r in (await bob.get("/rooms")).json()["items"]] == [room["id"]]  # active
+    await add_member(sessionmaker, room["id"], bob.id, "viewer", "removed")
+    assert (await bob.get("/rooms")).json()["items"] == []  # removed row grants nothing
+    await execute(sessionmaker, "DELETE FROM memberships WHERE user_id = :u", u=bob.id)
+    assert (await bob.get("/rooms")).json()["items"] == []  # row gone entirely
