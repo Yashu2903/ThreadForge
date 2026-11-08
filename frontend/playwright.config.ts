@@ -11,7 +11,11 @@ export default defineConfig({
   reporter: [["list"]],
   globalSetup: "./e2e/global-setup.ts",
   use: { baseURL: WEB_ORIGIN, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // a second engine for the editor: input handling differs between Blink and Gecko
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /editor-.*\.spec\.ts/ },
+  ],
   webServer: [
     {
       command: `uv run uvicorn app.main:create_app --factory --host 127.0.0.1 --port ${API_PORT} --no-access-log --ws-max-size 1024`,

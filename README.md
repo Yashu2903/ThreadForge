@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 6 in progress (documents, checkpoint 2 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
+## Status: Part 6 in progress (documents, checkpoint 3 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -746,7 +746,7 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
 
 ---
 
-## Part 6: documents (in progress: checkpoint 2 of 9, frontend shell)
+## Part 6: documents (in progress: checkpoint 3 of 9, editor core)
 
 Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
 the document format is [docs/document-schema.md](docs/document-schema.md).
@@ -892,6 +892,16 @@ emptied by `backend/scripts/e2e_prepare.py`, which refuses any other name) and R
 Logged-in browsers are made by `backend/scripts/seed_session.py`, which writes a user and a session
 through the real session service and prints the cookie; Playwright sets that cookie. There is **no
 impersonation endpoint** in the API.
+
+### The editor (checkpoint 3: core)
+
+Our own editor in `frontend/src/editor/` - see [docs/editor-architecture.md](docs/editor-architecture.md)
+(layers, the exact DOM-to-model selection mapping, IME handling, id rules, history) and
+[docs/editor-ime-checklist.md](docs/editor-ime-checklist.md) (manual checks for real IMEs and Safari).
+It is a framework-free island: React hosts it through `EditorSurface` (one empty `<div>`, never
+children), and the editor handles `beforeinput` itself (everything is cancelled and applied to an
+immutable model; unknown input types are cancelled, never allowed to edit the DOM). Until saving
+exists (checkpoint 6) it is reachable only on the development playground, `#/playground`.
 
 ### Known limitation (by design in this part)
 

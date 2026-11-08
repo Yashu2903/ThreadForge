@@ -9,8 +9,8 @@ Specification: the Part 6 task statement (documents, custom editor, DOCX import,
 |---|---|---|
 | 1 | Schema, migrations, shared schema + golden fixtures, validators, templates, document APIs, active selection, events, Part 5 integration | **done** |
 | 2 | Frontend shell: room layout, document list and dialogs, minimal chat, capabilities endpoint | **done** |
-| 3 | Editor core: model, renderer, selection mapping, beforeinput, composition, typing, Enter/Backspace/Delete, paste, undo/redo | next |
-| 4 | Formatting and structure, toolbar, accessibility | not started |
+| 3 | Editor core: model, renderer, selection mapping, beforeinput, composition, typing, Enter/Backspace/Delete, paste, undo/redo | **done** |
+| 4 | Formatting and structure, toolbar, accessibility | next |
 | 5 | Assets and images: pipeline, storage, quotas, editor insert | not started |
 | 6 | Saving and conflicts: autosave, serialization, event-driven refresh, conflict UI, read-only, access loss | not started |
 | 7 | Imports: worker, local upload, conversion, report, isolation, publication | not started |
@@ -78,8 +78,37 @@ Left out on purpose until their backend exists: "Upload from this device" (check
 picker (checkpoint 8). Commit note: the small capabilities/Drive-settings backend pieces landed with
 the checkpoint 1 commit because `config.py` and `main.py` changed in both.
 
+## Checkpoint 3: what is done
+
+`frontend/src/editor/` (see [editor-architecture.md](editor-architecture.md)): immutable model with
+structural sharing, pure commands (typing, replace selection, Enter with the id rule, Shift+Enter,
+Backspace/Delete by grapheme/word/line, merge across blocks, cross-block range delete, plain-text
+paste, copy/cut), `Intl.Segmenter` with a fallback, snapshot undo/redo (grouping, 100 entries,
+about 30 MiB, reset on load), renderer that patches only changed blocks and text in place, exact
+DOM<->model mapping, `beforeinput`-first pipeline that cancels everything it does not understand,
+IME composition handling (no commits until `compositionend`, one history entry), a React host
+(`EditorSurface`) that renders one empty `<div>`.
+
+The editor is mounted ONLY on the development playground (`#/playground`, dev builds) for now: it
+cannot save until checkpoint 6, and a room editor that does not save would be a control without
+backend behavior. Rooms still show the read-only renderer.
+
+Verified: vitest 121 tests (42 pure commands, 41 renderer/mapping/pipeline/composition/clipboard/
+history in jsdom, 5 React host incl. "React re-render makes zero DOM mutations", plus earlier
+suites); Playwright `editor-core.spec.ts` in real Chromium (10) and Firefox (8; the clipboard and
+CDP-IME tests are Chromium-only and are skipped there with a reason): typing, Enter id rule,
+Backspace/Delete, emoji/ZWJ/combining deletion, Ctrl+Backspace, selection replace, undo/redo
+grouping, plain-text paste (HTML not imported), Tab leaves the editor, React re-render is harmless,
+drop does nothing, Chromium IME composition (one commit, one undo step). Safari/WebKit is NOT
+installed here: the manual checklist [editor-ime-checklist.md](editor-ime-checklist.md) covers it.
+
+Limits recorded for the next checkpoints: Backspace at the start of a list item's first paragraph
+and merges across table cells are deliberate no-ops (checkpoint 4 owns list/table keys); typing-state
+marks at a caret, marks, links, images are checkpoint 4/5.
+
 ## Next step
 
-Checkpoint 3: the editor core, as a framework-free island under `frontend/src/editor/` (model,
-renderer, selection mapping, beforeinput pipeline, composition handling, typing, Enter, Backspace/
-Delete, plain-text paste, undo/redo), mounted from React through a ref and an imperative interface.
+Checkpoint 4: formatting and structure on top of the editor core: mark toggles with tri-state values,
+fonts/sizes/colors, alignment/spacing/indent, headings/quote/lists (Tab, empty-item Enter/Backspace),
+links, tables (Tab navigation, row/column operations), typing-state marks, the toolbar with roving
+focus and aria-pressed, keyboard shortcuts, accessibility attributes, and self-hosted fonts.

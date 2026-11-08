@@ -100,3 +100,12 @@ input, textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius
   .chat { border-left: 0; border-top: 1px solid var(--line); min-height: 320px; }
   .paper { padding: 24px 16px; }
 }
+
+/* the editable surface */
+.tf-editor { outline: none; caret-color: #111; cursor: text; }
+.tf-editor:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.tf-editor[aria-readonly="true"] { cursor: default; }
+.tf-editor p, .tf-editor h1, .tf-editor h2, .tf-editor h3 { min-height: 1.2em; }
+.tf-editor img[data-atom] { user-select: all; }
+.playground { max-width: 900px; margin: 0 auto; padding: 16px; }
+.playground pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; }
