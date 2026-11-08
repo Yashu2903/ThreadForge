@@ -155,3 +155,39 @@ async def add_member(sm, room_id, user_id, role="editor", state="active") -> Non
 async def room_row(sm, room_id) -> dict[str, Any]:
     [row] = await rows(sm, "SELECT * FROM rooms WHERE id = :r", r=room_id)
     return row
+
+
+async def insert_messages(
+    sm,
+    room_id,
+    author_id,
+    count: int,
+    *,
+    start=None,
+    step=None,
+    prefix: str = "msg",
+):
+    """Insert `count` messages directly with CHOSEN timestamps (start + i*step, i=1..count), so
+    time-dependent behaviour is tested without sleeping. step=timedelta(0) gives identical
+    timestamps. Returns the ids in insertion (i) order."""
+    from datetime import UTC, datetime, timedelta
+
+    start = start or datetime(2026, 1, 1, tzinfo=UTC)
+    step = timedelta(seconds=1) if step is None else step
+    async with sm() as db, db.begin():  # its own transaction: rows() would not commit
+        result = (
+            await db.execute(
+                text(
+                    "WITH ins AS ("
+                    " INSERT INTO messages (room_id, author_id, client_message_id, body,"
+                    "  initial_request_fingerprint, created_at)"
+                    " SELECT :r, :a, gen_random_uuid(), CAST(:p AS text) || ' ' || g::text,"
+                    "  decode(repeat('ab', 32), 'hex'),"
+                    "  CAST(:s AS timestamptz) + g * CAST(:st AS interval)"
+                    " FROM generate_series(1, CAST(:n AS integer)) AS g RETURNING id, body)"
+                    " SELECT id FROM ins ORDER BY length(body), body"
+                ),
+                {"r": room_id, "a": author_id, "p": prefix, "s": start, "st": step, "n": count},
+            )
+        ).all()
+    return [row.id for row in result]

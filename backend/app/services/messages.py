@@ -25,16 +25,19 @@ Message bodies are never logged; log lines carry ids only.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import hmac
 import json
 import logging
 import math
+import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
-from sqlalchemy import case, extract, func, insert, select, text
+from sqlalchemy import case, extract, func, insert, select, text, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -43,6 +46,7 @@ from app.config import Settings
 from app.db import db_error_details
 from app.errors import (
     insufficient_role,
+    invalid_cursor,
     message_id_reused,
     message_not_found,
     rate_limited,
@@ -307,3 +311,83 @@ async def send_message(
     if created:
         log_message_event("message_sent", room_id, message_id, actor_id)
     return SendResult(view, created)
+
+
+# ---- history (reads take no locks) ------------------------------------------------------
+
+HISTORY_CURSOR_VERSION = "m1"
+_CURSOR_ALPHABET = re.compile(r"[A-Za-z0-9_-]{1,300}")
+_CURSOR_PAYLOAD = re.compile(
+    r"(m\d+)\|([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\|"
+    r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+00:00)\|"
+    r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
+)
+
+
+def encode_history_cursor(room_id: uuid.UUID, created_at: datetime, message_id: uuid.UUID) -> str:
+    """Opaque URL-safe base64 of a versioned payload: version | room | created_at | id.
+
+    created_at keeps exact microseconds (PostgreSQL's timestamptz precision), so rows sharing a
+    timestamp are neither skipped nor repeated (the id breaks ties). The cursor is UNSIGNED: it is a
+    pagination position, never an authorization credential. Forging one can only move the position
+    within a room the caller can already read; every request is still authorized on its own.
+    """
+    stamp = created_at.astimezone(UTC).isoformat(timespec="microseconds")
+    payload = f"{HISTORY_CURSOR_VERSION}|{room_id}|{stamp}|{message_id}"
+    return base64.urlsafe_b64encode(payload.encode("ascii")).rstrip(b"=").decode("ascii")
+
+
+def decode_history_cursor(raw: str, room_id: uuid.UUID) -> tuple[datetime, uuid.UUID]:
+    """Strict parse. Any malformed, non-canonical, wrong-version or cross-room cursor is
+    invalid_cursor (422)."""
+    try:
+        if not _CURSOR_ALPHABET.fullmatch(raw):
+            raise ValueError
+        decoded = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))
+        if base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii") != raw:
+            raise ValueError  # non-canonical encoding
+        match = _CURSOR_PAYLOAD.fullmatch(decoded.decode("ascii"))
+        if match is None or match.group(1) != HISTORY_CURSOR_VERSION:
+            raise ValueError
+        if uuid.UUID(match.group(2)) != room_id:
+            raise ValueError  # a cursor from another room
+        return datetime.fromisoformat(match.group(3)), uuid.UUID(match.group(4))
+    except (ValueError, binascii.Error, UnicodeDecodeError):
+        raise invalid_cursor() from None
+
+
+async def list_messages(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    room_id: uuid.UUID,
+    limit: int,
+    before: str | None,
+) -> tuple[list[MessageView], str | None]:
+    """One page of history: the newest `limit` messages (or the newest older than `before`),
+    returned oldest-to-newest, plus a cursor for the next OLDER page (or None).
+
+        SELECT ... FROM messages LEFT JOIN users ... WHERE room_id = :room
+          [AND (created_at, id) < (:ts, :id)]
+        ORDER BY created_at DESC, id DESC LIMIT :limit + 1
+
+    Uses the (room_id, created_at, id) index; no OFFSET. limit + 1 rows reveal whether another
+    older page exists without a count query. Tombstones are included. ONE query joins users, so
+    the statement count does not grow with the number of messages. This is history pagination,
+    not a synchronization protocol, and not a frozen snapshot: messages written between two page
+    requests can appear on a later "newest" fetch, and edits or deletions show up on re-fetch.
+    """
+    after = decode_history_cursor(before, room_id) if before is not None else None
+    query = (
+        _joined_select()
+        .where(_MESSAGES.c.room_id == room_id)
+        .order_by(_MESSAGES.c.created_at.desc(), _MESSAGES.c.id.desc())
+        .limit(limit + 1)
+    )
+    if after is not None:
+        query = query.where(tuple_(_MESSAGES.c.created_at, _MESSAGES.c.id) < tuple_(*after))
+    async with sessionmaker() as db:
+        fetched = (await db.execute(query)).all()
+    page, extra = fetched[:limit], fetched[limit:]
+    next_before = (
+        encode_history_cursor(room_id, page[-1].created_at, page[-1].id) if extra else None
+    )  # page[-1] is the OLDEST row returned (the page is in descending order here)
+    return [row_to_view(row) for row in reversed(page)], next_before

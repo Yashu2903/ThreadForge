@@ -14,12 +14,13 @@ authenticated session user: no request field can name one.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 
-from app.dependencies.rooms import WriterAccessUnsafe
+from app.dependencies.rooms import MemberAccess, WriterAccessUnsafe, parse_uuid
+from app.errors import message_not_found
 from app.request_body import json_body_docs, parse_json_body
 from app.schemas.auth import ErrorBody
-from app.schemas.messages import MessageOut, SendMessageRequest
+from app.schemas.messages import MessageOut, MessagePage, SendMessageRequest
 from app.services import messages
 
 router = APIRouter(tags=["messages"])
@@ -63,3 +64,41 @@ async def send_message(
     )
     response.status_code = 201 if result.created else 200
     return MessageOut(**result.message.__dict__)
+
+
+@router.get(
+    "/rooms/{room_id}/messages",
+    response_model=MessagePage,
+    responses={
+        **_COMMON,
+        422: {"model": ErrorBody, "description": "invalid_cursor / validation_error"},
+    },
+)
+async def list_messages(
+    request: Request,
+    access: MemberAccess,
+    limit: int = Query(50, ge=1, le=100),
+    before: str | None = None,
+) -> MessagePage:
+    """History for any active member (any role): the newest page first (oldest-to-newest within
+    the page), then older pages via `before=<next_before>`. Includes tombstones, and messages
+    written before the caller joined or by since-removed members (no per-member visibility window).
+    No locks are taken."""
+    items, next_before = await messages.list_messages(
+        request.app.state.sessionmaker, access.room_id, limit, before
+    )
+    return MessagePage(items=[MessageOut(**m.__dict__) for m in items], next_before=next_before)
+
+
+@router.get("/rooms/{room_id}/messages/{message_id}", response_model=MessageOut, responses=_COMMON)
+async def get_message(request: Request, access: MemberAccess, message_id: str) -> MessageOut:
+    """One message or tombstone, scoped by BOTH the room and the message id."""
+    parsed = parse_uuid(message_id)
+    view = (
+        await messages.get_message(request.app.state.sessionmaker, access.room_id, parsed)
+        if parsed
+        else None
+    )
+    if view is None:
+        raise message_not_found()
+    return MessageOut(**view.__dict__)
