@@ -78,7 +78,8 @@ async def engine(settings: Settings) -> AsyncIterator[AsyncEngine]:
     require_test_database(settings.database_url.get_secret_value())
     # NullPool: no connection outlives the test's event loop (asyncpg connections are bound to
     # the loop that created them, and each test gets its own loop).
-    engine = create_engine(settings, poolclass=NullPool)
+    # 3 s lock timeout: a deadlock or lock-ordering bug fails a test fast instead of hanging it.
+    engine = create_engine(settings, poolclass=NullPool, lock_timeout_ms=3000)
     async with engine.begin() as connection:
         await connection.execute(text(f"TRUNCATE {', '.join(APP_TABLES)} RESTART IDENTITY CASCADE"))
     yield engine

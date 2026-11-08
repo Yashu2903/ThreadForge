@@ -41,4 +41,5 @@ select = ["E", "F", "I", "UP", "B", "ASYNC", "S", "SIM"]
 ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/**" = ["S603", "S607"]  # operator tool: runs docker/psql with a fixed argv
 "tests/**" = ["S105", "S106", "S311", "S608", "E501"]

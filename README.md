@@ -1,11 +1,13 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 1 — backend foundation and authentication
+## Status: Part 2 of 5 — authentication, rooms, invitations and authorization
 
-Implemented: FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command, and an automated test suite.
+Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
-Not implemented (later parts): rooms, invitations, memberships, messages, WebSockets, Redis, outbox, documents, AI. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
+Part 2 (rooms, invitations, permissions): private rooms with an owner, editors and viewers; single-use invitation links; membership management; server-side authorization on every route. See [Part 2](#part-2-rooms-invitations-and-authorization).
+
+Not implemented (later parts): messages (3), room events / outbox / Pub/Sub / WebSockets (4), reconnect recovery / presence / connection revocation (5), documents, uploads, AI. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
 
 > **Superseded handbook sections.** If a ThreadForge handbook exists under `docs/` (none is in this repository yet), these parts of it are replaced by the Google OIDC decision: email/password login, Argon2id password hashing, `POST /accounts`, `POST /sessions`, and operator password recovery. There are no passwords in this system. The handbook's other conventions are kept: UUID primary keys, UTC timestamps, `ON DELETE RESTRICT` foreign keys, a `version` column on mutable entity tables, and request IDs.
 
@@ -97,13 +99,23 @@ All settings are environment variables (or `.env` at the repo root). Invalid set
 | `TRUSTED_PROXY_IPS` | IPs/CIDRs whose `X-Forwarded-*` headers are trusted. Default: none. |
 | `COOKIE_SECURE` | Dev only (default false). Production always forces `Secure`; `false` there is a startup error. |
 
+Part 2 settings (all validated at startup; placeholders in `.env.example`):
+
+| Variable | Meaning |
+|---|---|
+| `FRONTEND_BASE_URL` | Origin of the frontend; invitation links are `{FRONTEND_BASE_URL}/join#token=<token>`. Dev default: the API origin. **Production must set it, https.** No query/fragment; a trailing `/` is stripped. |
+| `INVITATION_DEFAULT_HOURS` / `_MIN_HOURS` / `_MAX_HOURS` | Lifetime default 24, bounds 1–168. Must satisfy min ≤ default ≤ max. |
+| `MAX_OWNED_ROOMS_PER_USER` | Default 20. |
+| `MAX_MEMBERS_PER_ROOM` | Default 50 active members. |
+| `MAX_ACTIVE_INVITATIONS_PER_ROOM` | Default 50 (unused, unrevoked, unexpired). |
+
 Dev defaults allow plain `http` only for `localhost`/`127.0.0.1`. Nothing silently enables fake authentication: there is no bypass, fake provider, or impersonation endpoint.
 
 ---
 
 ## API
 
-No route prefix (the repository had none). Every `/auth/*` response carries `Cache-Control: no-store`; every response carries `X-Request-ID`.
+No route prefix (the repository had none). Every response except `/health/*` carries `Cache-Control: no-store` (sessions, room data and invitation tokens are private); every response carries `X-Request-ID`. Part 2 routes are documented in [Part 2](#part-2-rooms-invitations-and-authorization).
 
 | Method | Route | Contract |
 |---|---|---|
@@ -175,6 +187,103 @@ Suggested reading order: `app/config.py` → `app/main.py` → `app/middleware.p
 
 ---
 
+## Part 2: rooms, invitations and authorization
+
+### Product rules
+Rooms (no workspace/channel hierarchy). A room has one **owner**, zero or more **editors** and **viewers**; creating a room creates the owner membership. Joining is **only** through an invitation link or key; rooms are not discoverable. An invitation grants one role (editor or viewer — never owner) in one room, expires, is revocable, and is redeemed once. It is a **bearer credential**: whoever holds the token and is authenticated can redeem it. It is not tied to an email address and nothing is emailed. Not implemented (deliberately deferred): room closing/archiving/deletion, ownership transfer, member self-leave.
+
+### Routes and permissions
+Every route needs authentication (401 `unauthenticated`); every mutation also needs CSRF (`X-CSRF-Token` + trusted `Origin`, 403 `csrf_failed`).
+
+| Method | Route | Owner | Editor | Viewer | Nonmember |
+|---|---|---|---|---|---|
+| POST | `/rooms` (body: `name`) → 201 | any authenticated user | | | |
+| GET | `/rooms?limit&cursor` → caller's **active** rooms | ✓ | ✓ | ✓ | (not listed) |
+| GET | `/rooms/{id}` | ✓ | ✓ | ✓ | 404 |
+| PATCH | `/rooms/{id}` (only `name`) | ✓ | 403 | 403 | 404 |
+| GET | `/rooms/{id}/members?limit&cursor` | ✓ | ✓ | ✓ | 404 |
+| PATCH | `/rooms/{id}/members/{user_id}` (`role`: editor\|viewer) | ✓ | 403 | 403 | 404 |
+| DELETE | `/rooms/{id}/members/{user_id}` → 204 | ✓ | 403 | 403 | 404 |
+| POST | `/rooms/{id}/invitations` (`role`, `expires_in_hours`) → 201 + raw token **once** | ✓ | 403 | 403 | 404 |
+| GET | `/rooms/{id}/invitations?limit&cursor` (metadata + status) | ✓ | 403 | 403 | 404 |
+| DELETE | `/rooms/{id}/invitations/{invitation_id}` → 204 | ✓ | 403 | 403 | 404 |
+| POST | `/invitations/redeem` (body: `token`) → 200 | any authenticated user | | | |
+
+"Nonmember" includes a **removed** member: removed memberships grant nothing. Authorization failures for nonmembers are always `404 room_not_found` (identical to an unknown or malformed room id), so a private room's existence and name are never revealed. The owner cannot remove or demote themselves. No endpoint accepts `owner_id`, an actor id, or an owner role; request schemas reject unknown fields (422).
+
+Invitation links look like `{FRONTEND_BASE_URL}/join#token=<token>`. The token is in the URL **fragment**, which browsers never send to servers, so it stays out of access logs and `Referer` headers. A GET to a link never joins anyone: joining is the authenticated, CSRF-protected `POST /invitations/redeem`. The future join page must read the fragment, POST it, and remove it from the address bar (`history.replaceState`). No frontend exists yet.
+
+**Order of checks** for every room route: authentication (401) → CSRF on unsafe methods (403) → room authorization (404/403) → request-body validation (422) → service, which re-checks authorization under a lock. FastAPI resolves dependencies before it raises body-validation errors, so a nonmember sending an invalid body gets 404, never 422 (tested). Documented deviations: path ids that are not valid UUIDs are treated as "not found" (404), never 422; `expires_in_hours` bounds come from settings and are checked after authorization; `limit` outside 1–100 is `validation_error`.
+
+**Pagination.** `limit` default 20, max 100. `next_cursor` is an opaque base64url of the last row's `(timestamp, id)` at microsecond precision (so rows sharing a timestamp are neither skipped nor repeated). Rooms and invitations: newest first. Members: `joined_at ASC, user_id ASC`. Anything malformed → `422 invalid_cursor`.
+
+### Error codes (stable, lowercase)
+
+| Code | Status | Meaning |
+|---|---|---|
+| `unauthenticated` | 401 | No valid session (also for disabled/deleted accounts) |
+| `csrf_failed` | 403 | Missing/invalid CSRF token or untrusted/missing Origin |
+| `room_not_found` | 404 | Room missing **or the caller is not an active member** |
+| `insufficient_role` | 403 | Active member lacks the owner role |
+| `member_not_found` | 404 | Target is not an active member of this room (PATCH), or never existed (DELETE) |
+| `invitation_not_found` | 404 | Invitation id not in this room |
+| `invitation_invalid` | 404 | **Every** redemption failure: unknown, malformed, expired, revoked, or used by someone else. One status, code and message |
+| `invitation_already_redeemed` | 409 | Owner tried to revoke a used invitation |
+| `owner_protected` | 409 | Attempt to remove or demote the owner (including self) |
+| `room_limit_reached` / `member_limit_reached` / `invitation_limit_reached` | 409 | Caps (enforced under locks) |
+| `invalid_cursor` | 422 | Bad pagination cursor |
+| `validation_error` | 422 | Bad body structure or values |
+
+### Schema (migration `0002`)
+`rooms` (name 1–120 trimmed; `owner_id`; `membership_epoch >= 1` starting at 1; `version`), `memberships` (PK `(room_id, user_id)`; role owner/editor/viewer; state active/removed; `removed_at`), `invitations` (SHA-256 `token_hash` unique; role editor/viewer; `expires_at`, `revoked_at`, `used_at`/`used_by`). The database enforces by itself: **at most one active owner per room** (partial unique index `WHERE role='owner' AND state='active'`), an **owner row is never marked removed**, `removed_at` matches `state`, `used_at`/`used_by` are both null or both set, `expires_at > created_at`, and every foreign key is `ON DELETE RESTRICT`. "Exactly one owner row matching `rooms.owner_id`" is enforced by the room-creation transaction and the mutation rules (the owner can never be removed, demoted, or granted by invitation), not by a constraint. Removed rows are retained and **reactivated** (same row, `joined_at` reset) on a legitimate rejoin. Deliberately no CHECKs between timestamps written by different transactions: database clocks are not monotonic across backends.
+
+`membership_epoch` is an access-policy version for future live connections and caches. It increments by exactly 1 (under the room lock) only when access actually changes: a membership is activated or reactivated, a member is removed, or a member's role changes. It does **not** change on room creation (epoch 1 already represents the owner-only state), no-op role updates, renames, invitation creation/revocation, or an idempotent redemption. `version` follows the Part 1 convention: it increments on every real `UPDATE` of the row (a rename, or an epoch bump); a same-name rename is a no-op. If-Match enforcement is deferred.
+
+### Transactions and locks
+**One pattern:** every unit of database work is a service function (`app/services/rooms.py`, `memberships.py`, `invitations.py`) that takes the **sessionmaker**, never an existing session, opens its own session and `begin()`s one transaction, which commits at block exit. Dependencies (authentication, CSRF, fast pre-checks) use their own short sessions that are closed before the service runs, so no transaction is ever already open and `begin()` can never collide with SQLAlchemy's autobegin. Isolation is PostgreSQL's default `READ COMMITTED`. There are no network calls inside transactions and no permission cache: authoritative state is read from PostgreSQL on every request.
+
+**Lock order (always):**
+1. the **room** row — `SELECT … FOR NO KEY UPDATE`
+2. the **invitation** row — `FOR UPDATE` (redeem, revoke)
+3. **membership** row(s) — `FOR UPDATE` (role change, remove, redeem)
+
+(Room creation first locks the creator's `users` row `FOR NO KEY UPDATE` to serialize one user's creations for the owned-rooms cap; nothing else locks user rows, so it cannot form a cycle.) Mutating services take the room lock **first**, then read the actor's membership and role inside the same transaction; a read before the lock is never trusted. Dependencies may pre-check for fast rejection, but a pre-check is never the authority for a mutation (tested with a deliberately stale pre-check).
+
+**Why `FOR NO KEY UPDATE`, not `FOR UPDATE`:** inserting a row into a table with a foreign key to `rooms` (a membership, an invitation) takes a weak `FOR KEY SHARE` lock on the room row. `FOR UPDATE` conflicts with `FOR KEY SHARE`, so it would make those inserts wait; `FOR NO KEY UPDATE` does not conflict with `FOR KEY SHARE` but does conflict with itself, so room mutators still exclude one another. I checked this against the PostgreSQL 16 documentation ("Explicit Locking", the table of conflicting row-level lock modes). The docs page does not state which lock a foreign-key insert takes, so `tests/test_lock_modes.py` establishes it empirically (an FK insert proceeds while the room is locked `FOR NO KEY UPDATE`, and is blocked under `FOR UPDATE`).
+
+Removal and role changes `UPDATE` the membership row (never delete it), so a future `SELECT … FOR SHARE` membership check on a message send conflicts with them. All connections have a `lock_timeout` (10 s; 3 s in tests) so a lock bug fails fast instead of hanging.
+
+### Invitation redemption (one transaction)
+An unlocked lookup by token hash finds the room to lock; everything is revalidated after the locks. With U the caller, I the invitation, M the caller's membership row: (1) no match / malformed token → `invitation_invalid`; (2) `I.used_by == U`: M active → return it unchanged (a retry, even if I has since expired), M removed → invalid; (3) used by someone else → invalid; (4) revoked or `expires_at <= now()` (database clock) → invalid; (5) M active (any role, even owner) → return it, **do not** consume the invitation, change the role or touch the epoch; (6) otherwise check the member cap (`member_limit_reached`, invitation untouched), create or reactivate M with I's role, consume I, bump the epoch — all in one commit. Two requests for one invitation: exactly one consumption. Same user twice (double-click): both 200 with the same membership. Different users: exactly one wins, the other gets `invitation_invalid`.
+
+### Logging
+Membership and room changes emit one structured line after commit: `action=<…> room_id=<…> actor_id=<…> target_id=<…> request_id=<…>` (actions: `room_created`, `room_renamed`, `member_joined`, `member_rejoined`, `member_role_changed`, `member_removed`, `invitation_created`, `invitation_revoked`). Tokens, token hashes, cookies and redemption request bodies are never logged (tested).
+
+### Where later parts hook in
+- **Part 3 (messages):** a send runs `SELECT … FROM memberships WHERE room_id=… AND user_id=… AND state='active' FOR SHARE` (and checks the role is editor/owner) inside its own transaction. It conflicts with `change_role`/`remove_member` (which `UPDATE` that row under the room lock), so a removal either commits before the send's check (send rejected) or waits for the send. Use the existing `get_active_role`/`require_room_member*` dependencies for the fast pre-check only.
+- **Part 4 (room events, outbox):** write the room-event and outbox rows **inside** the same transactions, in the functions that already hold the room lock: `rooms.create_room`, `rooms.rename_room`, `memberships.activate_membership` (via `invitations.redeem_invitation`), `memberships.change_role`, `memberships.remove_member`, and `rooms.bump_membership_epoch` (the only place the epoch changes). Routes never write these tables (a test enforces it), so there is exactly one place to edit. `membership_epoch` is the version live connections compare against.
+- **Part 5 (revocation):** removal currently blocks subsequent **HTTP** requests. WebSocket/connection revocation is not implemented and not claimed.
+
+### Manual verification (Part 2, real Google accounts)
+**Status: pending** — no Google credentials were available; the automated test `tests/test_manual_sequence.py` runs the same script (below) against fixture users, which proves the script and the flow but not the real Google login.
+
+1. Complete the Part 1 setup and sign in as account **A** and as account **B** through the real Google flow, in two separate browser profiles.
+2. Copy each `tf_session` cookie **value** (DevTools → Application → Cookies) into environment variables without putting it on a command line or into a transcript. PowerShell: `$env:TF_COOKIE_A = Read-Host "cookie A" -MaskInput` (same for `TF_COOKIE_B`).
+3. From `backend/`: `uv run python -m scripts.manual_part2_check`. Add `$env:TF_INSPECT_DB = "1"` to also print the room, membership and invitation rows after each step (invitations show only a hash prefix, never a token).
+
+The script: A creates a room → A creates an editor invitation → B cannot read the room (404) → B redeems → B reads the room and members → B cannot invite or remove (403) → A changes B to viewer → A removes B → B's access is gone (404) → the used invitation cannot restore access → A creates a fresh invitation and B rejoins. It checks `membership_epoch` after every step (expected 1, 1, 1, 2, 2, 2, 3, 4, 4, 4, 5) and never prints cookies or tokens. In production set `TF_COOKIE_NAME=__Host-tf_session`, `TF_BASE_URL` and `TF_ORIGIN`.
+
+### Part 2 limitations
+- **No rate limiting** on `POST /invitations/redeem` or invitation/room creation (the redeem token is 256 random bits, so guessing is infeasible, but flooding is not throttled).
+- **No `Idempotency-Key`** on `POST /rooms` and `POST …/invitations`: a retried create makes a duplicate (a retried *redeem* is safe by design).
+- **No audit table:** membership changes are only in structured application logs.
+- **No `If-Match`** enforcement: `version` is maintained but not yet checked.
+- Removal blocks HTTP access only (no live-connection revocation until Part 5).
+- Invitations are not bound to an email address or account; whoever holds the token and is signed in can use it once.
+- Room names are not unique and are visible to every member.
+
+---
+
 ## Manual verification checklist (real Google)
 
 Automated tests stub Google at the HTTP level; **they do not prove the real Google integration works.** Do this once with real credentials. Mark each step.
@@ -224,12 +333,14 @@ Status of this checklist for the current commit: **pending** (no Google credenti
 ## Project layout
 
 ```
-backend/app/        main.py config.py db.py middleware.py errors.py logging_config.py
-  api/              health.py auth.py
+backend/app/        main.py config.py db.py middleware.py errors.py pagination.py logging_config.py
+  api/              health.py auth.py rooms.py members.py invitations.py
   services/         oidc.py login_attempts.py accounts.py sessions.py csrf.py cookies.py security.py
-  dependencies/     auth.py
+                    rooms.py memberships.py invitations.py   (Part 2: ALL room/membership writes)
+  dependencies/     auth.py (CurrentUser, require_csrf)  rooms.py (member/owner pre-checks)
   models/ schemas/  commands/cleanup_auth.py
-backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py
+backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py, 0002_rooms_...py
+backend/scripts/    manual_part2_check.py (manual verification with real accounts)
 backend/tests/      pytest suite (fake Google in tests/fake_google.py)
 compose.yaml        PostgreSQL 16
 .env.example
