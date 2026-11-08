@@ -58,8 +58,9 @@ _COMMON = {
 async def send_message(
     request: Request, response: Response, access: MemberAccessUnsafe
 ) -> MessageOut:
-    """Any active member (owner, editor or viewer). 201 for a new message; 200 for a matching retry of the same
-    client_message_id (reusing the id with different text is 409 message_id_reused)."""
+    """Any active member (owner, editor or viewer). 201 for a new message; 200 for a matching
+    retry of the same client_message_id (reusing the id with different text is 409
+    message_id_reused)."""
     body = await parse_json_body(request, SendMessageRequest)
     result = await messages.send_message(
         request.app.state.sessionmaker,
@@ -125,8 +126,8 @@ async def get_message(request: Request, access: MemberAccess, message_id: str) -
     openapi_extra=json_body_docs(EditMessageRequest),
 )
 async def edit_message(request: Request, access: MemberAccessUnsafe, message_id: str) -> MessageOut:
-    """Author only (and the author must still be an active member, of any role). Send the version you
-    last saw as expected_version; a stale version is 409 message_version_conflict."""
+    """Author only (and the author must still be an active member, of any role). Send the
+    version you last saw as expected_version; a stale version is 409 message_version_conflict."""
     body = await parse_json_body(request, EditMessageRequest)
     view = await messages.edit_message(
         request.app.state.sessionmaker,
