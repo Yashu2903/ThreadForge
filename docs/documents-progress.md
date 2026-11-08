@@ -10,8 +10,8 @@ Specification: the Part 6 task statement (documents, custom editor, DOCX import,
 | 1 | Schema, migrations, shared schema + golden fixtures, validators, templates, document APIs, active selection, events, Part 5 integration | **done** |
 | 2 | Frontend shell: room layout, document list and dialogs, minimal chat, capabilities endpoint | **done** |
 | 3 | Editor core: model, renderer, selection mapping, beforeinput, composition, typing, Enter/Backspace/Delete, paste, undo/redo | **done** |
-| 4 | Formatting and structure, toolbar, accessibility | next |
-| 5 | Assets and images: pipeline, storage, quotas, editor insert | not started |
+| 4 | Formatting and structure, toolbar, accessibility | **done** |
+| 5 | Assets and images: pipeline, storage, quotas, editor insert | next |
 | 6 | Saving and conflicts: autosave, serialization, event-driven refresh, conflict UI, read-only, access loss | not started |
 | 7 | Imports: worker, local upload, conversion, report, isolation, publication | not started |
 | 8 | Google Drive: connection, Picker, import (stub-tested; real verification pending) | not started |
@@ -106,9 +106,29 @@ Limits recorded for the next checkpoints: Backspace at the start of a list item'
 and merges across table cells are deliberate no-ops (checkpoint 4 owns list/table keys); typing-state
 marks at a caret, marks, links, images are checkpoint 4/5.
 
+## Checkpoint 4: what is done
+
+`format.ts`, `structure.ts`, `Toolbar.tsx`, `fonts.ts` (+ `fonts.css`, `public/fonts/` with license
+files), and the editor methods/state (`toggleMark`, `setMarkValue`, `setLink`, `setAttrs`,
+`setBlockKind`, `toggleList`, `indent/outdent`, table operations, `formatState()`); typing-state
+marks; Tab for cells/list items; Ctrl/Cmd+B/I/U/K; Ctrl-click links; Safari `format*` input types.
+Details in [editor-architecture.md](editor-architecture.md). A font-substitution notice is shown in
+the room's document view.
+
+Fixed along the way (found by the browser tests): typing over a bold selection lost the bold; a refused
+toolbar command stole focus from the open link form and reset the selection; the default highlight
+colour was the picker's own default, so choosing it fired no change event.
+
+Verified: vitest 156 (35 format/structure/typing-over-selection/fonts, plus earlier suites);
+Playwright `editor-format.spec.ts` 14 in Chromium and 14 in Firefox (marks, tri-state, typing-state,
+fonts/size/colours/script, headings/alignment/spacing/indent, mixed values, lists with Tab/Shift+Tab/
+Enter/Backspace, links incl. unsafe address refusal and Ctrl-click in a new tab, tables incl. Tab
+navigation and row/column operations, multi-cell hint, toolbar a11y, same-origin fonts); all 26
+Chromium specs pass together.
+
+Not verified: Safari/WebKit (none installed): the manual checklist covers IME; the toolbar and
+formatting have only been exercised in Chromium and Firefox.
+
 ## Next step
 
-Checkpoint 4: formatting and structure on top of the editor core: mark toggles with tri-state values,
-fonts/sizes/colors, alignment/spacing/indent, headings/quote/lists (Tab, empty-item Enter/Backspace),
-links, tables (Tab navigation, row/column operations), typing-state marks, the toolbar with roving
-focus and aria-pressed, keyboard shortcuts, accessibility attributes, and self-hosted fonts.
+Checkpoint 5: assets and images (Pillow pipeline, storage adapter, quotas, serving, editor image insert and alt text, cleanup rules).

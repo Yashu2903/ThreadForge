@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 6 in progress (documents, checkpoint 3 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
+## Status: Part 6 in progress (documents, checkpoint 4 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -746,7 +746,7 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
 
 ---
 
-## Part 6: documents (in progress: checkpoint 3 of 9, editor core)
+## Part 6: documents (in progress: checkpoint 4 of 9, formatting and structure)
 
 Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
 the document format is [docs/document-schema.md](docs/document-schema.md).
@@ -893,7 +893,7 @@ Logged-in browsers are made by `backend/scripts/seed_session.py`, which writes a
 through the real session service and prints the cookie; Playwright sets that cookie. There is **no
 impersonation endpoint** in the API.
 
-### The editor (checkpoint 3: core)
+### The editor (checkpoints 3 and 4: core, formatting and structure)
 
 Our own editor in `frontend/src/editor/` - see [docs/editor-architecture.md](docs/editor-architecture.md)
 (layers, the exact DOM-to-model selection mapping, IME handling, id rules, history) and
@@ -902,6 +902,13 @@ It is a framework-free island: React hosts it through `EditorSurface` (one empty
 children), and the editor handles `beforeinput` itself (everything is cancelled and applied to an
 immutable model; unknown input types are cancelled, never allowed to edit the DOM). Until saving
 exists (checkpoint 6) it is reachable only on the development playground, `#/playground`.
+
+Checkpoint 4 adds the toolbar and the formatting/structure commands: bold/italic/underline/strike/
+super/subscript (tri-state over mixed selections), fonts and sizes, colours and highlight, headings,
+quote, alignment, line/paragraph spacing, indent, bulleted/numbered lists (Tab, Shift+Tab, Enter and
+Backspace rules, depth <= 3), links (http/https/mailto only), tables (Tab navigation, add/remove
+rows and columns, 50 x 20 limit), typing-state marks at a caret, and self-hosted metric-compatible
+fonts with their licenses in `frontend/public/fonts/`.
 
 ### Known limitation (by design in this part)
 

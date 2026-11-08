@@ -228,11 +228,11 @@ describe("beforeinput pipeline", () => {
     expect(editor.findDrift()).toEqual([]);
   });
 
-  it("every cancelled type changes nothing: formatting, drops, transposes, unknown types", () => {
+  it("every cancelled type changes nothing: drops, transposes, font menus, unknown types", () => {
     const { editor, changes } = make(doc(p(1, t("keep"))));
     place(editor, 1, 2);
     const before = editor.getDocument();
-    for (const type of ["formatBold", "formatItalic", "insertFromDrop", "deleteByDrag", "insertTranspose", "insertOrderedList", "somethingNew", "insertFromYank"]) {
+    for (const type of ["insertFromDrop", "deleteByDrag", "insertTranspose", "formatFontName", "somethingNew", "insertFromYank"]) {
       expect(input(type, "x"), type).toBe(true);
     }
     expect(editor.getDocument()).toBe(before);

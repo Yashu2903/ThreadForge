@@ -13,14 +13,13 @@
  * After every command the blocks at the caret are compared with the model; a mismatch re-draws the
  * block from the model and logs a warning in development. execCommand is not used anywhere.
  */
-import type { Limits } from "threadforge-client/document-schema";
+import type { Limits, Marks } from "threadforge-client/document-schema";
 import { DEFAULT_LIMITS } from "threadforge-client/document-schema";
 import {
   type Outcome,
   type Pos,
   type Sel,
   caret,
-  deleteBackward,
   deleteForward,
   deleteRange,
   deleteSelection,
@@ -30,8 +29,47 @@ import {
   isCollapsed,
   ordered,
   selectionText,
-  splitBlock,
 } from "./commands";
+import {
+  type AttrKey,
+  type AttrPatch,
+  type BlockKind,
+  type BoolMark,
+  type LinkInfo,
+  type Tri,
+  type ValueMark,
+  attrState,
+  blockKindState,
+  boolMarkState,
+  changeIndent,
+  linkAt,
+  markValueProblem,
+  removeLink,
+  setAttrs,
+  setBlockKind,
+  setLink,
+  setMark,
+  toggleMark,
+  valueMarkState,
+} from "./format";
+import {
+  addColumn,
+  addRow,
+  backspace,
+  deleteTable,
+  enter,
+  indentListItems,
+  inQuote,
+  insertTable,
+  listState,
+  outdentListItems,
+  removeColumn,
+  removeRow,
+  tableContext,
+  tableTab,
+  toggleList,
+  toggleQuote,
+} from "./structure";
 import { type Doc, blockLength, indexOf, isTextBlock, nodeById, textBlock, updateNode, withInlines } from "./doc";
 import {
   type RenderContext,
@@ -44,7 +82,7 @@ import {
   resyncBlock,
 } from "./dom";
 import { History, type HistoryOptions } from "./history";
-import { flatten } from "./inline";
+import { flatten, inheritMarks } from "./inline";
 import { limitProblem } from "./stats";
 
 export interface EditorOptions {
@@ -61,6 +99,41 @@ export interface EditorOptions {
   onSelectionChange?: (sel: Sel | null) => void;
   /** Ctrl/Cmd+S. */
   onSave?: () => void;
+  /** Ctrl/Cmd+K: the host should open its link editor. */
+  onLinkRequest?: () => void;
+  /** The selection, the document or the history changed: re-read formatState() (toolbars). */
+  onStateChange?: () => void;
+  /** Fonts the host allows (document font keys); default = the schema's. */
+  fonts?: readonly string[];
+}
+
+/** What the toolbar shows for the current selection. Tri-state values are "mixed" over a mixed selection. */
+export interface FormatState {
+  bold: Tri;
+  italic: Tri;
+  underline: Tri;
+  strike: Tri;
+  script: unknown;
+  font: unknown;
+  size: unknown;
+  color: unknown;
+  highlight: unknown;
+  link: LinkInfo | null;
+  block: BlockKind | "mixed";
+  quote: boolean;
+  align: unknown;
+  lineSpacing: unknown;
+  spaceBefore: unknown;
+  spaceAfter: unknown;
+  indent: unknown;
+  list: { ordered: boolean | "mixed"; depth: number } | null;
+  table: { rows: number; cols: number; rowIndex: number; colIndex: number } | null;
+  /** the selection crosses table cells: marks and alignment work, typing and deleting do not */
+  multiCell: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  readOnly: boolean;
+  collapsed: boolean;
 }
 
 const DEV = typeof import.meta !== "undefined" && (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
@@ -76,6 +149,12 @@ export class Editor {
   private compositionBlocks = new Set<string>();
   private readOnly: boolean;
   private lastSet: Sel | null = null;
+  /** the last selection that was inside the editor (toolbar controls may take focus away) */
+  private lastSel: Sel | null = null;
+  /** the selection the last committed command left, applied after toolbar interactions */
+  private afterSel: Sel | null = null;
+  /** marks to apply to the next text typed at a collapsed caret (not stored in the document) */
+  private typing: { id: string; offset: number; marks: Marks } | null = null;
   private destroyed = false;
   private cleanup: (() => void)[] = [];
   /** development counters, asserted by tests */
@@ -111,6 +190,7 @@ export class Editor {
     on("paste", (e) => this.onPaste(e as ClipboardEvent));
     on("copy", (e) => this.onCopy(e as ClipboardEvent, false));
     on("cut", (e) => this.onCopy(e as ClipboardEvent, true));
+    on("click", (e) => this.onClick(e as MouseEvent));
     on("dragstart", (e) => e.preventDefault());
     on("dragover", (e) => e.preventDefault());
     on("drop", (e) => e.preventDefault());
@@ -169,6 +249,7 @@ export class Editor {
     if (!step) return false;
     this.show(step.doc, step.sel);
     this.opts.onChange?.(this.doc, { kind: "undo" });
+    this.opts.onStateChange?.();
     return true;
   }
 
@@ -177,6 +258,7 @@ export class Editor {
     if (!step) return false;
     this.show(step.doc, step.sel);
     this.opts.onChange?.(this.doc, { kind: "redo" });
+    this.opts.onStateChange?.();
     return true;
   }
 
@@ -196,6 +278,160 @@ export class Editor {
     return bad;
   }
 
+  // ---- commands for toolbars and shortcuts ----------------------------------------------------------------------
+
+  private selectionForCommand(): Sel | null {
+    return this.currentSelection() ?? this.lastSel ?? caret(indexOf(this.doc).order[0]!, 0);
+  }
+
+  /** Run a pure command on the current (or last known) selection, then give focus back to the text. */
+  private run(kind: string, fn: (doc: Doc, sel: Sel) => Outcome): boolean {
+    if (this.readOnly || this.composing) return false;
+    const sel = this.selectionForCommand();
+    if (!sel) return false;
+    const done = this.commit(kind, fn(this.doc, sel), null, sel);
+    if (done) {
+      // hand focus (and the selection the command left) back to the text. A refused command does NOT
+      // steal focus: the control that asked (a link form, say) stays usable.
+      this.root.focus({ preventScroll: true });
+      const target = this.afterSel ?? sel;
+      this.applySelection(target);
+      this.lastSel = target;
+    }
+    return done;
+  }
+
+  toggleMark(key: BoolMark): void {
+    const sel = this.selectionForCommand();
+    if (!sel || this.readOnly) return;
+    if (isCollapsed(sel)) {
+      // nothing selected: remember the choice for the next typed character (not stored in the document)
+      const base = this.typing?.marks ?? inheritMarks(textBlock(this.doc, sel.focus.id).children, sel.focus.offset) ?? {};
+      const marks: Marks = { ...base };
+      if (marks[key]) delete marks[key];
+      else marks[key] = true;
+      this.typing = { id: sel.focus.id, offset: sel.focus.offset, marks };
+      this.opts.onStateChange?.();
+      this.root.focus({ preventScroll: true });
+      return;
+    }
+    this.run("format", (d, s) => toggleMark(d, s, key));
+  }
+
+  setMarkValue(key: ValueMark, value: string | number | null): void {
+    const sel = this.selectionForCommand();
+    if (!sel || this.readOnly) return;
+    const problem = markValueProblem(key, value, this.opts.fonts);
+    if (problem) return void this.opts.onNotice?.(problem);
+    if (isCollapsed(sel)) {
+      const base = this.typing?.marks ?? inheritMarks(textBlock(this.doc, sel.focus.id).children, sel.focus.offset) ?? {};
+      const marks: Record<string, unknown> = { ...base };
+      if (value === null) delete marks[key];
+      else marks[key] = key === "color" || key === "highlight" ? String(value).toUpperCase() : value;
+      this.typing = { id: sel.focus.id, offset: sel.focus.offset, marks: marks as Marks };
+      this.opts.onStateChange?.();
+      this.root.focus({ preventScroll: true });
+      return;
+    }
+    this.run("format", (d, s) => setMark(d, s, key, value));
+  }
+
+  setLink(href: string): boolean {
+    return this.run("link", (d, s) => setLink(d, s, href));
+  }
+  removeLink(): boolean {
+    return this.run("link", (d, s) => removeLink(d, s));
+  }
+  setAttrs(patch: AttrPatch): boolean {
+    return this.run("format", (d, s) => setAttrs(d, s, patch));
+  }
+  changeIndent(delta: number): boolean {
+    return this.run("format", (d, s) => changeIndent(d, s, delta));
+  }
+  setBlockKind(kind: BlockKind): boolean {
+    return this.run("format", (d, s) => setBlockKind(d, s, kind));
+  }
+  toggleList(ordered: boolean): boolean {
+    return this.run("list", (d, s) => toggleList(d, s, ordered));
+  }
+  toggleQuote(): boolean {
+    return this.run("quote", (d, s) => toggleQuote(d, s));
+  }
+  /** Indent: list items go one level deeper; anything else gains a paragraph indent level. */
+  indent(): boolean {
+    const sel = this.selectionForCommand();
+    if (sel && listState(this.doc, sel)) return this.run("list", (d, s) => indentListItems(d, s));
+    return this.changeIndent(1);
+  }
+  outdent(): boolean {
+    const sel = this.selectionForCommand();
+    if (sel && listState(this.doc, sel)) return this.run("list", (d, s) => outdentListItems(d, s));
+    return this.changeIndent(-1);
+  }
+  insertTable(rows: number, cols: number, headerRow: boolean): boolean {
+    return this.run("table", (d, s) => insertTable(d, s, rows, cols, headerRow));
+  }
+  addRow(where: "above" | "below"): boolean {
+    return this.run("table", (d, s) => addRow(d, s, where));
+  }
+  addColumn(where: "left" | "right"): boolean {
+    return this.run("table", (d, s) => addColumn(d, s, where));
+  }
+  removeRow(): boolean {
+    return this.run("table", (d, s) => removeRow(d, s));
+  }
+  removeColumn(): boolean {
+    return this.run("table", (d, s) => removeColumn(d, s));
+  }
+  deleteTable(): boolean {
+    return this.run("table", (d, s) => deleteTable(d, s));
+  }
+
+  /** Everything a toolbar needs to draw itself for the current selection. */
+  formatState(): FormatState {
+    const sel = this.selectionForCommand()!;
+    const typing = this.typing && isCollapsed(sel) && this.typing.id === sel.focus.id && this.typing.offset === sel.focus.offset ? this.typing.marks : null;
+    const d = this.doc;
+    const table = tableContext(d, sel.focus.id);
+    const cells = new Set(
+      ordered(d, sel) && [sel.anchor.id, sel.focus.id].map((id) => tableContext(d, id)?.cell.id ?? null),
+    );
+    return {
+      bold: boolMarkState(d, sel, "bold", typing),
+      italic: boolMarkState(d, sel, "italic", typing),
+      underline: boolMarkState(d, sel, "underline", typing),
+      strike: boolMarkState(d, sel, "strike", typing),
+      script: valueMarkState(d, sel, "script", typing),
+      font: valueMarkState(d, sel, "font", typing),
+      size: valueMarkState(d, sel, "size_pt", typing),
+      color: valueMarkState(d, sel, "color", typing),
+      highlight: valueMarkState(d, sel, "highlight", typing),
+      link: linkAt(d, sel),
+      block: blockKindState(d, sel),
+      quote: inQuote(d, sel),
+      align: attrState(d, sel, "align" as AttrKey),
+      lineSpacing: attrState(d, sel, "line_spacing"),
+      spaceBefore: attrState(d, sel, "space_before_pt"),
+      spaceAfter: attrState(d, sel, "space_after_pt"),
+      indent: attrState(d, sel, "indent_level"),
+      list: listState(d, sel),
+      table: table ? { rows: table.rows, cols: table.cols, rowIndex: table.rowIndex, colIndex: table.colIndex } : null,
+      multiCell: cells.size > 1,
+      canUndo: this.history.canUndo,
+      canRedo: this.history.canRedo,
+      readOnly: this.readOnly,
+      collapsed: isCollapsed(sel),
+    };
+  }
+
+  private onClick(e: MouseEvent): void {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const a = (e.target as HTMLElement | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+    if (!a || !this.root.contains(a)) return;
+    e.preventDefault(); // a link opens only on Ctrl/Cmd-click (or from the link popover), never on a plain click
+    window.open(a.getAttribute("href") ?? "", "_blank", "noopener,noreferrer");
+  }
+
   // ---- applying results ----------------------------------------------------------------------------------------
 
   private applyReadOnly(): void {
@@ -204,6 +440,7 @@ export class Editor {
   }
 
   private show(doc: Doc, sel: Sel): void {
+    this.afterSel = sel;
     const prev = this.doc;
     this.doc = doc;
     renderDocument(this.root, doc, prev, this.ctx);
@@ -212,7 +449,7 @@ export class Editor {
   }
 
   /** Run a command result: refuse blocked/over-limit edits, else render, select, record, notify. */
-  private commit(kind: string, outcome: Outcome, key: string | null = null): boolean {
+  private commit(kind: string, outcome: Outcome, key: string | null = null, selBefore?: Sel): boolean {
     if (!outcome) return false;
     if ("blocked" in outcome) {
       this.opts.onNotice?.(outcome.blocked);
@@ -223,10 +460,11 @@ export class Editor {
       this.opts.onNotice?.(problem);
       return false;
     }
-    const before = this.currentSelection() ?? outcome.sel;
+    const before = selBefore ?? this.currentSelection() ?? outcome.sel;
     this.show(outcome.doc, outcome.sel);
     this.history.record(outcome.doc, before, outcome.sel, kind, key);
     this.opts.onChange?.(this.doc, { kind });
+    this.opts.onStateChange?.();
     return true;
   }
 
@@ -276,7 +514,10 @@ export class Editor {
       mine.focus.id === sel.focus.id &&
       mine.focus.offset === sel.focus.offset;
     if (!same) this.history.seal(); // the user moved the caret: the next keystroke starts a new undo group
+    this.lastSel = sel;
+    if (this.typing && !(isCollapsed(sel) && sel.focus.id === this.typing.id && sel.focus.offset === this.typing.offset)) this.typing = null;
     this.opts.onSelectionChange?.(sel);
+    this.opts.onStateChange?.();
   }
 
   // ---- input ----------------------------------------------------------------------------------------------------------
@@ -296,9 +537,12 @@ export class Editor {
     const text = () => e.data ?? e.dataTransfer?.getData("text/plain") ?? "";
 
     switch (type) {
-      case "insertText":
-        this.commit("typing", insertText(this.doc, sel, text()), key);
+      case "insertText": {
+        const pending = this.typing && isCollapsed(sel) && this.typing.id === sel.focus.id && this.typing.offset === sel.focus.offset ? this.typing.marks : undefined;
+        this.typing = null;
+        this.commit("typing", insertText(this.doc, sel, text(), pending), key);
         return;
+      }
       case "insertReplacementText": {
         // spellcheck / autocorrect: the browser tells us which range it wants replaced
         const target = this.targetRange(e);
@@ -310,10 +554,10 @@ export class Editor {
         this.commit("break", insertHardBreak(this.doc, sel));
         return;
       case "insertParagraph":
-        this.commit("split", splitBlock(this.doc, sel));
+        this.commit("split", enter(this.doc, sel));
         return;
       case "deleteContentBackward":
-        this.commit("delete", deleteBackward(this.doc, sel));
+        this.commit("delete", backspace(this.doc, sel));
         return;
       case "deleteContentForward":
         this.commit("delete", deleteForward(this.doc, sel));
@@ -328,7 +572,7 @@ export class Editor {
         const unit = type.includes("Word") ? "word" : "line";
         const target = isCollapsed(sel) ? this.targetRange(e) : null;
         if (target && !isCollapsed(target)) this.commit("delete", fromRange(deleteSelection(this.doc, target)));
-        else this.commit("delete", backward ? deleteBackward(this.doc, sel, unit) : deleteForward(this.doc, sel, unit));
+        else this.commit("delete", backward ? backspace(this.doc, sel, unit) : deleteForward(this.doc, sel, unit));
         return;
       }
       case "deleteContent":
@@ -341,6 +585,30 @@ export class Editor {
         if (pasted) this.paste(pasted, sel);
         return;
       }
+      case "formatBold":
+        return void this.toggleMark("bold");
+      case "formatItalic":
+        return void this.toggleMark("italic");
+      case "formatUnderline":
+        return void this.toggleMark("underline");
+      case "formatStrikeThrough":
+        return void this.toggleMark("strike");
+      case "formatJustifyLeft":
+        return void this.setAttrs({ align: "left" });
+      case "formatJustifyCenter":
+        return void this.setAttrs({ align: "center" });
+      case "formatJustifyRight":
+        return void this.setAttrs({ align: "right" });
+      case "formatJustifyFull":
+        return void this.setAttrs({ align: "justify" });
+      case "insertOrderedList":
+        return void this.toggleList(true);
+      case "insertUnorderedList":
+        return void this.toggleList(false);
+      case "formatIndent":
+        return void this.indent();
+      case "formatOutdent":
+        return void this.outdent();
       case "historyUndo":
         this.undo();
         return;
@@ -432,10 +700,30 @@ export class Editor {
   // ---- keyboard shortcuts --------------------------------------------------------------------------------------
 
   private onKeyDown(e: KeyboardEvent): void {
+    if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey && !this.readOnly && !this.composing) {
+      // Tab moves between table cells and indents list items; anywhere else it leaves the editor
+      // (no keyboard trap): the browser's default focus movement is only cancelled when we act.
+      const sel = this.selectionForCommand();
+      if (sel && tableContext(this.doc, sel.focus.id)) {
+        e.preventDefault();
+        this.run("tab", (d, s) => tableTab(d, s, e.shiftKey));
+      } else if (sel && listState(this.doc, sel)) {
+        e.preventDefault();
+        if (e.shiftKey) this.outdent();
+        else this.indent();
+      }
+      return;
+    }
     const mod = e.ctrlKey || e.metaKey;
     if (!mod || e.altKey) return;
     const key = e.key.toLowerCase();
-    if (key === "z" && !this.readOnly) {
+    if (!this.readOnly && !e.shiftKey && (key === "b" || key === "i" || key === "u")) {
+      e.preventDefault();
+      this.toggleMark(key === "b" ? "bold" : key === "i" ? "italic" : "underline");
+    } else if (key === "k" && !e.shiftKey) {
+      e.preventDefault();
+      if (!this.readOnly) this.opts.onLinkRequest?.();
+    } else if (key === "z" && !this.readOnly) {
       e.preventDefault();
       if (e.shiftKey) this.redo();
       else this.undo();

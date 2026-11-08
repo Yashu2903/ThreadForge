@@ -32,6 +32,7 @@ import {
   flatten,
   inheritMarks,
   insertAtomInlines,
+  marksOfCharAt,
   insertTextInlines,
   inlineLen2,
   normalizeInlines,
@@ -118,14 +119,18 @@ export function insertText(doc: Doc, sel: Sel, text: string, marksOverride?: imp
   if (!clean) return null;
   let working = doc;
   let pos: Pos = sel.focus;
+  let replaced: import("threadforge-client/document-schema").Marks | undefined;
   if (!isCollapsed(sel)) {
+    // text typed over a selection takes the formatting of the FIRST selected character (as in word processors)
+    const { start } = ordered(doc, sel);
+    replaced = marksOfCharAt(textBlock(doc, start.id).children, start.offset);
     const r = deleteSelection(doc, sel);
     if ("blocked" in r) return r;
     working = r.doc;
     pos = r.pos;
   }
   const tb = textBlock(working, pos.id);
-  const marks = marksOverride ?? inheritMarks(tb.children, pos.offset);
+  const marks = marksOverride ?? replaced ?? inheritMarks(tb.children, pos.offset);
   const next = updateNode(working, pos.id, (n) => withInlines(n as TextBlock, insertTextInlines((n as TextBlock).children, pos.offset, clean, marks)));
   return { doc: next, sel: caret(pos.id, pos.offset + clean.length) };
 }

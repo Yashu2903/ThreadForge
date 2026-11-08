@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { canonicalJson, type Json } from "threadforge-client/document-schema";
 import { EditorSurface } from "./editor/EditorSurface";
+import { Toolbar } from "./editor/Toolbar";
 import type { Editor } from "./editor/editor";
 import type { Doc } from "./editor/doc";
 
@@ -23,15 +24,17 @@ export function Playground() {
   const [json, setJson] = useState(() => canonicalJson(START as unknown as Json));
   const [notice, setNotice] = useState("");
   const [renders, setRenders] = useState(0);
+  const [revision, setRevision] = useState(0);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [editor, setEditor] = useState<Editor | null>(null);
 
   return (
     <main className="playground">
       <h1>Editor playground</h1>
       <div className="row-actions">
-        <button onClick={() => editorRef.current?.undo()}>Undo</button>
-        <button onClick={() => editorRef.current?.redo()}>Redo</button>
         <button onClick={() => setRenders((n) => n + 1)}>Re-render React ({renders})</button>
       </div>
+      <Toolbar editor={editor} revision={revision} linkOpen={linkOpen} onLinkOpenChange={setLinkOpen} />
       <p role="status" data-testid="notice">
         {notice}
       </p>
@@ -39,8 +42,11 @@ export function Playground() {
         initialDocument={START}
         onReady={(editor) => {
           editorRef.current = editor;
+          setEditor(editor);
           (window as unknown as { __editor: Editor }).__editor = editor;
         }}
+        onStateChange={() => setRevision((n) => n + 1)}
+        onLinkRequest={() => setLinkOpen(true)}
         onChange={(doc) => setJson(canonicalJson(doc as unknown as Json))}
         onNotice={setNotice}
       />

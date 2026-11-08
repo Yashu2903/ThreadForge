@@ -21,6 +21,9 @@ export interface EditorSurfaceProps {
   onChange?: (doc: Doc, info: { kind: string }) => void;
   onNotice?: (message: string) => void;
   onSave?: () => void;
+  onLinkRequest?: () => void;
+  onStateChange?: () => void;
+  fonts?: readonly string[];
 }
 
 export function EditorSurface(props: EditorSurfaceProps) {
@@ -40,6 +43,9 @@ export function EditorSurface(props: EditorSurfaceProps) {
       onChange: (doc, info) => latest.current.onChange?.(doc, info),
       onNotice: (message) => latest.current.onNotice?.(message),
       onSave: () => latest.current.onSave?.(),
+      onLinkRequest: () => latest.current.onLinkRequest?.(),
+      onStateChange: () => latest.current.onStateChange?.(),
+      fonts: latest.current.fonts,
     });
     editorRef.current = editor;
     latest.current.onReady?.(editor);

@@ -93,6 +93,17 @@ export function inheritMarks(children: readonly Inline[] | undefined, offset: nu
   return prevText ? prevText.marks : nextText?.marks;
 }
 
+/** The marks of the character at [offset, offset+1), or undefined if that is an atom or past the end. */
+export function marksOfCharAt(children: readonly Inline[] | undefined, offset: number): Marks | undefined {
+  let pos = 0;
+  for (const c of children ?? []) {
+    const len = inlineLen(c);
+    if (offset >= pos && offset < pos + len) return c.type === "text" ? (c.marks ?? {}) : undefined;
+    pos += len;
+  }
+  return undefined;
+}
+
 export function insertTextInlines(
   children: readonly Inline[] | undefined,
   offset: number,

@@ -10,6 +10,10 @@ frontend/src/editor/
   inline.ts    operations on a text block's inline sequence (slice, delete, insert, marks)
   segment.ts   grapheme / word boundaries (Intl.Segmenter, with a documented fallback)
   commands.ts  PURE editing commands: (document, selection, args) -> new document + selection
+  format.ts    marks (tri-state), paragraph attributes, block kind, links
+  structure.ts lists, quotes, tables, list-aware Enter/Backspace
+  fonts.ts     font options and the "fonts may differ" notice
+  Toolbar.tsx  the formatting toolbar (React; calls editor methods only)
   stats.ts     cheap counters to refuse an edit that would break a limit
   history.ts   undo / redo over document snapshots
   dom.ts       renderer, DOM <-> model position mapping, reading a block back from the DOM
@@ -100,11 +104,64 @@ conjuncts) are not.
   item the item splits (new item id + new paragraph id) and what followed the paragraph moves to it.
 * **Merge (Backspace/Delete)**: the earlier block keeps its id and type; the later one disappears.
 
-## What is not handled in the editor core (later checkpoints)
+## Formatting and structure (checkpoint 4)
 
-Marks/format commands, lists and tables commands (Tab, empty-item Enter/Backspace), images,
-links. Backspace at the start of a list item's first paragraph and any merge across table cells are
-deliberate no-ops here. Typing across selected table cells is refused with a visible hint.
+**Marks.** `bold/italic/underline/strike` toggle with tri-state reporting (`on`/`off`/`mixed`; a mixed
+selection turns the mark ON everywhere). `font`, `size_pt`, `color`, `highlight` and `script` (one
+field, so sub/superscript are mutually exclusive) set or clear a value; `link` has its own commands.
+Marks work across blocks and across table cells. Text typed over a selection takes the formatting of
+the first selected character (as in a word processor).
+
+**Typing-state marks.** At a collapsed caret the formatting choice is *not* stored in the document
+(an empty run cannot carry marks): the editor keeps it as typing state and applies it to the next
+text typed at that exact position; moving the caret drops it. Consequence, documented limitation:
+formatting an *empty* paragraph is not persisted until text is typed into it.
+
+**Paragraph attributes.** Alignment, line spacing (1, 1.15, 1.5, 2), space before/after (0 to 72 pt
+in 0.5 steps) and indent level (0 to 8, 36 pt each) are validated attributes, never CSS. Indent is
+ignored inside list items (list nesting indents). Defaults are removed from the stored attributes.
+
+**Block kind.** Paragraph / Heading 1-3 (only in the body: quotes, list items and cells hold
+paragraphs) and Quote (wrap/unwrap consecutive body blocks; a heading becomes a paragraph).
+
+**Lists.** Toggle bullet/numbered over body paragraphs (consecutive ones become one list; headings
+become paragraphs); toggling the same kind removes the list; Tab indents under the previous item (not
+possible for the first item; depth <= 3); Shift+Tab outdents (the siblings after the item become its
+children) or, at depth 1, takes the item out of the list; Enter in an empty item does the same;
+Backspace at the start of an item takes the bullet off. Block ids survive every conversion.
+
+**Tables.** Insert (rows x columns, optional header row, never nested, always followed by a
+paragraph), Tab/Shift+Tab between cells (Tab in the last cell appends a row, Shift+Tab in the first
+cell does nothing), add row above/below, add column left/right (a new column copies its row's header
+flag), delete row/column (the last row/column cannot be removed: use Delete table), delete table.
+Limits 50 rows x 20 columns. A selection spanning cells allows marks and alignment but blocks typing,
+deleting and pasting with a visible hint.
+
+**Shortcuts.** Ctrl/Cmd+B, I, U, K (link form), Z, Shift+Z / Y, S (host save). Tab handles table
+cells and list items only; in a plain paragraph it moves focus out of the editor. Ctrl+Alt
+combinations are never used (AltGr on many layouts). Safari's own menu actions arrive as `formatBold`,
+`insertOrderedList`, ... `beforeinput` types and are mapped to the same commands.
+
+**Links.** Only http/https/mailto (see docs/document-schema.md); the editor shows them as ordinary
+links, a plain click only places the caret, and Ctrl/Cmd-click (or the link form) opens them with
+`rel="noopener noreferrer"` and `target="_blank"`.
+
+**Toolbar accessibility.** `role="toolbar"`, one tab stop with roving focus (Left/Right/Home/End),
+every control named and with a tooltip, `aria-pressed` on toggles, `aria-disabled` on unavailable
+controls, buttons do not take focus from the text on mouse down, and controls that must take focus
+(selects, colour pickers, link and table forms) use the editor's remembered selection and give focus
+back after a successful command (a refused command leaves focus where it was).
+
+**Fonts.** Self-hosted, SIL OFL, metric-compatible: Carlito (Calibri), Caladea (Cambria), Arimo
+(Arial, default sans), Tinos (Times New Roman, default serif), Cousine (Courier New, default mono),
+latin subset, weights 400/700 with italics, in `frontend/public/fonts/` with their license files.
+The document stores a font KEY only. The document view shows a notice when a document uses a key
+that is drawn with a substitute. The paper is always light, so stored absolute colours stay readable.
+
+## Still deliberately limited
+
+No images yet (checkpoint 5). Merges across table cells are no-ops. Formatted paste does not exist
+(plain text only) and formatting does not survive a copy-paste round trip in this version.
 
 ## Undo / redo
 

@@ -5,6 +5,7 @@ import { DocumentRead } from "./components/DocumentRead";
 import { OpenDialog } from "./components/OpenDialog";
 import { StartDialog } from "./components/StartDialog";
 import type { Capabilities, DocumentFull, Me } from "./types";
+import { fontNotice } from "./editor/fonts";
 import { useClientState, useRoomHandles, useStore } from "./useRoom";
 
 /**
@@ -174,6 +175,11 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
                     </span>
                   </div>
                 </header>
+                {fontNotice(openDoc.content) && (
+                  <p className="font-notice" role="note" data-testid="font-notice">
+                    {fontNotice(openDoc.content)}
+                  </p>
+                )}
                 <DocumentRead content={openDoc.content} roomId={roomId} />
               </>
             )}
