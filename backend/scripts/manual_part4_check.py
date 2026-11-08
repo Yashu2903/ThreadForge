@@ -88,9 +88,18 @@ async def _connect(base: str, room_id: str, name: str, cookie: str, origin: str 
     )
 
 
+CHATTER = {"presence_snapshot", "typing_state", "heartbeat_ack"}  # not durable events
+
+
 async def _next(ws: ClientConnection, within: float | None = None) -> dict[str, Any] | None:
+    """The next frame that is not presence/typing/heartbeat chatter (None on timeout or close)."""
+    deadline = asyncio.get_running_loop().time() + (within or FRAME_WAIT_SECONDS)
     try:
-        return json.loads(await asyncio.wait_for(ws.recv(), timeout=within or FRAME_WAIT_SECONDS))
+        while True:
+            remaining = deadline - asyncio.get_running_loop().time()
+            frame = json.loads(await asyncio.wait_for(ws.recv(), timeout=max(remaining, 0.01)))
+            if frame["type"] not in CHATTER:
+                return frame
     except (TimeoutError, ConnectionClosed):
         return None
 
@@ -99,9 +108,11 @@ async def _close_code(ws: ClientConnection, within: float | None = None) -> tupl
     frames: list[dict[str, Any]] = []
     try:
         while True:
-            frames.append(
-                json.loads(await asyncio.wait_for(ws.recv(), timeout=within or FRAME_WAIT_SECONDS))
+            frame = json.loads(
+                await asyncio.wait_for(ws.recv(), timeout=within or FRAME_WAIT_SECONDS)
             )
+            if frame["type"] not in CHATTER:
+                frames.append(frame)
     except ConnectionClosed as exc:
         return frames, exc.rcvd.code if exc.rcvd else None
     except TimeoutError:
@@ -109,13 +120,8 @@ async def _close_code(ws: ClientConnection, within: float | None = None) -> tupl
 
 
 async def _silent(ws: ClientConnection, seconds: float) -> bool:
-    try:
-        await asyncio.wait_for(ws.recv(), timeout=seconds)
-    except TimeoutError:
-        return True
-    except ConnectionClosed:
-        return False
-    return False
+    """True if no event-like frame arrives for `seconds` and the socket stays open."""
+    return await _next(ws, seconds) is None and ws.close_code is None
 
 
 async def run(  # noqa: PLR0915 - a linear script reads best top to bottom

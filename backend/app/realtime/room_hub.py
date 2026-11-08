@@ -44,6 +44,7 @@ from app.realtime.connection import (
     Connection,
     WebSocketLike,
 )
+from app.realtime.presence_hub import PresenceCoordinator
 from app.realtime.subscriptions import SubscriptionManager
 from app.schemas.events import RoomEventOut
 from app.services import realtime_access
@@ -89,6 +90,12 @@ class RoomState:
     # computed under is still current: member removal commits an event, so its hint invalidates
     # the cache and the very next drain re-checks (one shared query) before sending anything.
     access_epoch: int = 0
+    # presence support (see presence_hub.py)
+    members: set[uuid.UUID] | None = None  # cached ACTIVE member ids, to filter snapshots
+    members_at: float = float("-inf")
+    members_stale: bool = False
+    last_presence: tuple | None = None  # signature of the last presence snapshot built
+    last_typing: tuple | None = None
 
 
 class RealtimeHub:
@@ -108,8 +115,10 @@ class RealtimeHub:
             on_room_hint=self.on_room_hint,
             on_presence_hint=self.on_presence_hint,
             on_recovered=self.on_recovered,
+            on_lost=self.on_redis_lost,
             client_factory=redis_client_factory,
         )
+        self.presence = PresenceCoordinator(self)
         self.rooms: dict[uuid.UUID, RoomState] = {}
         self.per_user: Counter[uuid.UUID] = Counter()
         self.counters = HubCounters()
@@ -129,6 +138,7 @@ class RealtimeHub:
     async def start(self) -> None:
         """Never needs Redis: the manager connects (and reconnects) in the background."""
         await self.manager.start()
+        await self.presence.start()
         self._tasks = [
             asyncio.create_task(self._reconcile_loop(), name="ws-reconcile"),
             asyncio.create_task(self._stats_loop(), name="ws-stats"),
@@ -147,6 +157,7 @@ class RealtimeHub:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks = []
+        await self.presence.stop()
         await self.manager.stop()
 
     # ---- registry and admission ----------------------------------------------------
@@ -229,14 +240,18 @@ class RealtimeHub:
         self._wake_room(state)
 
     def on_presence_hint(self, room_id: uuid.UUID) -> None:
-        """Presence/typing changed somewhere (checkpoint 4 re-ticks the room)."""
-        return None
+        """Presence or typing changed in another process: look again (coalesced)."""
+        self.presence.on_hint(room_id)
+
+    def on_redis_lost(self) -> None:
+        self.presence.on_redis_lost()
 
     def on_recovered(self) -> None:
         """A Redis subscription was (re)established: hints may have been missed meanwhile, so
         every connection re-reads PostgreSQL."""
         for state in self.rooms.values():
             self._wake_room(state)
+        self.presence.on_recovered()  # re-register local connections: Redis may have restarted
 
     @staticmethod
     def _wake_room(state: RoomState) -> None:
@@ -265,8 +280,10 @@ class RealtimeHub:
         return head
 
     def note_events(self, room_id: uuid.UUID, events: list[RoomEventOut]) -> None:
-        """Called after a connection queued events (checkpoint 4 uses it for member changes)."""
-        return None
+        """Called after a connection queued events: member changes invalidate the member cache
+        that presence snapshots are filtered with."""
+        if any(e.event_type.startswith("member_") for e in events):
+            self.presence.note_member_event(room_id)
 
     # ---- database access with a grace period -----------------------------------------
 
@@ -347,22 +364,22 @@ class RealtimeHub:
                 conn.access_checked_at = started
                 conn.access_epoch = epoch
 
-    # ---- presence hooks (implemented in checkpoint 4) -------------------------------
+    # ---- presence hooks: all non-blocking (see presence_hub.py) -----------------------
 
     def touch_presence(self, conn: Connection) -> None:
-        return None
+        self.presence.touch(conn)
 
     def submit_typing(self, conn: Connection, state: str) -> None:
-        return None
+        self.presence.typing(conn, state)
 
     def submit_availability(self, conn: Connection, value: str) -> None:
-        return None
+        self.presence.availability(conn, value)
 
     async def on_connection_live(self, conn: Connection) -> None:
-        return None
+        self.presence.connection_live(conn)
 
     async def on_connection_closed(self, conn: Connection) -> None:
-        return None
+        self.presence.connection_closed(conn)
 
     # ---- reconciliation: find what a lost hint hid ------------------------------------
 
@@ -414,6 +431,14 @@ class RealtimeHub:
             "rooms_with_connections": len(self.rooms),
             "replaying": self.replaying,
             "redis": self.manager.status(),
+            "presence": {
+                "ok": self.presence.ok,
+                "failures": self.presence.failures,
+                "recoveries": self.presence.recoveries,
+                "ticks": self.presence.ticks,
+                "dropped_ops": self.presence.dropped_ops,
+                "queue": self.presence.ops.qsize(),
+            },
             **{k: v for k, v in self.counters.__dict__.items()},
         }
 

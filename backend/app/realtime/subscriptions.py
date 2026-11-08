@@ -89,6 +89,7 @@ class SubscriptionManager:
         on_room_hint: Callable[[uuid.UUID, int], None] = _noop,
         on_presence_hint: Callable[[uuid.UUID], None] = _noop,
         on_recovered: Callable[[], None] = _noop,
+        on_lost: Callable[[], None] = _noop,
         client_factory: Callable[[], Redis] | None = None,
     ) -> None:
         self._settings = settings
@@ -96,6 +97,7 @@ class SubscriptionManager:
         self._on_room_hint = on_room_hint
         self._on_presence_hint = on_presence_hint
         self._on_recovered = on_recovered
+        self._on_lost = on_lost
         self._client_factory = client_factory or (lambda: create_redis_client(settings))
         self._commands: asyncio.Queue[_Command] = asyncio.Queue()
         self._refs: dict[uuid.UUID, int] = {}  # mutated ONLY by the manager task
@@ -297,6 +299,10 @@ class SubscriptionManager:
         self._fail_acks(ConnectionError("pubsub connection lost"))
         if was_established:
             self.connection_losses += 1
+            try:
+                self._on_lost()  # e.g. presence re-reads at once and reports degraded
+            except Exception as cb_exc:
+                log.error("on_lost_failed error_type=%s", type(cb_exc).__name__)
             log.warning(
                 "redis_pubsub_lost error_type=%s notification_gap_possible=true losses=%s "
                 "(hints published while disconnected are lost; reconciliation covers them)",

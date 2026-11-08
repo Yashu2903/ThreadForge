@@ -201,6 +201,9 @@ class Connection:
         self.access_epoch = -1
         self.last_frame_at = self.clock()
         self.has_ref = False  # holds a Redis subscription reference
+        self.presence_registered = False  # an entry exists (or may exist) in Redis
+        self.presence_registered_at = float("-inf")
+        self.touch_pending = False
         self.registered = False
         self.writer_done = asyncio.Event()
         self._frames = RateLimit(
