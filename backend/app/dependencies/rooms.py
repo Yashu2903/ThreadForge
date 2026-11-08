@@ -83,3 +83,18 @@ MemberAccess = Annotated[RoomAccess, Depends(require_room_member)]
 OwnerAccess = Annotated[RoomAccess, Depends(require_room_owner)]
 MemberAccessUnsafe = Annotated[RoomAccess, Depends(require_room_member_unsafe)]
 OwnerAccessUnsafe = Annotated[RoomAccess, Depends(require_room_owner_unsafe)]
+
+
+async def require_room_writer_unsafe(
+    room_id: str, request: Request, user: CsrfProtectedUser
+) -> RoomAccess:
+    """Unsafe message routes: CSRF, then an active member, then owner or editor (a viewer gets
+    403 insufficient_role). Fast, UNLOCKED rejection so that people with no write access can never
+    take the room lock; never the authority (the service re-checks under the lock)."""
+    access = await _check(request, room_id, user, owner_only=False)
+    if access.role not in ("owner", "editor"):
+        raise insufficient_role()
+    return access
+
+
+WriterAccessUnsafe = Annotated[RoomAccess, Depends(require_room_writer_unsafe)]

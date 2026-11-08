@@ -38,12 +38,15 @@ class AppError(Exception):
         code: str,
         message: str,
         headers: dict[str, str] | None = None,
+        extra: dict[str, object] | None = None,
     ) -> None:
         super().__init__(code)
         self.status_code = status_code
         self.code = code
         self.message = message
         self.headers = headers or {}
+        # Extra machine-readable fields inside the error object (e.g. current_version).
+        self.extra = extra or {}
 
 
 def request_id_of(request: Request) -> str:
@@ -56,10 +59,11 @@ def error_response(
     code: str,
     message: str,
     headers: dict[str, str] | None = None,
+    extra: dict[str, object] | None = None,
 ) -> JSONResponse:
     request_id = request_id_of(request)
     response = JSONResponse(
-        {"error": {"code": code, "message": message, "request_id": request_id}},
+        {"error": {"code": code, "message": message, "request_id": request_id, **(extra or {})}},
         status_code=status_code,
         headers=headers,
     )
@@ -74,7 +78,9 @@ def error_response(
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> JSONResponse:
-        return error_response(request, exc.status_code, exc.code, exc.message, exc.headers)
+        return error_response(
+            request, exc.status_code, exc.code, exc.message, exc.headers, exc.extra
+        )
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -143,3 +149,48 @@ def invalid_cursor() -> AppError:
 
 def validation_failed(message: str) -> AppError:
     return AppError(422, "validation_error", message)
+
+
+# ---- Part 3 error constructors ----------------------------------------------------------------
+
+
+def message_not_found() -> AppError:
+    return AppError(404, "message_not_found", "Message not found.")
+
+
+def message_not_author() -> AppError:
+    return AppError(403, "message_not_author", "You cannot modify this message.")
+
+
+def message_id_reused() -> AppError:
+    return AppError(
+        409,
+        "message_id_reused",
+        "This client_message_id was already used for a different message.",
+    )
+
+
+def message_version_conflict(current_version: int) -> AppError:
+    return AppError(
+        409,
+        "message_version_conflict",
+        "The message changed since you loaded it.",
+        extra={"current_version": current_version},
+    )
+
+
+def message_deleted() -> AppError:
+    return AppError(409, "message_deleted", "This message was deleted and cannot be edited.")
+
+
+def rate_limited(retry_after: int) -> AppError:
+    return AppError(
+        429,
+        "rate_limited",
+        "Too many message writes. Try again shortly.",
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
+def payload_too_large() -> AppError:
+    return AppError(413, "payload_too_large", "The request body is too large.")
