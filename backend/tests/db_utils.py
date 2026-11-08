@@ -14,7 +14,9 @@ from sqlalchemy.pool import NullPool
 from tests.factories import TEST_DATABASE_URL
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-APP_TABLES = ("users", "auth_identities", "sessions", "oidc_login_attempts")
+PART1_TABLES = ("users", "auth_identities", "sessions", "oidc_login_attempts")
+PART2_TABLES = ("rooms", "memberships", "invitations")
+APP_TABLES = (*PART1_TABLES, *PART2_TABLES)
 
 
 def alembic_config(url: str = TEST_DATABASE_URL) -> Config:

@@ -9,6 +9,7 @@ from alembic import command
 
 from tests.db_utils import (
     APP_TABLES,
+    PART1_TABLES,
     alembic_config,
     build_fresh_schema,
     reset_schema,
@@ -24,7 +25,7 @@ def empty_database():
     build_fresh_schema()
 
 
-def test_upgrade_on_empty_database_creates_exactly_the_auth_tables(empty_database):
+def test_upgrade_on_empty_database_creates_exactly_the_part1_and_part2_tables(empty_database):
     assert table_names() == set()
     upgrade_to_head()
     assert table_names() == {*APP_TABLES, "alembic_version"}
@@ -32,7 +33,7 @@ def test_upgrade_on_empty_database_creates_exactly_the_auth_tables(empty_databas
 
 def test_no_tables_for_later_parts_exist(empty_database):
     upgrade_to_head()
-    forbidden = {"rooms", "memberships", "invitations", "messages", "documents", "outbox"}
+    forbidden = {"messages", "documents", "outbox", "room_events", "uploads", "presence"}
     assert not forbidden & table_names()
 
 
@@ -50,3 +51,12 @@ def test_models_and_migrations_have_not_drifted(empty_database):
     # Raises CommandError if autogenerate would produce any operation
     # (types, nullability, indexes, uniques, FKs, server defaults).
     command.check(alembic_config())
+
+
+def test_part2_downgrade_leaves_part1_intact_and_reapplies(empty_database):
+    config = alembic_config()
+    command.upgrade(config, "head")
+    command.downgrade(config, "0001")
+    assert table_names() == {*PART1_TABLES, "alembic_version"}
+    command.upgrade(config, "head")
+    assert table_names() == {*APP_TABLES, "alembic_version"}
