@@ -15,8 +15,10 @@ from datetime import datetime
 from sqlalchemy import func, insert, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.errors import member_not_found, owner_protected
 from app.models import Membership, User
 from app.pagination import decode_cursor, encode_cursor
+from app.services.rooms import bump_membership_epoch, lock_room_and_actor, log_event
 
 _MEMBERSHIPS = Membership.__table__
 _USERS = User.__table__
@@ -123,3 +125,75 @@ async def member_view(db: AsyncSession, membership) -> MemberView:
         await db.execute(select(_USERS.c.display_name).where(_USERS.c.id == membership.user_id))
     ).scalar_one()
     return MemberView(membership.user_id, name, membership.role, membership.joined_at)
+
+
+async def change_role(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    actor_id: uuid.UUID,
+    room_id: uuid.UUID,
+    target_id: uuid.UUID | None,
+    role: str,
+) -> MemberView:
+    """Owner-only role change between editor and viewer.
+
+    Locks: room -> membership row. The owner check happens here under the room lock; the target
+    must be an ACTIVE NON-OWNER member. The owner (including the owner targeting themselves) is
+    owner_protected; unknown or removed targets are member_not_found. Setting the current role is
+    a no-op: no write, no epoch bump, no version bump. The membership row is UPDATEd (never
+    deleted), so a concurrent FOR SHARE membership check conflicts with it.
+    """
+    changed = False
+    async with sessionmaker() as db, db.begin():
+        await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
+        target = await lock_membership(db, room_id, target_id) if target_id else None
+        if target is not None and target.role == "owner":
+            raise owner_protected()
+        if target is None or target.state != "active":
+            raise member_not_found()
+        if target.role != role:
+            target = (
+                await db.execute(
+                    update(_MEMBERSHIPS)
+                    .where(_MEMBERSHIPS.c.room_id == room_id, _MEMBERSHIPS.c.user_id == target_id)
+                    .values(role=role, updated_at=func.now())
+                    .returning(*_MEMBERSHIPS.c)
+                )
+            ).one()
+            await bump_membership_epoch(db, room_id)
+            changed = True
+        view = await member_view(db, target)
+    if changed:
+        log_event("member_role_changed", room_id, actor_id, target_id)
+    return view
+
+
+async def remove_member(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    actor_id: uuid.UUID,
+    room_id: uuid.UUID,
+    target_id: uuid.UUID | None,
+) -> None:
+    """Owner-only removal: state -> removed, removed_at set, row retained for a later rejoin.
+
+    Locks: room -> membership row. Epoch bumps only on an active -> removed transition; removing
+    an already-removed member is a safe no-op (204). Never-existed target: member_not_found.
+    Owner target (including self): owner_protected.
+    """
+    changed = False
+    async with sessionmaker() as db, db.begin():
+        await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
+        target = await lock_membership(db, room_id, target_id) if target_id else None
+        if target is None:
+            raise member_not_found()
+        if target.role == "owner":
+            raise owner_protected()
+        if target.state == "active":
+            await db.execute(
+                update(_MEMBERSHIPS)
+                .where(_MEMBERSHIPS.c.room_id == room_id, _MEMBERSHIPS.c.user_id == target_id)
+                .values(state="removed", removed_at=func.now(), updated_at=func.now())
+            )
+            await bump_membership_epoch(db, room_id)
+            changed = True
+    if changed:
+        log_event("member_removed", room_id, actor_id, target_id)

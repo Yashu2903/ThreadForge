@@ -6,6 +6,7 @@ from __future__ import annotations
 import unicodedata
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -56,3 +57,8 @@ class MemberOut(BaseModel):
     display_name: str
     role: str
     joined_at: datetime
+
+
+class ChangeRoleRequest(_StrictRequest):
+    # "owner" is not in the allowlist: a role update can never create an owner.
+    role: Literal["editor", "viewer"]

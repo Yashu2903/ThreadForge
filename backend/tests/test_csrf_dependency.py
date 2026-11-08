@@ -18,7 +18,7 @@ UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 # Logout must answer 204 when there is no session at all, so it calls enforce_csrf itself, only
 # when a session exists (covered by test_logout.py). Nothing else may be exempt.
 CSRF_EXEMPT = {("POST", "/auth/logout")}
-PART2_ROUTE_MODULES = ("rooms.py", "invitations.py")
+PART2_ROUTE_MODULES = ("rooms.py", "invitations.py", "members.py")
 
 
 def _api_routes() -> list[APIRoute]:
