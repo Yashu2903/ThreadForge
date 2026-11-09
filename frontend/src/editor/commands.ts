@@ -111,3 +111,13 @@ export const tableCommand = {
   deleteColumn: (e: Editor) => e.chain().focus().deleteColumn().run(),
   deleteTable: (e: Editor) => e.chain().focus().deleteTable().run(),
 };
+
+/** A starter diagram: strict-valid on its own (an empty source would fail the shared Mermaid rules). */
+export const STARTER_DIAGRAM = "flowchart TD\n  A[Start] --> B[Finish]";
+
+export const insertDiagram = (editor: Editor): boolean =>
+  editor
+    .chain()
+    .focus()
+    .insertContent({ type: "diagram", content: [{ type: "text", text: STARTER_DIAGRAM }] })
+    .run();

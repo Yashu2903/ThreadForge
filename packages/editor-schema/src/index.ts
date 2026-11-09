@@ -6,6 +6,8 @@ export * from "./hash.js";
 export * from "./limits.js";
 export * from "./links.js";
 export * from "./mermaid.js";
+export * from "./ops.js";
 export * from "./schema.js";
 export * from "./text.js";
+export * from "./units.js";
 export * from "./validate.js";

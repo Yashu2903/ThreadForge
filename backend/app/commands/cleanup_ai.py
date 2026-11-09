@@ -282,6 +282,10 @@ async def _delete_old_manifests(
                                SELECT m2.request_id, m2.attempt FROM ai_manifests m2
                                  JOIN ai_requests r ON r.id = m2.request_id
                                 WHERE r.retain_until IS NOT NULL AND r.retain_until < now()
+                                  AND NOT EXISTS (
+                                      SELECT 1 FROM ai_proposals p
+                                       WHERE p.request_id = r.id
+                                         AND p.state IN ('pending', 'applying'))
                                 LIMIT :n) old
                             WHERE m.request_id = old.request_id AND m.attempt = old.attempt"""
                     ),

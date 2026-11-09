@@ -45,12 +45,12 @@ export function interchange(...texts: string[]): unknown {
   };
 }
 
-export async function createDocument(roomId: string, owner: TestUser, content: unknown = interchange("Hello"), title = "Plan"): Promise<string> {
+export async function createDocument(roomId: string, owner: TestUser, content: unknown = interchange("Hello"), title = "Plan", seedFormat: "interchange" | "tiptap" = "interchange"): Promise<string> {
   const hash = createHash("sha256").update(JSON.stringify(content)).digest();
   const r = await pool.query(
-    "INSERT INTO documents (room_id, created_by, title, template_key, content, content_hash, created_at, updated_at, content_updated_at)" +
-      " VALUES ($1, $2, $3, 'blank', $4, $5, now(), now(), now()) RETURNING id",
-    [roomId, owner.id, title, JSON.stringify(content), hash],
+    "INSERT INTO documents (room_id, created_by, title, template_key, seed_format, content, content_hash, created_at, updated_at, content_updated_at)" +
+      " VALUES ($1, $2, $3, $6, $7, $4, $5, now(), now(), now()) RETURNING id",
+    [roomId, owner.id, title, JSON.stringify(content), hash, seedFormat === "tiptap" ? "ai_draft" : "blank", seedFormat],
   );
   return r.rows[0].id;
 }

@@ -22,8 +22,9 @@
  *   ParagraphFormat   lineSpacing, spaceBefore, spaceAfter, indent as validated attributes
  *   TextFormat        fontKey (allowlist key, never CSS), fontSizePt (8-72), color (#RRGGBB) on textStyle
  *   AssetImage        inline image node with assetId (no stored src; URL derived from the room endpoint)
+ *   Diagram           block node whose TEXT CONTENT is the Mermaid source (see below)
  */
-import { Extension, Node as TipNode, mergeAttributes, type AnyExtension } from "@tiptap/core";
+import { Extension, Node as TipNode, mergeAttributes, type AnyExtension, type NodeViewRenderer } from "@tiptap/core";
 import { Blockquote } from "@tiptap/extension-blockquote";
 import Highlight from "@tiptap/extension-highlight";
 import { Link } from "@tiptap/extension-link";
@@ -51,6 +52,7 @@ export const ID_TYPES = [
   "tableRow",
   "tableCell",
   "tableHeader",
+  "diagram",
 ] as const;
 
 const number = (value: string | null | undefined): number | null => {
@@ -198,12 +200,57 @@ export const AssetImage = TipNode.create<AssetImageOptions>({
   },
 });
 
+/**
+ * A Mermaid diagram. The source is the node's TEXT CONTENT, not an attribute, on purpose:
+ *  - Yjs merges text character by character, so two people editing the same diagram both keep their
+ *    edits; an attribute would be replaced as one value (last writer wins);
+ *  - blockHash() hashes the source with the rest of the block, so "the diagram changed since the AI
+ *    looked at it" is detected like any other block.
+ * `code: true` keeps newlines and spaces; `marks: ""` allows no formatting inside; `isolating` stops
+ * editing commands at the edge (backspace at the start does not merge it into the paragraph before).
+ * The only attributes are the stable block id (UniqueID) and the language ("mermaid" is the only value).
+ * HOW IT IS DRAWN is not part of the schema: the browser adds a node view (createExtensions option
+ * `diagramView`); the collaboration service and the validators never draw anything.
+ */
+export interface DiagramOptions {
+  /** the browser's node view (React); absent on the server and in tests */
+  view?: NodeViewRenderer | null;
+}
+
+export const Diagram = TipNode.create<DiagramOptions>({
+  name: "diagram",
+  group: "block",
+  content: "text*",
+  marks: "",
+  code: true,
+  defining: true,
+  isolating: true,
+  selectable: true,
+  addOptions() {
+    return { view: null };
+  },
+  addAttributes() {
+    return { language: { default: "mermaid" } };
+  },
+  parseHTML() {
+    return [{ tag: "pre[data-diagram]", preserveWhitespace: "full" as const }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["pre", mergeAttributes(HTMLAttributes, { "data-diagram": "mermaid", class: "diagram-source" }), 0];
+  },
+  addNodeView() {
+    return this.options.view ?? null;
+  },
+});
+
 export interface CreateExtensionsOptions {
   assetUrl?: (assetId: string) => string;
   /** passed to UniqueID: ignore transactions that came from other collaborators (isChangeOrigin) */
   uniqueIdFilter?: (transaction: never) => boolean;
   /** generate ids (default crypto.randomUUID) */
   generateId?: () => string;
+  /** the browser's node view for diagrams; the schema is identical with or without it */
+  diagramView?: NodeViewRenderer | null;
 }
 
 export function createExtensions(options: CreateExtensionsOptions = {}): AnyExtension[] {
@@ -255,6 +302,7 @@ export function createExtensions(options: CreateExtensionsOptions = {}): AnyExte
     TableHeader.extend({ content: "paragraph+" }),
     TableCell.extend({ content: "paragraph+" }),
     AssetImage.configure({ assetUrl: options.assetUrl ?? ((id: string) => `/assets/${id}`) }),
+    Diagram.configure({ view: options.diagramView ?? null }),
     UniqueID.configure({
       types: [...ID_TYPES],
       attributeName: "id",

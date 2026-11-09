@@ -205,6 +205,8 @@ class AiResult(Base):
     __tablename__ = "ai_results"
     __table_args__ = (
         UniqueConstraint("request_id", name="uq_ai_results_request_id"),
+        # the target of ai_proposals' composite key: a proposal's result belongs to its own request
+        UniqueConstraint("request_id", "id", name="uq_ai_results_request_id_id"),
         CheckConstraint(f"task_type IN ({_in(TASK_TYPES)})", name="task_type_valid"),
         CheckConstraint("(answer IS NULL) = (redacted_at IS NOT NULL)", name="redacted_consistent"),
     )

@@ -29,6 +29,7 @@ TEMPLATE_KEYS = (
     "meeting_notes",
     "research_summary",
     "imported",
+    "ai_draft",
 )
 _TEMPLATE_LIST = ", ".join(f"'{k}'" for k in TEMPLATE_KEYS)
 
@@ -60,6 +61,7 @@ class Document(Base):
         ),
         CheckConstraint(f"template_key IN ({_TEMPLATE_LIST})", name="template_key_valid"),
         CheckConstraint("schema_version >= 1", name="schema_version_positive"),
+        CheckConstraint("seed_format IN ('interchange', 'tiptap')", name="seed_format_valid"),
         CheckConstraint(
             "collab_state IN ('legacy', 'ready', 'needs_repair')", name="collab_state_valid"
         ),
@@ -87,6 +89,11 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     template_key: Mapped[str] = mapped_column(String(32), nullable=False)
     schema_version: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False)
+    # How the collaboration service reads `content` when it seeds the first Yjs state: 'interchange'
+    # (the document-schema JSON) or 'tiptap' (validated editor JSON, which can hold a diagram).
+    seed_format: Mapped[str] = mapped_column(
+        String(16), server_default=text("'interchange'"), nullable=False
+    )
     content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     content_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     content_version: Mapped[int] = mapped_column(

@@ -172,6 +172,14 @@ function block(n: unknown, path: string): PMJson {
       });
       return { type: "table", attrs: { id: need(n, "id", path) }, content: rows };
     }
+    case "diagram": {
+      // Not part of interchange schema_version 1 (the Python validator does not know it). Accepted here so
+      // one shape can be used by tests and tools; documents.seed_format "tiptap" is the route AI drafts take.
+      only(n, ["type", "id", "source"], path);
+      const source = need(n, "source", path);
+      if (typeof source !== "string") throw new AdaptError(`${path}/source`, "expected a string");
+      return { type: "diagram", attrs: { id: need(n, "id", path) }, ...(source ? { content: [{ type: "text", text: source }] } : {}) };
+    }
     default:
       throw new AdaptError(`${path}/type`, `cannot map block type ${JSON.stringify(n.type)}`);
   }

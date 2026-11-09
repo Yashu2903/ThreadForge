@@ -1,0 +1,44 @@
+[
+  {
+    "name": "plain ASCII",
+    "block": {"type": "paragraph", "attrs": {"id": "a"}, "content": [{"type": "text", "text": "Hello world"}]},
+    "units": "Hello world",
+    "slices": [[0, 5, "Hello"], [6, 11, "world"], [0, 11, "Hello world"], [3, 3, ""], [5, 12, null], [-1, 2, null], [4, 2, null]]
+  },
+  {
+    "name": "marks take no space and adjacent runs join",
+    "block": {"type": "paragraph", "attrs": {"id": "a"}, "content": [{"type": "text", "text": "ab", "marks": [{"type": "bold"}]}, {"type": "text", "text": "cd"}]},
+    "units": "abcd",
+    "slices": [[1, 3, "bc"]]
+  },
+  {
+    "name": "an emoji is two units and its halves cannot be split",
+    "block": {"type": "paragraph", "attrs": {"id": "a"}, "content": [{"type": "text", "text": "a😀b"}]},
+    "units": "a😀b",
+    "slices": [[0, 1, "a"], [1, 3, "😀"], [3, 4, "b"], [0, 4, "a😀b"], [2, 4, null], [0, 2, null], [1, 2, null]]
+  },
+  {
+    "name": "a hard break is one unit and an image is one unit",
+    "block": {"type": "paragraph", "attrs": {"id": "a"}, "content": [{"type": "text", "text": "one"}, {"type": "hardBreak"}, {"type": "text", "text": "two"}, {"type": "image", "attrs": {"assetId": "x", "width": 1, "height": 1}}]},
+    "units": "one\ntwo￼",
+    "slices": [[3, 4, "\n"], [4, 7, "two"], [7, 8, "￼"], [0, 8, "one\ntwo￼"], [0, 9, null]]
+  },
+  {
+    "name": "a heading and a diagram hold text",
+    "block": {"type": "diagram", "attrs": {"id": "a"}, "content": [{"type": "text", "text": "flowchart TD\n  A --> B"}]},
+    "units": "flowchart TD\n  A --> B",
+    "slices": [[0, 9, "flowchart"], [12, 13, "\n"]]
+  },
+  {
+    "name": "an empty paragraph",
+    "block": {"type": "paragraph", "attrs": {"id": "a"}},
+    "units": "",
+    "slices": [[0, 0, ""], [0, 1, null]]
+  },
+  {
+    "name": "combining characters are separate units",
+    "block": {"type": "paragraph", "attrs": {"id": "a"}, "content": [{"type": "text", "text": "éx"}]},
+    "units": "éx",
+    "slices": [[0, 2, "é"], [2, 3, "x"]]
+  }
+]

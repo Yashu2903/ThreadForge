@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useMemo, useRef } from "react";
 import { type MemberName, colorFor, renderCaret } from "../collab/identity";
 import type { CollabSession } from "../collab/session";
+import { diagramNodeView } from "./DiagramView";
 
 /**
  * The editor. React hosts it; Tiptap owns the text. The text is never a React prop or state: it is
@@ -63,6 +64,7 @@ export function TiptapEditor(props: TiptapEditorProps) {
     () => [
       ...createExtensions({
         assetUrl: (id) => latest.current.assetUrl(id),
+        diagramView: diagramNodeView,
         // ids are generated for OUR transactions only; ids that arrive from collaborators are kept
         uniqueIdFilter: ((tr: unknown) => !isChangeOrigin(tr as never)) as never,
       }),

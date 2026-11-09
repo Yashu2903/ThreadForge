@@ -368,14 +368,18 @@ class SeedMaterial:
 async def get_seed(
     sessionmaker: async_sessionmaker[AsyncSession], document_id: uuid.UUID
 ) -> SeedMaterial:
-    """What a LEGACY document is seeded from: its interchange JSON, unless a restore left a
-    'restore' snapshot (plain Tiptap JSON) newer than the content. Anything else is a conflict."""
+    """What a LEGACY document is seeded from: its content, read as documents.seed_format says
+    (interchange JSON for every ordinary document, validated Tiptap JSON for an AI draft), unless a
+    restore left a 'restore' snapshot (plain Tiptap JSON). Anything else is a conflict."""
     async with sessionmaker() as db:
         doc = (
             await db.execute(
-                select(_DOCS.c.room_id, _DOCS.c.collab_state, _DOCS.c.content).where(
-                    _DOCS.c.id == document_id
-                )
+                select(
+                    _DOCS.c.room_id,
+                    _DOCS.c.collab_state,
+                    _DOCS.c.content,
+                    _DOCS.c.seed_format,
+                ).where(_DOCS.c.id == document_id)
             )
         ).one_or_none()
         if doc is None:
@@ -394,7 +398,7 @@ async def get_seed(
         ).scalar_one_or_none()
     if restore is not None:
         return SeedMaterial("tiptap", restore, doc.room_id)
-    return SeedMaterial("interchange", doc.content, doc.room_id)
+    return SeedMaterial(doc.seed_format, doc.content, doc.room_id)
 
 
 # ---- state marks ------------------------------------------------------------------------------

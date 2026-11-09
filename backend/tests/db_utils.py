@@ -39,6 +39,7 @@ ANALYSIS_TABLES = (
     "figures",
 )
 REQUEST_TABLES = ("ai_requests", "ai_request_sources", "ai_manifests", "ai_results")
+PROPOSAL_TABLES = ("ai_proposals", "ai_proposal_applications")
 APP_TABLES = (
     *PART1_TABLES,
     *PART2_TABLES,
@@ -50,6 +51,7 @@ APP_TABLES = (
     *SOURCE_TABLES,
     *ANALYSIS_TABLES,
     *REQUEST_TABLES,
+    *PROPOSAL_TABLES,
 )
 
 

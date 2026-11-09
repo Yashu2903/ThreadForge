@@ -317,6 +317,22 @@ async def test_an_unseeded_document_has_no_state_and_a_seed_source(internal, ses
     assert (missing.status_code, missing.json()["error"]["code"]) == (404, "document_not_found")
 
 
+async def test_the_seed_is_read_in_the_documents_seed_format(internal, sessionmaker, alice):
+    room_id, doc = await room_with_doc(alice, sessionmaker)
+    tiptap = {
+        "type": "doc",
+        "content": [{"type": "paragraph", "attrs": {"id": str(uuid.uuid4())}}],
+    }
+    await execute(
+        sessionmaker,
+        "UPDATE documents SET seed_format = 'tiptap', template_key = 'ai_draft', content = CAST(:c AS jsonb)",
+        c=json.dumps(tiptap),
+    )
+    seed = await internal.get(f"/internal/collab/documents/{doc['id']}/seed")
+    assert seed.status_code == 200
+    assert seed.json()["format"] == "tiptap" and seed.json()["content"] == tiptap
+
+
 async def test_seeding_stores_the_state_and_marks_the_document_ready_in_one_step(
     internal, sessionmaker, alice
 ):

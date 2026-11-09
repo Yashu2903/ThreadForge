@@ -190,3 +190,58 @@ provider has ever been called; the `real` evaluation has not run; the Docker ima
 only Chromium ran the browser spec; POSIX sandbox limits have not run in an automated Linux run.
 
 **Blocked / deferred**: Google Drive as a source (deferred by the owner). Phase 2 not started.
+
+
+---
+
+# AI phase 2 progress
+
+One section per checkpoint, one commit each. Design and reference: `docs/ai.md` sections 17 onward.
+
+**Gate status (read this first).** The owner's phase 2 brief requires an evaluation of edit and draft generation
+"with the configured model" after checkpoint 2, and says to stop if the schema-valid rate with one repair is
+below 90%. No provider key exists in this environment, so that number cannot be measured here. The owner
+said to build phase 2 first and supply the keys afterwards; the gate is therefore **unmeasured, not passed**.
+It is recorded as such in every checkpoint below and in the final report. Stub numbers are labelled stub numbers.
+
+## Phase 2 baseline (before any phase 2 change, commit `a10a5d8`)
+
+Phase 1 final state: backend 1983 passed + 3 skipped at `36400b3` (23 tests added at `a10a5d8`, not re-counted),
+editor-schema 126, `client/` 76, frontend 84, collaboration service 64, typechecks clean.
+
+## Checkpoint 1: diagram node, seed format, proposal tables, target capture
+
+**Done**
+* Shared schema: the `diagram` node (text content = Mermaid source), strict and structure-only validation,
+  `maxDiagrams`, adapter support, golden fixtures (`test/fixtures/diagrams.json`), pinned fingerprint updated,
+  UTF-16 range helpers with a fixture shared with Python (`range-cases.json`).
+* Browser: node view with SafeMermaid, "Edit source" for editors only, viewers see the picture, toolbar
+  "Insert diagram"; styles.
+* Collaboration service: live snapshots use the `structure` policy; seeding stays `strict`.
+* Migration `0011_ai_proposals` (expand only): `documents.seed_format`, `template_key` gains `ai_draft`,
+  `ai_proposals`, `ai_proposal_applications`, `ai_results (request_id, id)` unique. Upgrade, downgrade to `0010`,
+  downgrade to base, upgrade again, `alembic check` clean (scratch database).
+* `services/collab.get_seed` honours `seed_format`; manifest cleanup skips requests with a pending proposal.
+* `backend/app/ai/edit/units.py`, `target.py`: range mapping, target resolution, linearization with labels.
+
+* Also in this commit, ahead of its checkpoint: `packages/editor-schema/src/ops.ts` (the shared edit-operation
+  engine: replace, range, insert, delete; formatting inheritance; scope; atomicity; caps), because the diagram
+  block rules and the range mapping are what it is built on. It is documented under checkpoint 2.
+
+**Verified (automated)**
+* editor-schema **181 passed** (was 126: +17 diagram, +9 range mapping, +29 operations); frontend **88**
+  (was 84: +4 diagram node view in a real Tiptap editor); collaboration service **69** (was 64: +5 seed format,
+  diagram seeding, snapshot policy); `client/` 76 (unchanged). All typechecks clean.
+* backend: the 14 files this checkpoint can affect (migrations, documents, collab internal API, cleanup, security
+  sweep, room events, seeds, schema) plus the 39 new tests: **388 passed**. The **full** backend suite
+  (1983 + 23 at baseline) was **not** re-run for this checkpoint; it is run in full at checkpoint 2.
+* New tests: 15 in `test_ai_proposals_schema.py` (every database rule above), 24 in `test_edit_target.py`
+  (shared range cases, scope, anchors, hashes, before copy, labels), 1 in `test_collab_internal.py` (seed format).
+* `ruff check` and `ruff format --check` clean. Migration `0011`: upgrade, downgrade to `0010`, downgrade to base,
+  upgrade again, `alembic check` clean (scratch database, dropped).
+
+**Not verified**: nothing here talks to a model. The diagram node was exercised in jsdom (a real Tiptap editor)
+and through Yjs, not yet in two real browsers (checkpoint 5). Undo behaviour for diagram typing is the editor's
+normal text undo.
+
+**Next**: checkpoint 2 (proposal generation, validation, review card with preview, no apply, and the gate report).

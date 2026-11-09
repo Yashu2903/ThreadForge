@@ -8,6 +8,7 @@ from app.models.ai import (
     AiUsageLedger,
     UserProviderKey,
 )
+from app.models.ai_proposal import AiProposal, AiProposalApplication
 from app.models.ai_request import AiManifest, AiRequest, AiRequestSource, AiResult
 from app.models.analysis import (
     AnalysisJob,
@@ -33,6 +34,8 @@ from app.models.source import Source, SourceUpload, SourceVersion
 from app.models.user import User
 
 __all__ = [
+    "AiProposal",
+    "AiProposalApplication",
     "AiManifest",
     "AiRequest",
     "AiRequestSource",

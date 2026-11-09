@@ -16,9 +16,22 @@ import type { Schema } from "@tiptap/pm/model";
 import { type PMJson, canonicalStringify, canonicalize, firstDifference } from "./canonical.js";
 import { isHexColor } from "./colors.js";
 import { ID_TYPES } from "./extensions.js";
+import { MERMAID_MAX_CHARS, MERMAID_MAX_LINES, validateMermaidSource } from "./mermaid.js";
 import { ALIGNMENTS, DEFAULT_LIMITS, LINE_SPACINGS, type Limits, MAX_FONT_PT, MAX_INDENT_LEVEL, MAX_SPACE_PT, MIN_FONT_PT } from "./limits.js";
 import { checkLink } from "./links.js";
 import { getEditorSchema } from "./schema.js";
+
+/**
+ * How hard to check a diagram's source.
+ *  - "strict" (the default): the shared Mermaid rules (allowed types, no directives, no click/href, no HTML...).
+ *    Used for everything that ENTERS a document from outside the keyboard: seeds, imports, AI proposals.
+ *  - "structure": only what makes the node sound (top level, language, size and control-character limits).
+ *    Used for the LIVE document's snapshots: a person typing a diagram passes through half-typed states
+ *    that the strict rules reject (an empty source, a `<` in a label), and a snapshot must not put the
+ *    whole document into "needs repair" because of that. Nothing unsafe can be drawn from such a state:
+ *    SafeMermaid applies the strict rules again before it gives any text to Mermaid.
+ */
+export type DiagramPolicy = "strict" | "structure";
 
 export interface DocError {
   path: string;
@@ -30,13 +43,14 @@ export interface DocStats {
   nodes: number;
   blocks: number;
   images: number;
+  diagrams: number;
   bytes: number;
 }
 export type ValidationResult = { ok: true; doc: PMJson; stats: DocStats } | { ok: false; errors: DocError[] };
 
 const MAX_ERRORS = 20;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const BLOCKS = new Set(["paragraph", "heading", "blockquote", "bulletList", "orderedList", "table"]);
+const BLOCKS = new Set(["paragraph", "heading", "blockquote", "bulletList", "orderedList", "table", "diagram"]);
 const ID_SET = new Set<string>(ID_TYPES);
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -52,9 +66,11 @@ function codePoints(s: string): number {
   return n;
 }
 
-function badText(s: string): string | null {
+/** `multiline`: a diagram's source is the one text where a line feed is content (CR is never allowed). */
+function badText(s: string, multiline = false): string | null {
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
+    if (multiline && c === 10) continue;
     if ((c < 0x20 && c !== 9) || (c >= 0x7f && c <= 0x9f) || c === 0x2028 || c === 0x2029) return "contains a newline or control character";
     if (c >= 0xd800 && c <= 0xdbff) {
       const next = s.charCodeAt(i + 1);
@@ -68,10 +84,11 @@ function badText(s: string): string | null {
 class Walk {
   errors: DocError[] = [];
   ids = new Set<string>();
-  stats = { textCodepoints: 0, nodes: 0, blocks: 0, images: 0 };
+  stats = { textCodepoints: 0, nodes: 0, blocks: 0, images: 0, diagrams: 0 };
   constructor(
     readonly limits: Limits,
     readonly schema: Schema,
+    readonly diagramPolicy: DiagramPolicy = "strict",
   ) {}
 
   err(path: string, code: string, message: string): void {
@@ -97,7 +114,7 @@ class Walk {
 
     switch (type) {
       case "text":
-        return this.text(n, path);
+        return this.text(n, path, parents[parents.length - 1] === "diagram");
       case "paragraph":
       case "heading":
         this.paragraphAttrs(type, attrs, path, parents);
@@ -121,6 +138,9 @@ class Walk {
         break;
       case "image":
         this.image(attrs, path);
+        break;
+      case "diagram":
+        this.diagram(n, attrs, path, parents);
         break;
       default:
         break;
@@ -198,10 +218,28 @@ class Walk {
     }
   }
 
-  text(n: Record<string, unknown>, path: string): void {
+  /** A diagram: top-level only, language mermaid, its text content passes the shared Mermaid rules. */
+  diagram(n: Record<string, unknown>, attrs: Record<string, unknown>, path: string, parents: string[]): void {
+    this.stats.diagrams++;
+    if (this.stats.diagrams > this.limits.maxDiagrams) this.err(path, "limit_exceeded", `more than ${this.limits.maxDiagrams} diagrams`);
+    if (parents.some((p) => p !== "doc")) this.err(path, "invalid_structure", "diagrams can only be in the body of the document");
+    if (attrs.language !== undefined && attrs.language !== null && attrs.language !== "mermaid") this.err(`${path}/attrs/language`, "invalid_value", "the diagram language must be mermaid");
+    const children = Array.isArray(n.content) ? n.content : [];
+    const source = children.map((c) => (isObject(c) && typeof c.text === "string" ? c.text : "")).join("");
+    if (this.diagramPolicy === "strict") {
+      const check = validateMermaidSource(source);
+      if (!check.ok) this.err(`${path}/content`, `diagram_${check.code}`, check.message);
+    } else {
+      // structure only: the size limits (shared with the strict rules), nothing about syntax
+      if (source.length > MERMAID_MAX_CHARS) this.err(`${path}/content`, "diagram_too_long", `A diagram is limited to ${MERMAID_MAX_CHARS} characters.`);
+      if (source.split("\n").length > MERMAID_MAX_LINES) this.err(`${path}/content`, "diagram_too_many_lines", `A diagram is limited to ${MERMAID_MAX_LINES} lines.`);
+    }
+  }
+
+  text(n: Record<string, unknown>, path: string, multiline = false): void {
     const text = n.text;
     if (typeof text !== "string" || text === "") return this.err(`${path}/text`, "invalid_text", "text nodes need non-empty text");
-    const bad = badText(text);
+    const bad = badText(text, multiline);
     if (bad) this.err(`${path}/text`, "invalid_text", `text ${bad}`);
     this.stats.textCodepoints += codePoints(text);
     if (this.stats.textCodepoints > this.limits.maxTextCodepoints) this.err(`${path}/text`, "limit_exceeded", `more than ${this.limits.maxTextCodepoints} characters of text`);
@@ -238,14 +276,14 @@ class Walk {
   }
 }
 
-export function validateDocument(json: unknown, limits: Limits = DEFAULT_LIMITS, schema: Schema = getEditorSchema()): ValidationResult {
+export function validateDocument(json: unknown, limits: Limits = DEFAULT_LIMITS, schema: Schema = getEditorSchema(), diagramPolicy: DiagramPolicy = "strict"): ValidationResult {
   if (!isObject(json) || json.type !== "doc") return { ok: false, errors: [{ path: "", code: "invalid_type", message: "expected a document node" }] };
   const input = json as PMJson;
 
   const bytes = new TextEncoder().encode(canonicalStringify(canonicalize(input, schema))).length;
   if (bytes > limits.maxSerializedBytes) return { ok: false, errors: [{ path: "", code: "limit_exceeded", message: `serialized content is larger than ${limits.maxSerializedBytes} bytes` }] };
 
-  const walk = new Walk(limits, schema);
+  const walk = new Walk(limits, schema, diagramPolicy);
   walk.node(json, "", []);
   if (walk.errors.length > 0) return { ok: false, errors: walk.errors };
 

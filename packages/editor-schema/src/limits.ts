@@ -23,6 +23,8 @@ export interface Limits {
   /** every node, including text nodes, rows and cells */
   maxTotalNodes: number;
   maxImages: number;
+  /** diagram blocks in one document (each is also bounded by the Mermaid source limits) */
+  maxDiagrams: number;
   maxListDepth: number;
   maxLinkLength: number;
   maxAltCodepoints: number;
@@ -38,6 +40,7 @@ export const DEFAULT_LIMITS: Limits = {
   maxBlocks: 5_000,
   maxTotalNodes: 60_000,
   maxImages: 100,
+  maxDiagrams: 25,
   maxListDepth: 3,
   maxLinkLength: 2048,
   maxAltCodepoints: 500,

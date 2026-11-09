@@ -175,6 +175,10 @@ button.cite { padding: 0 3px; margin-left: 2px; border: 0; background: none; col
 .diagram-svg svg { max-width: 100%; height: auto; }
 .diagram-source { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 200px; overflow: auto; }
 .diagram-note { color: var(--muted); font-size: 13px; }
+.diagram-block { margin: 10px 0; border: 1px solid var(--border, #d0d4da); border-radius: 6px; padding: 6px; }
+.diagram-render { position: relative; }
+.diagram-toggle { font-size: 12px; margin-top: 4px; }
+.diagram-edit { margin: 6px 0 0; padding: 8px; background: #f6f7f9; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .composer { display: flex; flex-direction: column; gap: 6px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { display: inline-flex; gap: 4px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 12px; background: var(--bg); }

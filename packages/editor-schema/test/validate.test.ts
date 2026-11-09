@@ -126,7 +126,7 @@ describe("limits", () => {
   });
 
   it("the spec's defaults", () => {
-    expect(DEFAULT_LIMITS).toMatchObject({ maxSerializedBytes: 1048576, maxTextCodepoints: 100000, maxBlocks: 5000, maxTotalNodes: 60000, maxImages: 100, maxListDepth: 3, maxLinkLength: 2048, maxAltCodepoints: 500 });
+    expect(DEFAULT_LIMITS).toMatchObject({ maxSerializedBytes: 1048576, maxTextCodepoints: 100000, maxBlocks: 5000, maxTotalNodes: 60000, maxImages: 100, maxDiagrams: 25, maxListDepth: 3, maxLinkLength: 2048, maxAltCodepoints: 500 });
   });
 
   it("exactly 5000 blocks pass and 5001 fail; emoji are counted as code points", () => {
@@ -187,7 +187,7 @@ describe("canonical form, hashes and text", () => {
 describe("the shared schema", () => {
   it("is built from the one extension list and is stable (pinned fingerprint)", async () => {
     const description = schemaDescription() as { nodes: Record<string, unknown>; marks: Record<string, unknown> };
-    expect(Object.keys(description.nodes).sort()).toEqual(["blockquote", "bulletList", "doc", "hardBreak", "heading", "image", "listItem", "orderedList", "paragraph", "table", "tableCell", "tableHeader", "tableRow", "text"]);
+    expect(Object.keys(description.nodes).sort()).toEqual(["blockquote", "bulletList", "diagram", "doc", "hardBreak", "heading", "image", "listItem", "orderedList", "paragraph", "table", "tableCell", "tableHeader", "tableRow", "text"]);
     expect(Object.keys(description.marks).sort()).toEqual(["bold", "highlight", "italic", "link", "strike", "subscript", "superscript", "textStyle", "underline"]);
     // Change the schema on purpose? Update this value AND bump the collaboration data version.
     expect(await schemaFingerprint()).toBe(PINNED_FINGERPRINT);

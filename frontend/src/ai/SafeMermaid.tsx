@@ -84,7 +84,8 @@ export async function drawSafely(id: string, source: string, render: Renderer, t
   }
 }
 
-export function SafeMermaid(props: { source: string; title: string; serverNote?: string | null; renderer?: Renderer }) {
+export function SafeMermaid(props: { source: string; title: string; serverNote?: string | null; renderer?: Renderer; showSource?: boolean }) {
+  const showSource = props.showSource ?? true;
   const id = `mmd-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const [view, setView] = useState<View>({ kind: "pending" });
 
@@ -113,13 +114,15 @@ export function SafeMermaid(props: { source: string; title: string; serverNote?:
       {view.kind === "failed" && (
         <p role="note" className="diagram-note">
           {view.note}
-          {props.serverNote ? ` Checker said: ${props.serverNote}` : ""} The source is below.
+          {props.serverNote ? ` Checker said: ${props.serverNote}` : ""}{showSource ? " The source is below." : ""}
         </p>
       )}
-      <details open={view.kind === "failed"}>
-        <summary>Diagram source</summary>
-        <pre className="diagram-source">{props.source}</pre>
-      </details>
+      {showSource && (
+        <details open={view.kind === "failed"}>
+          <summary>Diagram source</summary>
+          <pre className="diagram-source">{props.source}</pre>
+        </details>
+      )}
     </figure>
   );
 }

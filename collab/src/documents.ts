@@ -79,7 +79,8 @@ export async function validatedSnapshot(ydoc: Y.Doc, limits: Limits): Promise<Sn
     // the Yjs tree cannot even be read with this schema (an unknown node type, for instance)
     return { ok: false, errors: [{ path: "", code: "unreadable", message: "the document cannot be read with the editor schema" }] };
   }
-  const result = validateDocument(canonicalize(json), limits);
+  // "structure": a person's half-typed diagram source must not make a snapshot fail (see DiagramPolicy)
+  const result = validateDocument(canonicalize(json), limits, getEditorSchema(), "structure");
   if (!result.ok) return { ok: false, errors: result.errors };
   return {
     ok: true,

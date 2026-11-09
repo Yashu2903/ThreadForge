@@ -1241,4 +1241,104 @@ cannot be exported yet.
 ## 16. Not built
 
 Google Drive as a source depends on a Drive connection that does not exist in the repository (deferred
-by the owner). Phase 2 (anything that writes into a document) is not started.
+by the owner). Phase 2 (anything that writes into a document) is described from section 17.
+
+
+---
+
+# ThreadForge AI (phase 2)
+
+Phase 2 lets `@AI` propose changes to a document and, only when a person says so, applies them to the live
+shared document. Sections 17 onward describe it; sections 1-16 are phase 1 and still hold.
+
+## 17. Phase 2, checkpoint 1: the diagram node, the draft seed format, proposal tables, target capture
+
+### 17.1 The `diagram` node (packages/editor-schema)
+
+A **node** is a kind of block in the editor's document tree (paragraph, heading, table...). The new node
+`diagram` is a block whose **text content is the Mermaid source**:
+
+```json
+{ "type": "diagram", "attrs": { "id": "<uuid>" },
+  "content": [{ "type": "text", "text": "flowchart TD\n  A[Start] --> B[End]" }] }
+```
+
+Why text and not an attribute: the document is a **Yjs** document (a CRDT, a data structure that merges
+edits from many people without a central lock). Yjs merges *text* character by character, so two people editing
+the same diagram both keep their edits; an attribute is replaced as one value, so one of them would lose.
+It also means `blockHash` (the content hash used to detect "this block changed since the AI looked at it")
+covers the diagram like any other block.
+
+Rules (`validateDocument`, the one validator used by the browser, the collaboration service and the tests):
+top-level only (not inside lists, quotes or tables); at most `maxDiagrams` (25) per document; language is
+`mermaid`; no marks inside; line feeds are allowed in a diagram's text and nowhere else; the source passes
+`validateMermaidSource` (allowed diagram types, at most 20,000 characters and 500 lines, no `%%{init}%%`
+directives, no `click`/`href`/`link`, no HTML, no URLs, no `javascript:`/`data:` schemes, no entities).
+
+**Two policies, on purpose** (`DiagramPolicy`):
+
+| Policy | Used for | What it checks |
+|---|---|---|
+| `strict` (default) | seeds (including AI drafts), imports, AI proposals | the whole list above |
+| `structure` | snapshots of the LIVE document (`collab/src/documents.ts`) | location, language, size limits, no control characters; not the syntax rules |
+
+Reason: a person typing a diagram passes through states the strict rules reject (an empty source, a `<` in a
+label). If a snapshot used the strict rules, one half-typed label would mark the whole document
+`needs_repair`, and new connections would be refused until it was fixed. The text can still never be
+*drawn* unsafely: `SafeMermaid` (browser) applies the strict rules again before it hands anything to Mermaid,
+then Mermaid's strict security level, a timeout, and DOMPurify. And nothing unsafe can *enter* through the AI
+or a seed, because those use `strict`. This is a deliberate reading of "validate with the shared Mermaid
+validator inside validateDocument": the validator is shared and strict by default, and only the live-snapshot
+caller opts into `structure`.
+
+Browser view (`frontend/src/editor/DiagramView.tsx`): the node view draws the picture with `SafeMermaid`
+(redrawn 400 ms after typing stops). People who can edit get an **Edit source** toggle that reveals ProseMirror's
+own content DOM for the text (always present, hidden when off); viewers get the picture only. The toolbar's
+"Insert diagram" inserts a small valid starter diagram (an empty one would not be strict-valid).
+
+Not covered: Mermaid chooses the layout itself, so large diagrams become cluttered (the request path will fail with
+a "split it" message above the size limit); diagrams are **not** exported to DOCX/PDF (that needs a rasterization
+step that does not exist).
+
+The schema fingerprint (`packages/editor-schema/schema.fingerprint`) changed because a node was added; the node
+is additive, so existing documents and seeds are unaffected.
+
+### 17.2 `documents.seed_format` and AI drafts
+
+Migration `0011_ai_proposals` (expand only; downgrade works, but refuses to run while an `ai_draft` document
+exists because the older CHECK constraint would reject it) adds `documents.seed_format`:
+`'interchange'` (default, every existing row) or `'tiptap'`. `GET /internal/collab/documents/{id}/seed`
+(`services/collab.get_seed`) returns `{format, content}` using it; the collaboration service's
+`buildSeed(format, content)` already supported `tiptap` (the operator-restore path), so a draft is seeded through
+the same code: `adapt` (interchange only) -> `validateDocument` (strict) -> Yjs. `template_key` may now be
+`ai_draft`. Interchange `schema_version: 1` cannot describe a diagram, which is why drafts are stored as
+validated Tiptap JSON.
+
+### 17.3 Tables
+
+`ai_proposals` and `ai_proposal_applications` (columns in the migration docstring and
+`backend/app/models/ai_proposal.py`). Database-enforced: an edit has a target document and a captured counter,
+a draft has neither; the document is in the same room as the proposal (composite foreign key); a proposal's
+result belongs to its own request (composite key through `ai_results (request_id, id)`); one proposal per
+request; `resolved_at` is set exactly when the state is final; `applying` carries who and since when;
+`published_document_id` is unique and only set on an applied draft; a receipt hash is exactly 32 bytes and each
+proposal has at most one receipt. The manifest cleanup skips requests that still have a `pending` or `applying`
+proposal ("a capture referenced by a pending proposal must not be pruned").
+
+### 17.4 Target capture (backend/app/ai/edit)
+
+* `units.py` / `units.ts`: positions inside a block's text are **UTF-16 code units**, the unit JavaScript strings
+  and Yjs use. The text of a paragraph, heading or diagram is its inline children in order: text nodes
+  contribute their characters (an emoji is two units), a hard break contributes one unit `\n`, an inline image
+  contributes one unit U+FFFC, marks take no space. A boundary between the two halves of a surrogate pair is
+  refused, never rounded. Both implementations pass the same cases (`test/fixtures/range-cases.json`).
+* `target.py`: `resolve_edit_target` turns what the person pointed at (selected block ids + the Phase 1
+  selection hash, character ranges `(block_id, start, end, text_hash)`, or `insert_at: start|end`) into an
+  `EditTarget`. **No target is `target_required`**: the model is never asked to guess. A missing block, a
+  changed hash or a range that no longer resolves is `selection_changed`. The target records the scope (selected
+  blocks and everything inside them), the declared ranges, insertion anchors (always **top-level** blocks, plus
+  `start`), a block hash for every block in scope, a copy of each outermost selected block ("before"), and the
+  captured `yjs_update_counter`.
+* `linearize` shows the model `[B12] (paragraph) text` with short labels; the server maps labels back to ids.
+  The model never sees an id, a hash, HTML or Yjs bytes. For a document over 40 blocks a table of contents of
+  headings is added.

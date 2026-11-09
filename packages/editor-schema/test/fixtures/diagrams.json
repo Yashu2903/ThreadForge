@@ -1,0 +1,12 @@
+[
+  {"name": "a flowchart", "ok": true, "doc": {"type": "doc", "content": [{"type": "diagram", "attrs": {"id": "00000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "flowchart TD\n  A[Start] --> B[End]"}]}]}},
+  {"name": "an ER diagram between paragraphs", "ok": true, "doc": {"type": "doc", "content": [
+    {"type": "paragraph", "attrs": {"id": "00000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Model"}]},
+    {"type": "diagram", "attrs": {"id": "00000000-0000-4000-8000-000000000002"}, "content": [{"type": "text", "text": "erDiagram\n  USER ||--o{ ORDER : places"}]},
+    {"type": "paragraph", "attrs": {"id": "00000000-0000-4000-8000-000000000003"}}]}},
+  {"name": "an empty diagram is refused when strict", "ok": false, "code": "diagram_empty", "doc": {"type": "doc", "content": [{"type": "diagram", "attrs": {"id": "00000000-0000-4000-8000-000000000001"}}]}},
+  {"name": "an empty diagram is accepted when structure-only", "ok": true, "policy": "structure", "doc": {"type": "doc", "content": [{"type": "diagram", "attrs": {"id": "00000000-0000-4000-8000-000000000001"}}]}},
+  {"name": "a click handler is refused", "ok": false, "code": "diagram_interaction_not_allowed", "doc": {"type": "doc", "content": [{"type": "diagram", "attrs": {"id": "00000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "flowchart TD\n  A --> B\n  click A href \"javascript:alert(1)\""}]}]}},
+  {"name": "marks inside a diagram are refused", "ok": false, "code": "invalid_structure", "doc": {"type": "doc", "content": [{"type": "diagram", "attrs": {"id": "00000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "flowchart TD\n  A --> B", "marks": [{"type": "bold"}]}]}]}},
+  {"name": "a diagram inside a list item is refused", "ok": false, "code": "invalid_structure", "doc": {"type": "doc", "content": [{"type": "bulletList", "attrs": {"id": "00000000-0000-4000-8000-000000000001"}, "content": [{"type": "listItem", "attrs": {"id": "00000000-0000-4000-8000-000000000002"}, "content": [{"type": "paragraph", "attrs": {"id": "00000000-0000-4000-8000-000000000003"}}, {"type": "diagram", "attrs": {"id": "00000000-0000-4000-8000-000000000004"}, "content": [{"type": "text", "text": "flowchart TD\n  A --> B"}]}]}]}]}}
+]

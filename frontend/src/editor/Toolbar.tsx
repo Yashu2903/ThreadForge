@@ -7,6 +7,7 @@ import {
   changeIndent,
   clearColors,
   insertAssetImage,
+  insertDiagram,
   insertTable,
   removeLink,
   setAlign,
@@ -274,6 +275,10 @@ export function Toolbar({ editor, revision, enabled, linkOpen, onLinkOpenChange,
           {s.image && <AltText editor={editor} initial={s.image.alt} />}
         </div>
       )}
+
+      <div className="tb-group" role="group" aria-label="Diagram">
+        {btn("Insert diagram", () => insertDiagram(editor), { children: "⎇", testid: "tb-diagram" })}
+      </div>
 
       <div className="tb-group" role="group" aria-label="Table">
         {btn("Insert table", () => setTableOpen(!tableOpen), { pressed: tableOpen, children: "▦", testid: "tb-table" })}
