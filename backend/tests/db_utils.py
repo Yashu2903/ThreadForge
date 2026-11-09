@@ -20,6 +20,16 @@ PART3_TABLES = ("messages", "message_write_buckets")
 PART4_TABLES = ("room_events", "outbox")
 PART6_TABLES = ("documents", "room_assets", "document_asset_refs", "document_write_buckets")
 COLLAB_TABLES = ("document_yjs_state", "document_snapshots", "collab_lease")
+AI_TABLES = (
+    "ai_global_flags",
+    "ai_consents",
+    "user_provider_keys",
+    "ai_capability_status",
+    "ai_usage_ledger",
+    "ai_budget_windows",
+    "ai_budget_warnings",
+    "ai_rate_buckets",
+)
 APP_TABLES = (
     *PART1_TABLES,
     *PART2_TABLES,
@@ -27,6 +37,7 @@ APP_TABLES = (
     *PART4_TABLES,
     *PART6_TABLES,
     *COLLAB_TABLES,
+    *AI_TABLES,
 )
 
 

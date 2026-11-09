@@ -32,6 +32,7 @@ EVENT_TYPES = (
     "document_renamed",
     "active_document_changed",
     "document_content_updated",
+    "room_ai_settings_changed",
 )
 _TYPE_LIST = ", ".join(f"'{t}'" for t in EVENT_TYPES)
 

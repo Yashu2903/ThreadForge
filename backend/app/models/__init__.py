@@ -1,3 +1,13 @@
+from app.models.ai import (
+    AiBudgetWarning,
+    AiBudgetWindow,
+    AiCapabilityStatus,
+    AiConsent,
+    AiGlobalFlags,
+    AiRateBucket,
+    AiUsageLedger,
+    UserProviderKey,
+)
 from app.models.auth_identity import AuthIdentity
 from app.models.base import Base
 from app.models.collab import CollabLease, DocumentSnapshot, DocumentYjsState
@@ -14,6 +24,14 @@ from app.models.session import Session
 from app.models.user import User
 
 __all__ = [
+    "AiBudgetWarning",
+    "AiBudgetWindow",
+    "AiCapabilityStatus",
+    "AiConsent",
+    "AiGlobalFlags",
+    "AiRateBucket",
+    "AiUsageLedger",
+    "UserProviderKey",
     "AuthIdentity",
     "Base",
     "CollabLease",

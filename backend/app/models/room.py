@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -68,6 +69,8 @@ class Room(Base):
     active_document_version: Mapped[int] = mapped_column(
         BigInteger, server_default=text("0"), nullable=False
     )
+    # AI phase 1: the owner's per-room AI switch (changing it neither bumps version nor epoch).
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
     created_at: Mapped[datetime] = utc_now_column()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False

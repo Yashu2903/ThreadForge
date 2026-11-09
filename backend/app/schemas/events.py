@@ -45,6 +45,10 @@ class ActiveDocumentPayload(_Strict):
     selection_version: Annotated[int, Field(strict=True, ge=1)]
 
 
+class AiSettingsPayload(_Strict):
+    ai_enabled: bool
+
+
 @dataclass(frozen=True)
 class EventSpec:
     resource_type: str
@@ -67,6 +71,8 @@ EVENT_SPECS: dict[str, EventSpec] = {
     "active_document_changed": EventSpec("document", False, ActiveDocumentPayload),
     # resource_version is the document's NEW content_version
     "document_content_updated": EventSpec("document", True, DocumentPayload),
+    # AI phase 1: the owner's room switch. Carries the new value only (never any AI content).
+    "room_ai_settings_changed": EventSpec("room", False, AiSettingsPayload),
 }
 
 

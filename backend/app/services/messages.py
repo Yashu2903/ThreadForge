@@ -576,3 +576,20 @@ async def delete_message(
             changed = True
     if changed:
         log_message_event("message_deleted", room_id, message_id, actor_id)
+
+
+async def chat_chars(db: AsyncSession, room_id: uuid.UUID, ids: list[uuid.UUID]) -> int:
+    """Total characters of the given LIVE messages of this room (deleted ones and ids from other
+    rooms count as zero). Read-only; used to estimate how much chat context a request would send."""
+    if not ids:
+        return 0
+    total = (
+        await db.execute(
+            select(func.coalesce(func.sum(func.length(_MESSAGES.c.body)), 0)).where(
+                _MESSAGES.c.room_id == room_id,
+                _MESSAGES.c.id.in_(ids),
+                _MESSAGES.c.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one()
+    return int(total)

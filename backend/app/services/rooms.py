@@ -269,3 +269,38 @@ async def rename_room(
     if changed:
         log_event("room_renamed", room_id, actor_id, None)
     return to_view(room, role)
+
+
+async def set_room_ai_enabled(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    actor_id: uuid.UUID,
+    room_id: uuid.UUID,
+    enabled: bool,
+) -> bool:
+    """Owner-only room AI switch. Decided HERE under the room lock. Records one
+    room_ai_settings_changed event when the value actually changes; a same-value PUT is a no-op.
+    Touches neither rooms.version nor membership_epoch nor updated_at: it is not a rename or an
+    access change. Returns the value now in force."""
+    changed = False
+    async with sessionmaker() as db, db.begin():
+        locked, _role = await lock_room_and_actor(db, room_id, actor_id, owner_only=True)
+        if bool(locked.row.ai_enabled) != enabled:
+            await db.execute(
+                update(_ROOMS)
+                .where(_ROOMS.c.id == room_id)
+                .values(ai_enabled=enabled, updated_at=_ROOMS.c.updated_at)
+            )
+            await record_room_event(
+                db,
+                locked,
+                event_type="room_ai_settings_changed",
+                resource_type="room",
+                resource_id=room_id,
+                resource_version=None,
+                actor_id=actor_id,
+                payload={"ai_enabled": enabled},
+            )
+            changed = True
+    if changed:
+        log_event("room_ai_settings_changed", room_id, actor_id, None)
+    return enabled

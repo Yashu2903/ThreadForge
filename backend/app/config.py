@@ -200,6 +200,64 @@ class Settings(BaseSettings):
     document_save_body_limit_bytes: int = 2 * 1024 * 1024  # PUT .../content
     # Also bounds a save's JSON overhead; the default document limit is 1 MiB of canonical text.
 
+    # ThreadForge AI (phase 1). EVERYTHING about providers is configuration; nothing is hardcoded.
+    # AI stays off until AI_ENABLED=true AND the model settings below are filled in and valid.
+    ai_enabled: bool = False
+    ai_key_policy: Literal["server_only", "user_only", "user_if_present"] = "user_if_present"
+    ai_openai_api_key: SecretStr = SecretStr("")  # the server's key (workers only)
+    ai_google_api_key: SecretStr = SecretStr("")
+    ai_openai_base_url: str = "https://api.openai.com"
+    ai_google_base_url: str = "https://generativelanguage.googleapis.com"
+    # key_id:base64(32 bytes) pairs, comma separated; the FIRST encrypts (not the Drive keys)
+    ai_key_encryption_keys: SecretStr = SecretStr("")
+    # generation model
+    ai_llm_model: str = ""
+    ai_llm_context_tokens: int = 0
+    ai_llm_max_output_tokens: int = 0
+    ai_llm_structured_output: bool = True  # False = parse plus one bounded repair
+    ai_llm_reasoning_effort: str = ""  # empty = do not send the parameter
+    # embedding model
+    ai_embed_model: str = ""
+    ai_embed_dimensions: int = 0
+    ai_embed_max_input_tokens: int = 0
+    ai_embed_batch_size: int = 32
+    ai_embed_normalize: bool = False  # the documented model normalizes shortened vectors itself
+    ai_embed_query_prefix: str = "task: search result | query: "
+    ai_embed_document_prefix: str = "title: none | text: "
+    # prices: integer micro-dollars per MILLION tokens (USD 0.10 per 1M tokens = 100000)
+    ai_llm_input_micros_per_mtok: int | None = None
+    ai_llm_output_micros_per_mtok: int | None = None
+    ai_embed_text_micros_per_mtok: int | None = None
+    ai_embed_image_micros_per_mtok: int | None = None
+    ai_prices_checked_on: str = ""  # YYYY-MM-DD; required when any price is set
+    ai_image_tokens_estimate: int = 1500  # conservative per-image input tokens for the generator
+    ai_embed_image_tokens_estimate: int = 258  # the embedding docs: a visual page counts as 258
+    # token estimation (no verified local tokenizer): characters / chars_per_token * safety_margin
+    ai_chars_per_token: float = 3.0
+    ai_token_safety_margin: float = 1.1
+    # budgets, integer micro-dollars; unset = not enforced. Server-key calls only.
+    ai_budget_global_monthly_micros: int | None = None
+    ai_budget_user_daily_micros: int | None = None
+    ai_budget_room_daily_micros: int | None = None
+    # per-request caps, enforced before anything is sent (also for user keys)
+    ai_max_input_tokens: int = 200_000
+    ai_max_output_tokens: int = 8_000
+    ai_max_images: int = 8
+    ai_max_provider_calls: int = 40
+    ai_max_new_analysis_pages: int = 100
+    ai_max_new_analysis_figures: int = 40
+    ai_confirm_threshold_micros: int | None = None  # estimate above this needs confirm_large
+    ai_confirm_threshold_tokens: int = 100_000  # used when prices are unset
+    # call policy
+    ai_call_timeout_seconds: float = 120.0
+    ai_retry_max_attempts: int = 4
+    ai_retry_base_delay_seconds: float = 1.0
+    ai_retry_max_delay_seconds: float = 30.0
+    ai_key_concurrency: int = 4  # simultaneous provider calls per key, per worker process
+    ai_key_validations_per_user_per_hour: int = 10
+    ai_key_validations_per_ip_per_hour: int = 30
+    ai_selfcheck_interval_seconds: int = 3600
+
     trusted_proxy_ips: Annotated[list[str], NoDecode] = []
     cookie_secure: bool | None = None
 
@@ -244,6 +302,15 @@ class Settings(BaseSettings):
                 self.google_cloud_project_number,
                 self.cloud_token_encryption_keys.get_secret_value(),
             )
+        )
+
+    @property
+    def ai_prices_configured(self) -> bool:
+        """Spend can be computed only when generation AND the text-embedding prices are known."""
+        return (
+            self.ai_llm_input_micros_per_mtok is not None
+            and self.ai_llm_output_micros_per_mtok is not None
+            and self.ai_embed_text_micros_per_mtok is not None
         )
 
     @property
@@ -363,6 +430,7 @@ class Settings(BaseSettings):
         problems += self._validate_part4(prod)
         problems += self._validate_part6()
         problems += self._validate_collab(prod)
+        problems += self._validate_ai(prod)
         if self.message_writes_per_minute < 1:
             problems.append("MESSAGE_WRITES_PER_MINUTE must be at least 1.")
 
@@ -531,6 +599,137 @@ class Settings(BaseSettings):
             problems.append("COLLAB_MAX_STATE_BYTES must be at least 65536.")
         if self.collab_snapshots_kept < 1:
             problems.append("COLLAB_SNAPSHOTS_KEPT must be at least 1.")
+        return problems
+
+    def _validate_ai(self, prod: bool) -> list[str]:
+        """AI settings. Anything missing leaves AI off (AI_ENABLED=false needs none of this); an
+        enabled-but-incomplete configuration is a startup error that names the setting."""
+        problems: list[str] = []
+        prices = (
+            self.ai_llm_input_micros_per_mtok,
+            self.ai_llm_output_micros_per_mtok,
+            self.ai_embed_text_micros_per_mtok,
+            self.ai_embed_image_micros_per_mtok,
+        )
+        budgets = (
+            self.ai_budget_global_monthly_micros,
+            self.ai_budget_user_daily_micros,
+            self.ai_budget_room_daily_micros,
+        )
+        for name, value in (
+            ("AI_LLM_INPUT_MICROS_PER_MTOK", prices[0]),
+            ("AI_LLM_OUTPUT_MICROS_PER_MTOK", prices[1]),
+            ("AI_EMBED_TEXT_MICROS_PER_MTOK", prices[2]),
+            ("AI_EMBED_IMAGE_MICROS_PER_MTOK", prices[3]),
+            ("AI_BUDGET_GLOBAL_MONTHLY_MICROS", budgets[0]),
+            ("AI_BUDGET_USER_DAILY_MICROS", budgets[1]),
+            ("AI_BUDGET_ROOM_DAILY_MICROS", budgets[2]),
+            ("AI_CONFIRM_THRESHOLD_MICROS", self.ai_confirm_threshold_micros),
+        ):
+            if value is not None and value < 0:
+                problems.append(f"{name} must be 0 or more.")
+        if any(p is not None for p in prices) and not re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}", self.ai_prices_checked_on
+        ):
+            problems.append(
+                "AI_PRICES_CHECKED_ON (YYYY-MM-DD) must be set when any AI price is set: "
+                "prices go stale, and the date says when they were last checked."
+            )
+        if any(b is not None for b in budgets) and not self.ai_prices_configured:
+            problems.append(
+                "AI budgets need the prices (AI_LLM_INPUT_MICROS_PER_MTOK, "
+                "AI_LLM_OUTPUT_MICROS_PER_MTOK, AI_EMBED_TEXT_MICROS_PER_MTOK): a budget cannot "
+                "be enforced without prices."
+            )
+        for name, positive in (
+            ("AI_MAX_INPUT_TOKENS", self.ai_max_input_tokens),
+            ("AI_MAX_OUTPUT_TOKENS", self.ai_max_output_tokens),
+            ("AI_MAX_IMAGES", self.ai_max_images + 1),  # 0 images is allowed
+            ("AI_MAX_PROVIDER_CALLS", self.ai_max_provider_calls),
+            ("AI_MAX_NEW_ANALYSIS_PAGES", self.ai_max_new_analysis_pages),
+            ("AI_MAX_NEW_ANALYSIS_FIGURES", self.ai_max_new_analysis_figures + 1),
+            ("AI_CONFIRM_THRESHOLD_TOKENS", self.ai_confirm_threshold_tokens),
+            ("AI_EMBED_BATCH_SIZE", self.ai_embed_batch_size),
+            ("AI_RETRY_MAX_ATTEMPTS", self.ai_retry_max_attempts),
+            ("AI_KEY_CONCURRENCY", self.ai_key_concurrency),
+            ("AI_KEY_VALIDATIONS_PER_USER_PER_HOUR", self.ai_key_validations_per_user_per_hour),
+            ("AI_KEY_VALIDATIONS_PER_IP_PER_HOUR", self.ai_key_validations_per_ip_per_hour),
+            ("AI_SELFCHECK_INTERVAL_SECONDS", self.ai_selfcheck_interval_seconds),
+        ):
+            if positive < 1:
+                problems.append(f"{name} must be at least 1.")
+        if self.ai_chars_per_token <= 0 or self.ai_token_safety_margin < 1:
+            problems.append(
+                "AI_CHARS_PER_TOKEN must be positive and AI_TOKEN_SAFETY_MARGIN at least 1."
+            )
+        if self.ai_call_timeout_seconds <= 0 or self.ai_retry_base_delay_seconds <= 0:
+            problems.append("AI timeouts and retry delays must be greater than 0.")
+        if self.ai_retry_max_delay_seconds < self.ai_retry_base_delay_seconds:
+            problems.append("AI_RETRY_MAX_DELAY_SECONDS must not be below the base delay.")
+        for name, url in (
+            ("AI_OPENAI_BASE_URL", self.ai_openai_base_url),
+            ("AI_GOOGLE_BASE_URL", self.ai_google_base_url),
+        ):
+            parts = urlsplit(url)
+            if parts.scheme != "https" and (parts.hostname or "") not in _LOCAL_HOSTS:
+                problems.append(f"{name} must be an https URL (http only for localhost tests).")
+        if self.ai_key_encryption_keys.get_secret_value():
+            from app.ai.crypto import KeySet
+
+            try:
+                KeySet.parse(self.ai_key_encryption_keys.get_secret_value())
+            except ValueError as exc:
+                problems.append(f"AI_KEY_ENCRYPTION_KEYS: {exc}")
+        if not self.ai_enabled:
+            return problems
+
+        for name, value in (
+            ("AI_LLM_MODEL", self.ai_llm_model),
+            ("AI_EMBED_MODEL", self.ai_embed_model),
+        ):
+            if not value.strip():
+                problems.append(f"{name} must be set when AI_ENABLED=true (see docs/ai.md).")
+        for name, number in (
+            ("AI_LLM_CONTEXT_TOKENS", self.ai_llm_context_tokens),
+            ("AI_LLM_MAX_OUTPUT_TOKENS", self.ai_llm_max_output_tokens),
+            ("AI_EMBED_DIMENSIONS", self.ai_embed_dimensions),
+            ("AI_EMBED_MAX_INPUT_TOKENS", self.ai_embed_max_input_tokens),
+        ):
+            if number < 1:
+                problems.append(f"{name} must be set (a positive number) when AI_ENABLED=true.")
+        if (
+            self.ai_llm_context_tokens
+            and self.ai_max_input_tokens + self.ai_max_output_tokens > self.ai_llm_context_tokens
+        ):
+            problems.append(
+                "AI_MAX_INPUT_TOKENS + AI_MAX_OUTPUT_TOKENS must fit in AI_LLM_CONTEXT_TOKENS."
+            )
+        if self.ai_llm_max_output_tokens and (
+            self.ai_max_output_tokens > self.ai_llm_max_output_tokens
+        ):
+            problems.append("AI_MAX_OUTPUT_TOKENS must not exceed AI_LLM_MAX_OUTPUT_TOKENS.")
+        has_server_keys = bool(
+            self.ai_openai_api_key.get_secret_value() and self.ai_google_api_key.get_secret_value()
+        )
+        if self.ai_key_policy == "server_only" and not has_server_keys:
+            problems.append(
+                "AI_KEY_POLICY=server_only needs both AI_OPENAI_API_KEY and AI_GOOGLE_API_KEY."
+            )
+        if (
+            self.ai_key_policy != "server_only"
+            and not self.ai_key_encryption_keys.get_secret_value()
+        ):
+            problems.append(
+                "AI_KEY_ENCRYPTION_KEYS must be set when users may bring their own keys "
+                "(AI_KEY_POLICY is not server_only)."
+            )
+        if prod:
+            for name, secret in (
+                ("AI_OPENAI_API_KEY", self.ai_openai_api_key.get_secret_value()),
+                ("AI_GOOGLE_API_KEY", self.ai_google_api_key.get_secret_value()),
+            ):
+                if secret and is_placeholder(secret):
+                    problems.append(f"{name} still looks like a placeholder.")
         return problems
 
     def _validate_part5(self) -> list[str]:

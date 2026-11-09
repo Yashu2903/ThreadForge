@@ -263,3 +263,71 @@ def invalid_image(reason: str, message: str) -> AppError:
 
 def quota_exceeded(message: str) -> AppError:
     return AppError(409, "quota_exceeded", message)
+
+
+# ---- ThreadForge AI (phase 1) -------------------------------------------------------------------
+
+
+def ai_not_configured() -> AppError:
+    return AppError(503, "ai_not_configured", "AI is not configured on this server.")
+
+
+def ai_disabled() -> AppError:
+    return AppError(503, "ai_disabled", "AI has been switched off by the server operator.")
+
+
+def ai_unavailable(detail_code: str = "") -> AppError:
+    extra = {"capability_code": detail_code} if detail_code else None
+    return AppError(
+        503,
+        "ai_unavailable",
+        "AI is temporarily unavailable: a provider check is failing.",
+        extra=extra,
+    )
+
+
+def ai_disabled_for_room() -> AppError:
+    return AppError(409, "ai_disabled_for_room", "The room owner has switched AI off in this room.")
+
+
+def consent_required() -> AppError:
+    return AppError(403, "consent_required", "Read and accept the AI data notice first.")
+
+
+def ai_write_access_required() -> AppError:
+    return AppError(
+        403,
+        "ai_write_access_required",
+        "AI requests need write access to the document you are working in.",
+    )
+
+
+def ai_anchor_required() -> AppError:
+    return AppError(
+        409,
+        "ai_anchor_required",
+        "Open or create a document you can edit first; AI requests are tied to one.",
+    )
+
+
+def key_unavailable(provider: str) -> AppError:
+    return AppError(
+        409,
+        "key_unavailable",
+        "No usable API key is available for this provider.",
+        extra={"provider": provider},
+    )
+
+
+def key_rejected(provider: str | None = None) -> AppError:
+    extra = {"provider": provider} if provider else None
+    return AppError(422, "key_rejected", "The provider rejected this API key.", extra=extra)
+
+
+def budget_exhausted(scope: str) -> AppError:
+    return AppError(
+        429,
+        "budget_exhausted",
+        "The AI spending budget for this period is used up.",
+        extra={"scope": scope},
+    )

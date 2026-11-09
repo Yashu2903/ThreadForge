@@ -15,6 +15,7 @@ dependencies = [
     "redis>=8.1.0",
     "websockets>=17.4",
     "pillow>=13.0.0",
+    "cryptography>=50.0.2",
 ]
 
 [dependency-groups]
@@ -45,4 +46,8 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/**" = ["S603", "S607"]  # operator tool: runs docker/psql with a fixed argv
+"app/ai/**" = ["E501"]  # long prose lines in the design docstrings
+"app/commands/ai_*.py" = ["E501"]
+"app/workers/ai_worker.py" = ["E501"]
+"app/ai/usage.py" = ["E501", "S608"]  # f-string SQL built only from module constants
 "tests/**" = ["S105", "S106", "S311", "S608", "E501"]

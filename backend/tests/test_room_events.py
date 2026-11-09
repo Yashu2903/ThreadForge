@@ -503,7 +503,7 @@ def test_payload_schemas_are_strict(event_type, resource_type, version, payload)
 def test_every_supported_event_type_has_a_spec_and_nothing_else_does():
     from app.models.room_event import EVENT_TYPES
 
-    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 12
+    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 13
 
 
 # ---- privacy ------------------------------------------------------------------------------------------------
@@ -544,6 +544,8 @@ EXPECTED_EVENTS = {
     "rename_document": {"document_renamed"},
     "set_active_document": {"active_document_changed"},
     "save_content": {"document_content_updated"},
+    # AI phase 1: the owner's room switch
+    "set_room_ai_enabled": {"room_ai_settings_changed"},
 }
 # Helpers that record an event on behalf of the functions that call them.
 HELPER_EVENTS = {"_activate(": {"active_document_changed"}}

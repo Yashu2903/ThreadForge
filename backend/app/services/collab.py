@@ -42,6 +42,7 @@ from app.models import (
     RoomAsset,
 )
 from app.services.documents import sync_asset_refs
+from app.services.permissions import decide_write
 from app.services.sessions import load_session
 
 log = logging.getLogger(f"{APP_LOGGER}.collab")
@@ -53,7 +54,6 @@ _LEASE = CollabLease.__table__
 _ASSETS = RoomAsset.__table__
 _MEMBERS = Membership.__table__
 
-EDIT_ROLES = ("owner", "editor")
 WRITE_SNAPSHOT_KINDS = ("seed", "periodic", "final")
 
 
@@ -219,31 +219,18 @@ async def authorize_document(
         context = await load_session(db, secret)
         if context is None or context.user.state != "active":
             raise AppError(401, "session_invalid", "Not signed in.")
-        row = (
-            await db.execute(
-                select(_DOCS.c.room_id, _DOCS.c.collab_state, _MEMBERS.c.role)
-                .select_from(
-                    _DOCS.join(
-                        _MEMBERS,
-                        (_MEMBERS.c.room_id == _DOCS.c.room_id)
-                        & (_MEMBERS.c.user_id == context.user.id)
-                        & (_MEMBERS.c.state == "active"),
-                    )
-                )
-                .where(_DOCS.c.id == document_id)
-            )
-        ).one_or_none()
-    if row is None:
+        decision = await decide_write(db, settings, context.user.id, document_id)
+    if decision.room_id is None or decision.role is None:
         raise AppError(403, "forbidden", "No access to this document.")
     return DocumentAccess(
         user_id=context.user.id,
         display_name=context.user.display_name,
         session_id=context.session_id,
-        role=row.role,
-        can_edit=row.role in EDIT_ROLES,
-        room_id=row.room_id,
+        role=decision.role,
+        can_edit=decision.role_ok,
+        room_id=decision.room_id,
         document_id=document_id,
-        collab_state=row.collab_state,
+        collab_state=decision.collab_state or "legacy",
     )
 
 
