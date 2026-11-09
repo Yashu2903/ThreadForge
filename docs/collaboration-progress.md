@@ -133,10 +133,31 @@ Access enforcement while the socket is open (revoking a member's document socket
 
 **Verified (automated)**
 * collab service vitest 43 passed (28 + 15 new, real FastAPI + PostgreSQL + Redis + WebSocket clients).
-* backend: 6 new access-endpoint tests; collab-internal + CSRF-audit + config 80 passed; ruff clean.
+* backend: 6 new access-endpoint tests; collab-internal + CSRF-audit + config 62 passed; ruff clean.
 * browser: 27 passed, 1 skipped (Chromium + Firefox): adds terminal close, temporary close, runtime demotion.
 * frontend vitest 39 passed; `tsc --noEmit` clean.
 
 **Not verified**: behaviour behind a real reverse proxy (the throttle's proxy mode is tested with headers only);
 the Docker image was not rebuilt after adding the `redis` dependency; Redis with a password/TLS (the client
 accepts a `rediss://` URL but only plain local Redis was exercised).
+
+## Checkpoint 5: migration command, asset guard, templates, cleanup of old code
+
+**Done**
+* `python -m app.commands.migrate_documents_to_collab` (+ service route `POST /internal/migrate`): dry run, per-document
+  results, idempotent, failures stay `legacy`, never touches `documents.content`.
+* Cleanup guard: `cleanup_documents` skips rooms with a `needs_repair` document or a document stored in the last
+  10 minutes (this is how "open connection" is recognised: the database cannot see sockets; documented honestly).
+* Templates seed through the real path (all five tested). Asset references come from validated snapshots only.
+* Removed: `client/src/document-schema.ts` and its 108 tests, the settings `DOCUMENT_WRITES_PER_MINUTE` and
+  `DOCUMENT_SAVE_BODY_LIMIT_BYTES`, `document_version_conflict`, unused aliases. README Part 6 rewritten; deprecated
+  database objects listed there and in `docs/collaboration.md` 7.4 (nothing dropped).
+* `openDirectConnection` is now verified in practice (the migration tests drive it).
+
+**Verified (automated)**
+* backend 1358 passed in sequential batches (278 + 657 + 423), ruff clean; the new guard tests are in `test_assets.py`.
+* collab service vitest 52 passed (43 + 7 migration + 2 templates), `client/` vitest 69 passed (177 before; the 108
+  removed tests belonged to the deleted TypeScript validator), schema package 91, frontend vitest 39, `tsc` and
+  `vite build` clean.
+
+**Not re-run at this checkpoint**: Playwright (no frontend runtime code changed; run again at checkpoint 6).

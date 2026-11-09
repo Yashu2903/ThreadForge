@@ -487,7 +487,56 @@ Redis hint {prefix}:room:{room_id}   ├──► check the affected rooms ─�
 * The edits of a demoted editor typed between the demotion and the server's notice are dropped (told, not hidden).
 * Rate limits are per connection/IP in one process; there is one service instance (the fenced lease), so that is global.
 
-## 7. Later sections
+## 7. Migration, assets and cleanup (cp 5)
 
-Import/migration commands, snapshot-driven asset references and cleanup (cp 5) and the AI hooks (cp 6) are
-written with the checkpoints that build them.
+### 7.1 `migrate_documents_to_collab`
+
+`python -m app.commands.migrate_documents_to_collab [--dry-run] [--document ID] [--room ID] [--limit N]`
+seeds `legacy` documents into Yjs in advance (otherwise it happens when someone first opens them). The Python
+command does not build Yjs: it asks the RUNNING collaboration service, one document at a time, through
+`POST /internal/migrate` (shared secret; the proxy forwards only the WebSocket path). That keeps one seeding
+implementation and respects the single-writer lease.
+
+Per document the service answers `migrated`, `would_migrate` (dry run), `already_migrated`,
+`skipped_needs_repair`, `invalid` (the seed fails `adapt` or `validateDocument`; the reason is a code and a path,
+never content) or `failed`. Rules: it is **idempotent** (migrated documents are no longer legacy; a second run
+says "nothing to do" and writes nothing); a failure leaves the document **`legacy`** (an invalid seed is not
+marked `needs_repair`, unlike a failed seed on a live open); `documents.content` is never touched; opening a
+document while it is being migrated is safe (the seed insert is insert-if-absent). Exit code 0 = nothing failed,
+1 = some document was `invalid`/`failed`, 2 = service unreachable or settings missing. Settings: `DATABASE_URL`,
+`INTERNAL_API_SECRET`, `COLLAB_SERVICE_URL` (default `http://127.0.0.1:4010`).
+
+Tests (`collab/test/migrate.test.ts`, the real command against the real API, PostgreSQL and service): dry run
+changes nothing; real run migrates good documents and leaves the invalid one legacy; idempotent; `--document`
+and needs_repair skip; concurrent with a live open; wrong secret and unreachable service; route authentication.
+`openDirectConnection` (listed as unverified at checkpoint 1) is now exercised by these tests.
+
+### 7.2 Templates
+
+The five templates are interchange JSON stored as seed content at document creation and go through exactly the
+same seeding path (`collab/test/templates.test.ts`: all five reach `ready`, get a seed snapshot, keep real
+headings and unique block ids). Documents created before the change are legacy documents like any other.
+
+### 7.3 Asset references and the cleanup guard
+
+References (`document_asset_refs`) are derived **only from validated snapshots** (`services/collab.write_snapshot`
+calls `sync_asset_refs` in the snapshot's transaction); a snapshot that mentions a missing, expired or foreign
+asset is refused whole. `cleanup_documents` expires unused assets, so it must not delete an image that is in the
+live document but not yet in a snapshot. It therefore **skips the assets of a room** that has a `needs_repair`
+document, or a document whose Yjs state was stored in the last 10 minutes (the database cannot see sockets; an
+open document that is being edited keeps storing, and an open idle one has an accurate snapshot). The command
+reports how many rooms it skipped. Tested in `test_assets.py` (needs_repair, recent state, idle, other rooms
+unaffected).
+
+### 7.4 Removed code and deprecated objects
+
+Removed: the custom editor and toolbar, the save state machine, `PUT .../content` with `save_content`, its
+schemas, the save rate limit and body-limit rule, `document_version_conflict`, the read-only React renderer, the
+playground, the TypeScript twin validator `client/src/document-schema.ts` (the Python validator and the golden
+fixtures stay), and their tests. Kept and deprecated (no drop, expand-only): `documents.content` (read-only seed),
+`content_version`, `content_hash`, `content_updated_at`, the table `document_write_buckets`, the event type
+`document_content_updated`. The README lists them.
+
+## 8. Later sections
+
+The AI hooks, the integration run and the final report (cp 6).

@@ -200,15 +200,6 @@ def document_not_found() -> AppError:
     return AppError(404, "document_not_found", "Document not found.")
 
 
-def document_version_conflict(current_content_version: int) -> AppError:
-    return AppError(
-        409,
-        "document_version_conflict",
-        "Another session saved a newer version of this document.",
-        extra={"current_content_version": current_content_version},
-    )
-
-
 def document_request_id_reused() -> AppError:
     return AppError(
         409,

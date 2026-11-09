@@ -9,6 +9,15 @@ What it does (every step is idempotent and safe to run concurrently or repeatedl
      that dropped them) and that have been unreferenced for ASSET_UNREFERENCED_GRACE_DAYS (7)
      become `expired`, and their bytes are deleted. The grace period exists so a client undo shortly
      after a save still finds its image; an undo across that window may show a broken image;
+  GUARD (steps 1 and 2 only): assets of a room are NOT expired while one of the room's documents
+  might reference an asset that its newest validated snapshot does not list. References come from
+  validated snapshots (docs/collaboration.md), so two situations make that list unreliable:
+    * the document is `needs_repair` (its live Yjs state failed validation; the last good snapshot
+      may predate images that are in the raw state);
+    * the document's Yjs state was stored within the last 10 minutes (ACTIVE_MINUTES): someone is
+      editing it and the snapshot (taken every ~30 s) may be behind. This is how "a document with
+      an open connection" is recognised: the database cannot see sockets, but an open document that
+      is being edited keeps storing. An open but idle document has an accurate snapshot.
   3. ORPHAN files: any file under STORAGE_PATH/assets with no live (non-expired) row, older than 24
      hours, is deleted (a crash between "store the file" and "insert the row", or a failed delete in
      step 1 or 2);
@@ -36,14 +45,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import ConfigError, load_document_cleanup_settings
 from app.db import create_engine_from_url, create_sessionmaker
-from app.models import DocumentAssetRef, RoomAsset
+from app.models import Document, DocumentAssetRef, DocumentYjsState, RoomAsset
 from app.storage import Storage
 
 log = logging.getLogger("threadforge.cleanup")
 _ASSETS = RoomAsset.__table__
 _REFS = DocumentAssetRef.__table__
+_DOCS = Document.__table__
+_STATE = DocumentYjsState.__table__
 ORPHAN_AGE_SECONDS = 24 * 3600
 TEMP_AGE_SECONDS = 3600
+ACTIVE_MINUTES = 10
 
 
 @dataclass(frozen=True)
@@ -52,6 +64,19 @@ class DocumentCleanupResult:
     unreferenced_expired: int = 0
     orphan_files: int = 0
     temp_files: int = 0
+    protected_rooms: int = 0  # rooms skipped by the guard in this run
+
+
+def _protected_rooms(active_minutes: int):
+    """Rooms with a needs_repair document or a document whose Yjs state was stored recently."""
+    return (
+        select(_DOCS.c.room_id)
+        .select_from(_DOCS.outerjoin(_STATE, _STATE.c.document_id == _DOCS.c.id))
+        .where(
+            (_DOCS.c.collab_state == "needs_repair")
+            | (_STATE.c.updated_at > func.clock_timestamp() - timedelta(minutes=active_minutes))
+        )
+    )
 
 
 async def _expire(
@@ -92,13 +117,18 @@ async def cleanup_documents(
     grace_days: int = 7,
     batch_size: int = 500,
     now: float | None = None,
+    active_minutes: int = ACTIVE_MINUTES,
 ) -> DocumentCleanupResult:
     now = time.time() if now is None else now
+    guard = ~_ASSETS.c.room_id.in_(_protected_rooms(active_minutes))
+    async with sessionmaker() as db:
+        protected = len(set((await db.execute(_protected_rooms(active_minutes))).scalars().all()))
     pending = await _expire(
         sessionmaker,
         storage,
         (_ASSETS.c.state == "pending")
-        & (_ASSETS.c.created_at < func.clock_timestamp() - timedelta(hours=pending_ttl_hours)),
+        & (_ASSETS.c.created_at < func.clock_timestamp() - timedelta(hours=pending_ttl_hours))
+        & guard,
         batch_size,
     )
     unreferenced = await _expire(
@@ -107,7 +137,8 @@ async def cleanup_documents(
         (_ASSETS.c.state == "attached")
         & (_ASSETS.c.unreferenced_since.is_not(None))
         & (_ASSETS.c.unreferenced_since < func.clock_timestamp() - timedelta(days=grace_days))
-        & ~exists().where(_REFS.c.asset_id == _ASSETS.c.id),
+        & ~exists().where(_REFS.c.asset_id == _ASSETS.c.id)
+        & guard,
         batch_size,
     )
 
@@ -137,7 +168,7 @@ async def cleanup_documents(
             temps += 1
         except OSError:
             log.warning("could not remove a stale temporary file")
-    return DocumentCleanupResult(pending, unreferenced, orphans, temps)
+    return DocumentCleanupResult(pending, unreferenced, orphans, temps, protected)
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -176,7 +207,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"expired {result.pending_expired} unused pending and {result.unreferenced_expired} "
         f"unreferenced assets; deleted {result.orphan_files} orphan files and "
-        f"{result.temp_files} stale temporary files"
+        f"{result.temp_files} stale temporary files; "
+        f"{result.protected_rooms} rooms skipped (document being edited or needing repair)"
     )
     return 0
 

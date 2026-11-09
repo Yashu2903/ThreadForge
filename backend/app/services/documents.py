@@ -49,7 +49,7 @@ from app.errors import (
     selection_conflict,
 )
 from app.logging_config import APP_LOGGER, request_id_var
-from app.models import Document, DocumentAssetRef, DocumentWriteBucket, Room, RoomAsset
+from app.models import Document, DocumentAssetRef, Room, RoomAsset
 from app.pagination import decode_cursor, encode_cursor
 from app.services.room_events import record_room_event
 from app.services.rooms import lock_room_and_actor
@@ -60,7 +60,6 @@ _DOCS = Document.__table__
 _ROOMS = Room.__table__
 _REFS = DocumentAssetRef.__table__
 _ASSETS = RoomAsset.__table__
-_WRITE_WINDOWS = DocumentWriteBucket.__table__
 
 UNIQUE_VIOLATION = "23505"
 REQUEST_ID_CONSTRAINT = "uq_documents_room_creator_request"

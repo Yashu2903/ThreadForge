@@ -1,7 +1,7 @@
 # ThreadForge
 A collaborative AI workspace where teams turn conversations and source documents into cited drafts, edit together in real time, review AI revisions, and approve and export versioned documents.
 
-## Status: Part 6 in progress (documents, checkpoint 6 of 9); Parts 1 to 5 complete: authentication, rooms, messages, durable events, reconnect recovery, presence and live access
+## Status: Parts 1 to 5 complete (authentication, rooms, messages, durable events, reconnect recovery, presence, live access); Part 6: documents with live collaborative editing (Tiptap + Yjs + Hocuspocus); ThreadForge AI phase 1 in progress
 
 Part 1 (backend foundation and authentication): FastAPI app, PostgreSQL + Alembic, Google OpenID Connect login, local users and provider identities, PostgreSQL-backed browser sessions, CSRF-protected logout, health endpoints, request IDs, a cleanup command.
 
@@ -13,7 +13,9 @@ Part 4 (durable room events and reliable publication of live updates): every sup
 
 Part 5 (reconnect recovery, presence, typing, live access enforcement): a consistent bootstrap (`GET /rooms/{id}/sync`), ordered replay from a client cursor, a safe switch to live delivery where Redis only *hints* and PostgreSQL is always read in order, acknowledgements, lost-hint detection by reconciliation, Redis-only presence and typing, access checked for the whole life of every connection, and a TypeScript client (`client/`). See [Part 5](#part-5-reconnect-recovery-presence-typing-indicators-and-live-access-enforcement). **Still never exactly-once or guaranteed delivery.**
 
-Not implemented (out of scope): documents, uploads, AI, event pruning. There is no frontend and no CORS middleware (none is needed: nothing cross-origin calls the API yet).
+Part 6 (documents with live collaborative editing): see [Part 6](#part-6-documents-with-live-collaborative-editing) and [docs/collaboration.md](docs/collaboration.md). ThreadForge AI (providers, keys, spend controls; phase 1 checkpoint 1 done): [docs/ai.md](docs/ai.md).
+
+Not implemented (out of scope): event pruning, comments, export, import, Google Drive. There is no CORS middleware (none is needed: the browser talks to one origin).
 
 > **Superseded handbook sections.** If a ThreadForge handbook exists under `docs/` (none is in this repository yet), these parts of it are replaced by the Google OIDC decision: email/password login, Argon2id password hashing, `POST /accounts`, `POST /sessions`, and operator password recovery. There are no passwords in this system. The handbook's other conventions are kept: UUID primary keys, UTC timestamps, `ON DELETE RESTRICT` foreign keys, a `version` column on mutable entity tables, and request IDs.
 
@@ -746,278 +748,105 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
 
 ---
 
-## Part 6: documents (in progress: checkpoint 6 of 9, saving and conflicts)
+## Part 6: documents with live collaborative editing
 
-> **Superseded in part.** The custom editor, `PUT .../content`, version conflicts and autosave described
-> below were replaced by Tiptap + Yjs + Hocuspocus live collaboration; see
-> [docs/collaboration.md](docs/collaboration.md) and [docs/collaboration-progress.md](docs/collaboration-progress.md).
-> These sections are rewritten in collaboration checkpoint 5.
+Documents are edited together in real time with **Tiptap + Yjs + Hocuspocus**, all self-hosted, free and
+open source (no `@tiptap-pro/*`, no Tiptap Cloud, no hosted service). The full design, flows, failure modes,
+close codes and licence table are in [docs/collaboration.md](docs/collaboration.md); progress per
+checkpoint in [docs/collaboration-progress.md](docs/collaboration-progress.md); the document model in
+[docs/document-schema.md](docs/document-schema.md).
 
-Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
-the document format is [docs/document-schema.md](docs/document-schema.md).
+### How it fits together
 
-### What exists after checkpoint 1
+```
+browser (Tiptap editor + Yjs + Hocuspocus provider)
+   │  HTTPS: lists, create, rename, active document, image upload      WebSocket /collab (same origin)
+   ▼                                                                    ▼
+FastAPI  ◄──── /internal/collab/* (shared secret, fenced lease) ────  collaboration service (Node, collab/)
+   │                                                                    one instance: Hocuspocus + Yjs
+   ▼
+PostgreSQL: document_yjs_state (the ONLY writable content), document_snapshots (validated JSON), collab_lease
+```
 
-* **Document model** (`backend/app/documents/`): one validator/canonicalizer in Python and its
-  TypeScript twin (`client/src/document-schema.ts`), both run against 76 golden files in
-  `shared/fixtures/`; deterministic canonical JSON and SHA-256 `content_hash`; five server-defined
-  templates.
-* **Tables** (migration `0005`): `documents`, `room_assets`, `document_asset_refs`,
-  `document_write_buckets`, plus `rooms.active_document_id` / `active_document_version` and four new
-  room event types. Tables for imports and cloud connections arrive with the checkpoints that use
-  them.
-* **API** (`backend/app/api/documents.py`, `backend/app/services/documents.py`): create, list, read,
-  rename, choose the active document, save content.
-* **Realtime**: `document_created`, `document_renamed`, `active_document_changed`,
-  `document_content_updated` events; `GET /rooms/{id}/sync` and `GET /rooms/{id}` carry
-  `active_document_id` / `active_document_version`; the Part 5 client folds document events into
-  coalesced `DocumentSignals` and moves its cursor only after the application handled them.
+* **One source of truth.** Once a document is `ready`, its text lives only in `document_yjs_state` (a Yjs
+  binary). `documents.content` is read-only seed material and is never written again. There is no
+  dual-write.
+* **The API never returns text.** `GET /rooms/{id}/documents/{doc}` returns metadata, `collab_state`,
+  `can_edit`, `collab_path` and `document_name`; the editor gets the text from the collaboration service.
+* **Validated snapshots.** The service periodically (and on unload) turns the Yjs state into plain JSON,
+  validates it with the shared schema package (`packages/editor-schema`, also used by the browser) and
+  stores it with the document's asset references in one transaction. A state that fails validation is not
+  snapshotted; the document becomes `needs_repair` and the last good snapshot is kept
+  (`python -m app.commands.restore_document` restores it).
+* **Access.** Authorization is the same function everywhere (`services/permissions.decide_write`), at
+  connection time and, for open connections, every 15 s and on Redis room hints (removal: close 4403, ended
+  session: 4401, demotion: read-only in place, API down beyond 30 s: 1013).
 
 ### Routes
 
-| Route | Who | Notes |
+| Method and path | Who | Notes |
 |---|---|---|
-| `POST /rooms/{room}/documents` | owner | body `title`, `template_key`, `client_request_id`; 201 new, 200 matching retry |
-| `GET /rooms/{room}/documents` | member | keyset pagination, metadata only (never content), `is_active`, `requires_review` |
-| `GET /rooms/{room}/documents/{doc}` | member | content, versions, `can_edit`, `ETag`; `If-None-Match` gives 304 |
-| `PATCH /rooms/{room}/documents/{doc}` | owner | `title` only; bumps `metadata_version` only |
-| `PUT /rooms/{room}/active-document` | owner | `document_id`, optional `expected_selection_version` |
-| `PUT /rooms/{room}/documents/{doc}/content` | owner, editor | `schema_version`, `expected_content_version`, `content`; up to 2 MiB |
+| `POST /rooms/{id}/documents` | owner | creates a document from a template and makes it active; template text is stored as read-only seed |
+| `GET /rooms/{id}/documents` | member | metadata list, newest first |
+| `GET /rooms/{id}/documents/{doc}` | member | metadata + how to open it (ETag from `metadata_version` and `collab_state`) |
+| `PATCH /rooms/{id}/documents/{doc}` | owner | rename |
+| `PUT /rooms/{id}/active-document` | owner | choose the room's active document |
+| `POST/GET /rooms/{id}/assets` | editor / member | image upload and download (unchanged) |
+| `/internal/collab/*` | the collaboration service only | shared secret; never exposed by the proxy |
 
-Gate order on every route: body-size limit (413), authentication (401), CSRF (403), unlocked
-membership/role pre-check (404 `room_not_found` / 403 `insufficient_role`), validation (422), then a
-transaction that locks the room and **rechecks** membership and role. A document, asset or import is
-looked up by room **and** id, so another room's id is simply `document_not_found`.
+The old `PUT .../content`, `expected_content_version`, `document_version_conflict` and the per-save
+`document_content_updated` event no longer exist.
 
-### Error codes added
+### Commands
 
-| Status | Code | Meaning |
-|---|---|---|
-| 404 | `document_not_found` | no such document in this room |
-| 403 | `insufficient_role` | active member without the needed role |
-| 409 | `document_version_conflict` | stale `expected_content_version`; carries `current_content_version`; returned even when the content is identical |
-| 409 | `document_request_id_reused` | same `client_request_id`, different title/template |
-| 409 | `document_limit_reached` | room already has `MAX_DOCUMENTS_PER_ROOM` documents |
-| 409 | `selection_conflict` | stale `expected_selection_version`; carries `current_selection_version` |
-| 422 | `invalid_document_content` | `error.errors: [{path, code, message}]`, a JSON Pointer path |
-| 422 | `asset_not_found` | the content references an asset that is missing, expired or in another room; `error.asset_ids` |
-| 413 | `payload_too_large` | over the route's limit (2 MiB for content saves, 128 KiB elsewhere), counted on received bytes |
-| 429 | `rate_limited` | `DOCUMENT_WRITES_PER_MINUTE` per user per room; `Retry-After` set |
+| Command | Purpose |
+|---|---|
+| `python -m app.commands.migrate_documents_to_collab [--dry-run] [--document ID] [--room ID]` | seed legacy documents into Yjs now (idempotent; per-document results; failures stay `legacy`) |
+| `python -m app.commands.restore_document --document ID --backup-dir DIR` | restore a `needs_repair` document from its last valid snapshot (backs up the raw state first; stop the service first) |
+| `python -m app.commands.cleanup_documents` | expire unused assets (skips rooms with a document being edited or needing repair) |
 
-(`unsupported_media_type`, `quota_exceeded`, `import_*`, `provider_*` arrive with assets, imports and Drive.)
+### Running it
 
-### The save, step by step (`services/documents.save_content`)
+Start PostgreSQL and Redis (`docker compose up -d --wait`), `cd backend && uv run alembic upgrade head`,
+the API, then at the repository root `npm install && npm run build` and the collaboration service
+(`node collab/dist/main.js` with `COLLAB_API_BASE_URL`, `INTERNAL_API_SECRET`, `COLLAB_ALLOWED_ORIGINS`;
+or `docker compose --profile collab up -d --build collab`), then `cd frontend && npm run dev`
+(Vite proxies the API paths and the `/collab` WebSocket). See `.env.example` for every setting.
 
-Outside any lock: size limit, CSRF, pre-check, JSON parse, **validate and canonicalize**, hash,
-collect referenced asset ids. Then one transaction:
+### Deprecated database objects (kept; nothing reads them for content, nothing writes them after creation)
 
-1. lock the room (`FOR NO KEY UPDATE`), recheck membership and role;
-2. load the document `FOR UPDATE`, scoped to the room;
-3. `expected_content_version` differs: 409 (even if the text is identical);
-4. canonical hash equals the stored hash: return the current state with `unchanged: true` (no
-   version bump, no event, no rate-limit use);
-5. referenced assets exist in this room and are not expired, else 422 (asset rows locked);
-6. consume the rate-limit bucket (one `INSERT … ON CONFLICT DO UPDATE … WHERE count < limit`);
-7. update content, hash, timestamps, `content_version + 1`; maintain `document_asset_refs`; record
-   `document_content_updated`; commit.
+Migrations are expand-only: nothing was dropped, so the change can be rolled back and old data is never lost.
 
-Every step that can refuse is before every step that writes, and all writes share one transaction, so
-a conflict, a rate limit or a crash leaves nothing behind (a test injects a failure after the event
-insert and checks that the version, content, refs, bucket and outbox are unchanged). There is no
-force option and no merge.
+| Object | Status |
+|---|---|
+| `documents.content` | read-only **seed** (the template or imported text a document starts from); never written after creation, never returned by the API |
+| `documents.content_version`, `documents.content_hash`, `documents.content_updated_at` | frozen at creation values; unused |
+| table `document_write_buckets` | no longer written (the save rate limit is gone); only the cleanup command still deletes its old rows |
+| event type `document_content_updated` (in the `room_events.type` CHECK) | no longer emitted; old rows remain valid; the client ignores it |
+| settings `DOCUMENT_WRITES_PER_MINUTE`, `DOCUMENT_SAVE_BODY_LIMIT_BYTES` | removed from the settings |
 
-**Lock order:** room, then document, then asset rows, then the rate-limit bucket. Because every
-document write takes the room lock first, writes in one room are serialized, which is what makes
-"exactly one of two concurrent saves wins" a database property.
+A later migration may drop these once every deployment has migrated its documents
+(`migrate_documents_to_collab`) and the seed content is no longer needed.
 
-### Creation, retries and the active document
+### Removed code
 
-`POST …/documents` is one transaction: lock room, recheck owner, look up `(room, user,
-client_request_id)`; a match with the same HMAC fingerprint returns 200 with the existing document
-and changes **nothing** (it does not re-activate it, even if another document is active now); a
-different fingerprint is 409; otherwise the per-room cap is checked, the document inserted, the
-room's `active_document_id` set (`active_document_version + 1`; `rooms.version` and `updated_at`
-untouched) and `document_created` then `active_document_changed` recorded. The composite foreign key
-`rooms (id, active_document_id) → documents (room_id, id)` makes a foreign-room active document
-impossible; PostgreSQL's default `MATCH SIMPLE` skips the check when `active_document_id` is NULL
-(verified in `tests/test_documents_constraints.py`).
+The custom editor and toolbar (`frontend/src/editor/*` except the font list), the save/autosave/conflict state
+machine (`documents/session.ts`), the read-only React renderer, the development playground, the TypeScript
+twin of the document validator (`client/src/document-schema.ts`; the Python validator stays for templates and
+the golden fixtures), `PUT .../content` and its service, schemas and tests.
 
-### Migration order (`0005`)
+### Tests
 
-Create `documents` with `UNIQUE (room_id, id)`, add the nullable `rooms` columns, then add the
-composite foreign key (it needs the unique key and the columns to exist). Existing rooms get NULL and
-version 0; no events are invented. **Downgrade refuses** if document events exist (events are
-append-only and gapless) instead of deleting them.
+backend pytest (real PostgreSQL), collaboration service vitest (real FastAPI + PostgreSQL + Redis + WebSocket
+clients), the shared schema package vitest (golden fixtures), frontend vitest, and Playwright browser tests
+(Chromium and Firefox) that run the real stack. Exact counts per checkpoint are in
+`docs/collaboration-progress.md`.
 
-### Configuration added (checkpoint 1)
+### Not built (and no UI shows them)
 
-`DOCUMENT_MAX_SERIALIZED_BYTES`, `DOCUMENT_MAX_TEXT_CODEPOINTS`, `DOCUMENT_MAX_TOTAL_NODES`,
-`DOCUMENT_MAX_BLOCKS`, `DOCUMENT_MAX_INLINE_NODES`, `DOCUMENT_MAX_IMAGES`, `DOCUMENT_MAX_LIST_DEPTH`,
-`DOCUMENT_MAX_LINK_LENGTH`, `DOCUMENT_FONT_KEYS`, `MAX_DOCUMENTS_PER_ROOM` (200),
-`DOCUMENT_WRITES_PER_MINUTE` (120), `DOCUMENT_SAVE_BODY_LIMIT_BYTES` (2 MiB; must be at least the
-serialized limit). All validated at startup; see `.env.example`.
-
-### Frontend (checkpoint 2): `frontend/`
-
-React 18 + TypeScript (strict) + Vite, tests with vitest and Playwright. It reuses the framework-free
-room client from `client/` (aliased as `threadforge-client`), so there is exactly one event client:
-chat and document events share one WebSocket.
-
-```
-cd backend && uv run uvicorn app.main:create_app --factory --port 8000 --no-access-log
-cd backend && uv run python -m app.workers.outbox_dispatcher        # publishes the live hints
-cd frontend && npm install && npm run dev                           # http://localhost:5173
-```
-
-The dev server proxies `/auth`, `/rooms`, `/capabilities` and `/health` to the API
-(`THREADFORGE_API`, default `http://127.0.0.1:8000`), so the browser sees ONE origin: the session
-cookie is first-party and there is no CORS. Add `http://localhost:5173` to the backend's
-`TRUSTED_ORIGINS` (CSRF and WebSocket Origin checks compare it exactly). Routes are `#/hash` routes,
-so no page path can collide with an API prefix.
-
-What the layout does: navigation (documents) | document area | chat. An empty room shows the owner
-**Start document** and **Open document** and everyone else a clear empty state. The start dialog has
-a title and five templates, blocks double submits, and a retry after a failure re-sends the SAME
-`client_request_id`. The open dialog lists saved documents (owners can *Make active*); Google Drive is
-shown as unavailable, with a setup explanation, when `GET /capabilities` says `not_configured`; no
-Dropbox/OneDrive UI exists. "Upload from this device" and the Drive picker are NOT shown until their
-backend exists. The document area currently renders the content **read-only** (a React renderer that
-creates only text nodes and attributes, never `innerHTML`); the editor replaces it for owners and
-editors in checkpoint 3 onward. A clean client follows `active_document_changed` and opens the new
-active document; an open document is refetched with `If-None-Match` at most once per second after a
-newer `document_content_updated`.
-
-`GET /capabilities` (authenticated) answers `{"google_drive": "available" | "not_configured"}` and
-nothing else: no keys, ids or secrets. Drive is `available` only when all five Drive settings are
-set and none is a placeholder.
-
-**Browser tests** (`frontend/e2e/`, `npm run e2e`): Playwright starts the real API (port 8100), the
-outbox dispatcher and Vite against a dedicated database `threadforge_e2e` (created, migrated and
-emptied by `backend/scripts/e2e_prepare.py`, which refuses any other name) and Redis database 14.
-Logged-in browsers are made by `backend/scripts/seed_session.py`, which writes a user and a session
-through the real session service and prints the cookie; Playwright sets that cookie. There is **no
-impersonation endpoint** in the API.
-
-### The editor (checkpoints 3 and 4: core, formatting and structure)
-
-Our own editor in `frontend/src/editor/` - see [docs/editor-architecture.md](docs/editor-architecture.md)
-(layers, the exact DOM-to-model selection mapping, IME handling, id rules, history) and
-[docs/editor-ime-checklist.md](docs/editor-ime-checklist.md) (manual checks for real IMEs and Safari).
-It is a framework-free island: React hosts it through `EditorSurface` (one empty `<div>`, never
-children), and the editor handles `beforeinput` itself (everything is cancelled and applied to an
-immutable model; unknown input types are cancelled, never allowed to edit the DOM). Until saving
-exists (checkpoint 6) it is reachable only on the development playground, `#/playground`.
-
-Checkpoint 4 adds the toolbar and the formatting/structure commands: bold/italic/underline/strike/
-super/subscript (tri-state over mixed selections), fonts and sizes, colours and highlight, headings,
-quote, alignment, line/paragraph spacing, indent, bulleted/numbered lists (Tab, Shift+Tab, Enter and
-Backspace rules, depth <= 3), links (http/https/mailto only), tables (Tab navigation, add/remove
-rows and columns, 50 x 20 limit), typing-state marks at a caret, and self-hosted metric-compatible
-fonts with their licenses in `frontend/public/fonts/`.
-
-### Image assets (checkpoint 5)
-
-| Route | Who | Notes |
-|---|---|---|
-| `POST /rooms/{room}/assets` | owner, editor | raw body, `Content-Type: image/png`, `image/jpeg` or `image/webp`; streamed to disk, at most `ASSET_MAX_UPLOAD_BYTES` (10 MiB) counted on received bytes |
-| `GET /rooms/{room}/assets/{asset}` | any member | authorized on every request; validated `Content-Type`, `nosniff`, `Cache-Control: private` + `ETag` (SHA-256), 304 on `If-None-Match` |
-
-**What happens to an upload** (`app/assets_pipeline.py`): the real signature must be PNG, JPEG or WebP
-(SVG, GIF, BMP, HTML dressed up as an image are 415) and must agree with the Content-Type; Pillow opens
-it restricted to that format and reads only the header, so a file that claims more than
-`ASSET_MAX_PIXELS` (25 million) or more than 10,000 pixels on a side is refused (`422 invalid_image`,
-reason `too_many_pixels` / `dimensions_too_large`) before any pixel is decoded, and Pillow's own
-decompression-bomb guard is armed behind that; animated WebP/APNG are refused (`animated`); then it is
-decoded, the EXIF orientation applied, converted to a plain RGB/RGBA image and **encoded again with no
-metadata**. The stored file is that re-encoding, so EXIF/GPS, ICC profiles, text chunks, comments and
-anything appended after the image (a polyglot's second payload) are gone; `sha256`, `byte_size`,
-`width_px`, `height_px` describe the stored bytes. Decoding runs in a worker thread, at most
-`ASSET_PROCESSING_CONCURRENCY` at a time per API process.
-
-**Storage** (`app/storage.py`): an opaque-key adapter on `STORAGE_PATH` (random 32-hex keys, sharded
-directories, temp file + atomic rename). User-supplied names are never part of a path. The API and
-the workers must share the directory (a persistent volume); multi-host deployments need a shared
-mount. No paid object storage.
-
-**Quotas and limits:** per-room total bytes (`ASSET_ROOM_QUOTA_BYTES`, 200 MiB) and count
-(`ASSET_MAX_PER_ROOM`), both excluding expired assets (`409 quota_exceeded`); per-user upload rate
-(`ASSET_UPLOADS_PER_MINUTE`, 30 per user per room, `429` + `Retry-After`), counted from rows the user
-created in the last minute so refused uploads cost nothing; a save can reference at most
-`DOCUMENT_MAX_IMAGES` (100) images. Uploads emit no room events and use no document-save quota.
-
-**Lifecycle:** `pending` on upload; the first save that references it makes it `attached`; a save that
-drops the last reference sets `unreferenced_since`; `python -m app.commands.cleanup_documents`
-(cron) expires pending assets unreferenced for `ASSET_PENDING_TTL_HOURS` (24) and attached assets
-unreferenced for `ASSET_UNREFERENCED_GRACE_DAYS` (7), deletes their bytes, removes storage files that
-have no live row after 24 hours (a crash between "store" and "insert"), and stale temp files. The row
-is marked `expired` first (one atomic UPDATE that re-checks the conditions, so a save that
-re-referenced the asset wins) and the file deleted after. **An undo across the 7-day window may show a
-broken image.** Removing an image from unsaved local content deletes nothing.
-`cleanup_auth` also prunes old `document_write_buckets` windows.
-
-**Editor:** the Insert image button uploads the chosen file, then inserts an inline image atom (scaled
-to at most 600 px wide, alt text empty). Clicking an image selects it as a unit (Backspace/Delete
-removes it whole, undo restores it); the alt-text field edits `alt` (control characters become spaces,
-500 characters). No remote image URLs, no clipboard images, no drag-and-drop of files.
-
-Configuration: `STORAGE_PATH`, `ASSET_MAX_UPLOAD_BYTES`, `ASSET_MAX_PIXELS`, `ASSET_ROOM_QUOTA_BYTES`,
-`ASSET_MAX_PER_ROOM`, `ASSET_UPLOADS_PER_MINUTE`, `ASSET_PROCESSING_CONCURRENCY`,
-`ASSET_PENDING_TTL_HOURS`, `ASSET_UNREFERENCED_GRACE_DAYS` (all validated; see `.env.example`).
-New error codes: `unsupported_media_type` (415), `invalid_image` (422, with `reason`),
-`quota_exceeded` (409).
-
-### Saving and conflicts (checkpoint 6)
-
-The editor is now mounted in rooms for owners and editors (`frontend/src/DocumentEditor.tsx`);
-viewers, and every mobile browser, get the read-only rendering. All saving rules live in one
-framework-free state machine, `frontend/src/documents/session.ts`, which React only displays.
-
-**States:** *Saved* (the backend committed: an HTTP 200 with a `content_version`; "sent" is not saved),
-*Unsaved changes*, *Saving…*, *Save failed*, *Conflict*, *Read-only*.
-
-* **Saving.** Explicit Save (button, Ctrl/Cmd+S) plus autosave about 1 s after edits settle, never
-  during IME composition. The client canonicalizes (`validateDocument`) before sending, so the server
-  normally changes nothing; `canonical_changed` content is adopted only if there are no newer local
-  edits. **One save in flight:** the response acknowledges the *snapshot that was submitted*, so text
-  typed during a save is kept and the next save sends the version the response returned.
-* **Failures keep the text.** Network error or 5xx: retry with backoff (2 s doubling to 30 s) and a
-  manual *Retry now*. 429: autosave pauses for `Retry-After`. 422/413: reported, no retry loop.
-* **Conflicts.** A 409 `document_version_conflict`, **or a `document_content_updated` event for a
-  version we do not have while we hold unsaved work**, stops all saving, keeps the local text and
-  says another session saved a newer version. The event path is proactive: the conflict appears
-  without waiting for a 409. There is **no automatic merge and no force-save**. *Copy my text* is the
-  recovery aid; *Load latest…* asks for confirmation and only then discards local changes. Events at or
-  below the version we already hold are our own saves and are ignored; an event that beats the HTTP
-  answer of our own save is held until the answer arrives, so it is never mistaken for a conflict.
-* **Clean copies follow.** A clean editor adopts a newer server version (the document store refetches
-  with `If-None-Match`, at most once per second). Adopting clears undo history, because the old
-  snapshots describe a document that no longer exists. A dirty copy is never replaced.
-* **Active document switching.** A clean client opens the room's new active document. A client with
-  unsaved work keeps its document, shows *The room switched…* and offers *Save, then switch* or
-  *Discard my changes and switch*. The same guard protects the user's own navigation (opening another
-  document, creating one).
-* **Access.** A role downgrade below editor (`member_role_changed`, or a 403 on save) or removal (a 404,
-  or the live `member_removed`) stops autosave, makes the editor read-only and **keeps the unsaved
-  text in the page** with *Copy my text* (also on the access-lost screen); no further saves or fetches
-  are made. Regaining rights resumes saving.
-* **Leaving the page** with anything unsaved triggers the browser's `beforeunload` warning. There is
-  **no offline persistence and no crash recovery**: unsaved text lives only in the open tab.
-* **Mobile browsers** can view documents; editing is unsupported there (a notice says so).
-
-The room client now also keeps `state.role` in step with the member list, so a role change shows up
-without a reload.
-
-### Known limitation (by design in this part)
-
-There is no collaborative merge. Two editors changing the same document will hit version conflicts;
-the design makes them early and lossless (a stale save is refused, nothing is overwritten, the
-losing client keeps its text) but does not remove them.
-
-### Not built (and no UI will show them)
-
-Simultaneous collaborative editing, revision history, comments, tracked changes, DOCX/PDF export,
-AI, document deletion, other cloud providers, merged/nested table cells, headers/footers,
-pagination, formatted paste, mobile editing, antivirus scanning.
+Comments, tracked changes, versions/history browsing, approvals, export, import (DOCX/Google Docs) and Google
+Drive. The seeding path accepts the interchange JSON, so an importer can feed it later. AI features are
+separate (see `docs/ai.md`).
 
 ---
 
@@ -1090,6 +919,10 @@ backend/migrations/ Alembic (async template), versions/0001_auth_foundation.py, 
                     0003_messages.py, 0004_room_events_outbox.py
 backend/scripts/    manual_part2_check.py ... manual_part4_check.py, manual_part5_check.py
 client/             Part 5: TypeScript room client (src/, test/ with vitest, demo/)
+frontend/           React + Vite app: rooms, chat, the Tiptap collaborative editor (src/collab, src/editor)
+collab/             Node collaboration service (Hocuspocus + Yjs); talks to /internal/collab only
+packages/editor-schema/  the ONE document schema, validator and adapter (browser + service)
+backend/app/ai/     ThreadForge AI: providers, keys, spend ledger, budgets, self-check (docs/ai.md)
 backend/tests/      pytest suite (fake Google in tests/fake_google.py; real PostgreSQL and Redis)
 compose.yaml        PostgreSQL 16 and Redis 7
 .env.example

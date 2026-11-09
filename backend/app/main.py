@@ -113,7 +113,8 @@ def create_app(
             (
                 "POST",
                 re.compile(r"/internal/collab/documents/[^/]+/snapshot"),
-                settings.document_save_body_limit_bytes,
+                # a snapshot is canonical JSON plus a little
+                2 * settings.document_max_serialized_bytes,
             ),
             # image uploads are STREAMED (never buffered) and counted as they arrive
             (

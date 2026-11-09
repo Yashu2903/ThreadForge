@@ -792,3 +792,72 @@ async def test_old_document_write_windows_are_cleaned_with_the_other_buckets(
     result = await cleanup_auth(sessionmaker)
     assert result.document_write_buckets == 1
     assert await scalar(sessionmaker, "SELECT count(*) FROM document_write_buckets") == 1
+
+
+# ---- the cleanup guard (documents that might reference more than their snapshot says) -------------
+
+
+async def test_cleanup_skips_rooms_whose_snapshot_may_be_behind(
+    make_actor, cfg, sessionmaker, store
+):
+    owner, room_id, ids = await make_assets(make_actor, cfg, sessionmaker)
+    doc = (
+        await owner.post(
+            f"/rooms/{room_id}/documents",
+            json={"title": "D", "template_key": "blank", "client_request_id": new_id()},
+        )
+    ).json()
+    await execute(sessionmaker, "UPDATE room_assets SET created_at = now() - interval '3 days'")
+
+    # a needs_repair document: its raw Yjs state may hold images the last good snapshot does not list
+    await execute(
+        sessionmaker,
+        "UPDATE documents SET collab_state = 'needs_repair' WHERE id = :d",
+        d=doc["id"],
+    )
+    held = await cleanup_documents(sessionmaker, store)
+    assert (held.pending_expired, held.protected_rooms) == (0, 1)
+    assert (
+        await scalar(sessionmaker, "SELECT count(*) FROM room_assets WHERE state = 'pending'") == 3
+    )
+
+    # repaired, but someone is editing it right now (state stored a minute ago): still protected
+    await execute(
+        sessionmaker, "UPDATE documents SET collab_state = 'ready' WHERE id = :d", d=doc["id"]
+    )
+    await execute(
+        sessionmaker,
+        "INSERT INTO document_yjs_state (document_id, room_id, state, update_counter, byte_size, updated_at)"
+        " VALUES (:d, :r, decode('00', 'hex'), 1, 1, now() - interval '1 minute')",
+        d=doc["id"],
+        r=room_id,
+    )
+    held = await cleanup_documents(sessionmaker, store)
+    assert (held.pending_expired, held.protected_rooms) == (0, 1)
+
+    # idle for longer than the window: the snapshot is accurate, normal expiry applies
+    await execute(
+        sessionmaker, "UPDATE document_yjs_state SET updated_at = now() - interval '11 minutes'"
+    )
+    done = await cleanup_documents(sessionmaker, store)
+    assert (done.pending_expired, done.protected_rooms) == (3, 0)
+
+
+async def test_the_guard_protects_only_the_room_in_question(make_actor, cfg, sessionmaker, store):
+    owner, room_a, _ids = await make_assets(make_actor, cfg, sessionmaker)
+    room_b = await new_room(owner)
+    await upload(owner, room_b, png(20, 20))
+    doc = (
+        await owner.post(
+            f"/rooms/{room_a}/documents",
+            json={"title": "D", "template_key": "blank", "client_request_id": new_id()},
+        )
+    ).json()
+    await execute(sessionmaker, "UPDATE room_assets SET created_at = now() - interval '3 days'")
+    await execute(
+        sessionmaker,
+        "UPDATE documents SET collab_state = 'needs_repair' WHERE id = :d",
+        d=doc["id"],
+    )
+    result = await cleanup_documents(sessionmaker, store)
+    assert (result.pending_expired, result.protected_rooms) == (1, 1)  # room B's asset only

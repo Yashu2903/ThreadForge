@@ -198,9 +198,6 @@ class Settings(BaseSettings):
     collab_lease_ttl_seconds: int = 30  # the service renews every 10 s
     collab_max_state_bytes: int = 8 * 1024 * 1024  # a larger Yjs state is refused with 413
     collab_snapshots_kept: int = 10  # newest N per document, plus the newest seed
-    document_writes_per_minute: int = 120  # per user per room; separate from chat's quota
-    document_save_body_limit_bytes: int = 2 * 1024 * 1024  # PUT .../content
-    # Also bounds a save's JSON overhead; the default document limit is 1 MiB of canonical text.
 
     # ThreadForge AI (phase 1). EVERYTHING about providers is configuration; nothing is hardcoded.
     # AI stays off until AI_ENABLED=true AND the model settings below are filled in and valid.
@@ -548,7 +545,6 @@ class Settings(BaseSettings):
             ("DOCUMENT_MAX_IMAGES", self.document_max_images),
             ("DOCUMENT_MAX_LINK_LENGTH", self.document_max_link_length),
             ("MAX_DOCUMENTS_PER_ROOM", self.max_documents_per_room),
-            ("DOCUMENT_WRITES_PER_MINUTE", self.document_writes_per_minute),
         ):
             if value < 1:
                 problems.append(f"{name} must be at least 1.")
@@ -570,11 +566,6 @@ class Settings(BaseSettings):
             problems.append("STORAGE_PATH must be set.")
         if not 1 <= self.document_max_list_depth <= 3:
             problems.append("DOCUMENT_MAX_LIST_DEPTH must be between 1 and 3.")
-        if self.document_save_body_limit_bytes < self.document_max_serialized_bytes:
-            problems.append(
-                "DOCUMENT_SAVE_BODY_LIMIT_BYTES must be at least DOCUMENT_MAX_SERIALIZED_BYTES, "
-                "or a maximum-size document could never be saved."
-            )
         if not self.document_font_keys or any(
             not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", key) for key in self.document_font_keys
         ):
@@ -842,6 +833,29 @@ def load_document_cleanup_settings() -> _DocumentCleanupSettings:
         raise ConfigError(
             "ASSET_PENDING_TTL_HOURS and ASSET_UNREFERENCED_GRACE_DAYS must be at least 1."
         )
+    return loaded
+
+
+class _MigrateSettings(BaseSettings):
+    """What `migrate_documents_to_collab` needs: database, shared secret, service address."""
+
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+    )
+    database_url: SecretStr
+    internal_api_secret: SecretStr = SecretStr("")
+    collab_service_url: str = "http://127.0.0.1:4010"
+
+
+def load_migrate_settings() -> _MigrateSettings:
+    try:
+        loaded = _MigrateSettings()  # type: ignore[call-arg]
+    except ValidationError:
+        raise ConfigError("DATABASE_URL: must be set (see .env.example).") from None
+    if len(loaded.internal_api_secret.get_secret_value()) < 16:
+        raise ConfigError("INTERNAL_API_SECRET must be set (the same value as the service's).")
+    if not loaded.collab_service_url.startswith(("http://", "https://")):
+        raise ConfigError("COLLAB_SERVICE_URL must be an http(s) URL.")
     return loaded
 
 

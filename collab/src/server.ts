@@ -12,6 +12,7 @@
  * This process holds NO source of truth: everything durable goes through the internal API under a
  * fenced lease. See docs/collaboration.md for the flows and the failure modes.
  */
+import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage as HttpRequest, ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import {
@@ -82,6 +83,12 @@ interface LiveDoc {
   /** state reached the size limit: read-only for everyone */
   frozen: boolean;
   recoveryTimer: NodeJS.Timeout | null;
+}
+
+/** What `POST /internal/migrate` answers for one document. `detail` is a code or a path, never content. */
+export interface MigrateResult {
+  result: "migrated" | "would_migrate" | "already_migrated" | "skipped_needs_repair" | "invalid" | "failed";
+  detail?: string;
 }
 
 export interface CollabDeps {
@@ -222,11 +229,75 @@ export class CollabServer {
           connections: this.hocuspocus.getConnectionsCount(),
         }),
       );
+    } else if (path === "/internal/migrate" && request.method === "POST") {
+      await this.onMigrateRequest(request, response);
     } else {
       response.writeHead(404, { "Content-Type": "text/plain" });
       response.end("Not found");
     }
     return Promise.reject(); // handled: stop Hocuspocus' default response
+  }
+
+  /**
+   * `POST /internal/migrate {document_id, dry_run}` with the shared secret: seed ONE legacy document into
+   * Yjs now (the operator command migrate_documents_to_collab calls this for each). Not routed by the
+   * reverse proxy, which forwards only the WebSocket path.
+   */
+  private async onMigrateRequest(request: HttpRequest, response: ServerResponse): Promise<void> {
+    const send = (status: number, body: unknown) => {
+      response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      response.end(JSON.stringify(body));
+    };
+    const given = Buffer.from(String(request.headers["x-internal-secret"] ?? ""));
+    const expected = Buffer.from(this.config.internalSecret);
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) return send(401, { error: "unauthenticated" });
+    if (this.shuttingDown) return send(503, { error: "shutting_down" });
+    let raw = "";
+    for await (const chunk of request) {
+      raw += chunk;
+      if (raw.length > 4096) return send(413, { error: "too_large" });
+    }
+    let body: { document_id?: unknown; dry_run?: unknown };
+    try {
+      body = JSON.parse(raw) as typeof body;
+    } catch {
+      return send(422, { error: "invalid_json" });
+    }
+    if (typeof body.document_id !== "string" || !/^[0-9a-f-]{36}$/.test(body.document_id)) return send(422, { error: "invalid_document_id" });
+    send(200, await this.migrate(body.document_id, body.dry_run === true));
+  }
+
+  /**
+   * Seed one legacy document NOW through the same path a first visitor would trigger (onLoadDocument),
+   * so there is exactly one seeding implementation. The seed is validated FIRST, outside that path: an
+   * invalid one is reported and the document stays `legacy` (it is not marked needs_repair, which is what
+   * a failed seed on a live open would do).
+   */
+  async migrate(documentId: string, dryRun: boolean): Promise<MigrateResult> {
+    try {
+      const stored = await this.api.getState(documentId);
+      if (stored.collabState === "needs_repair") return { result: "skipped_needs_repair" };
+      if (stored.counter >= 0 || stored.collabState === "ready") return { result: "already_migrated" };
+      const seed = await this.api.getSeed(documentId);
+      try {
+        buildSeed(seed.format, seed.content, this.config.limits);
+      } catch (error) {
+        if (error instanceof SeedError) return { result: "invalid", detail: `${error.reason}: ${error.detail}` };
+        throw error;
+      }
+      if (dryRun) return { result: "would_migrate" };
+      const ctx = { userId: "migration", displayName: "migration", sessionId: "", role: "owner", canEdit: false, documentId, roomId: stored.roomId };
+      const direct = await this.hocuspocus.openDirectConnection(`doc:${documentId}`, ctx);
+      await direct.disconnect();
+      const after = await this.api.getState(documentId);
+      return after.counter >= 0 && after.collabState === "ready"
+        ? { result: "migrated" }
+        : { result: "failed", detail: "seed_not_stored" };
+    } catch (error) {
+      if (error instanceof ApiError) return { result: "failed", detail: error.status === 404 ? "document_not_found" : error.code };
+      this.log.error("migrate failed", { error: error instanceof Error ? error.name : "error" });
+      return { result: "failed", detail: "unexpected_error" };
+    }
   }
 
   private refuseUpgrade(socket: Duplex, status: number, text: string): Promise<never> {

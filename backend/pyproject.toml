@@ -48,6 +48,7 @@ ignore = ["S101"]
 "scripts/**" = ["S603", "S607"]  # operator tool: runs docker/psql with a fixed argv
 "app/ai/**" = ["E501"]  # long prose lines in the design docstrings
 "app/commands/ai_*.py" = ["E501"]
+"app/commands/migrate_documents_to_collab.py" = ["E501"]
 "app/workers/ai_worker.py" = ["E501"]
 "app/ai/usage.py" = ["E501", "S608"]  # f-string SQL built only from module constants
 "tests/**" = ["S105", "S106", "S311", "S608", "E501"]
