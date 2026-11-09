@@ -32,14 +32,14 @@ function signals(over: Partial<DocumentSignals> = {}): DocumentSignals {
   return { listChanged: false, documents: new Map(), active: null, reset: false, ...over };
 }
 
-function setup(version = 1) {
+function setup() {
   const clock = new Clock();
-  let current = full(D1, "One", { content_version: version });
+  let current = full(D1, "One", { metadata_version: 1 });
   let etagNo = 1;
   const { api, calls } = fakeApi({
     [`GET /rooms/${ROOM}/documents?`]: () => ({ body: { items: [summary(D1, "One"), summary(D2, "Two")], next_cursor: null } }),
     [`GET /rooms/${ROOM}/documents/${D1}`]: (call) => {
-      const etag = `"c${current.content_version}m1-${etagNo}"`;
+      const etag = `"m${current.metadata_version}-${etagNo}"`;
       if (call.headers["If-None-Match"] === etag) return { status: 304, headers: { ETag: etag } };
       return { body: current, headers: { ETag: etag } };
     },
@@ -50,7 +50,7 @@ function setup(version = 1) {
     calls,
     clock,
     bump: (v: number) => {
-      current = { ...current, content_version: v };
+      current = { ...current, metadata_version: v, title: `Renamed ${v}` };
     },
     fetches: () => calls.filter((c) => c.path.includes(`/documents/${D1}`)),
   };
@@ -69,7 +69,7 @@ describe("DocumentStore", () => {
     const { store } = setup();
     await store.open(D1);
     expect(store.state.open?.doc?.title).toBe("One");
-    expect(store.state.open?.etag).toBe('"c1m1-1"');
+    expect(store.state.open?.etag).toBe('"m1-1"');
   });
 
   it("refetches with If-None-Match and a 304 changes nothing", async () => {
@@ -80,7 +80,7 @@ describe("DocumentStore", () => {
     store.refreshOpen();
     await flush();
     expect(fetches()).toHaveLength(2);
-    expect(fetches()[1]!.headers["If-None-Match"]).toBe('"c1m1-1"');
+    expect(fetches()[1]!.headers["If-None-Match"]).toBe('"m1-1"');
     expect(store.state.open?.doc).toBe(before?.doc);
   });
 
@@ -95,7 +95,7 @@ describe("DocumentStore", () => {
     expect(clock.timers).toHaveLength(1); // ...and ONE trailing one scheduled
     await clock.advance(REFETCH_MIN_INTERVAL_MS);
     expect(fetches()).toHaveLength(3);
-    expect(store.state.open?.doc?.content_version).toBe(2);
+    expect(store.state.open?.doc?.metadata_version).toBe(2);
   });
 
   it("a content event for a document that is not open only marks the list stale and reloads it", async () => {
@@ -108,29 +108,25 @@ describe("DocumentStore", () => {
     expect(calls.some((c) => c.path.includes("/documents?limit"))).toBe(true);
   });
 
-  it("ignores a content event at or below the version it already holds (its own saves)", async () => {
-    const { store, fetches, clock } = setup(3);
-    await store.open(D1);
-    await clock.advance(REFETCH_MIN_INTERVAL_MS + 1);
-    store.onSignals(signals({ listChanged: true, documents: new Map([[D1, { created: false, renamed: false, contentVersion: 3 }]]) }));
-    store.onSignals(signals({ listChanged: true, documents: new Map([[D1, { created: false, renamed: false, contentVersion: 2 }]]) }));
-    await flush();
-    expect(fetches()).toHaveLength(1);
-  });
-
-  it("refetches the open document for a newer content version or a rename", async () => {
-    const { store, fetches, clock, bump } = setup(1);
+  it("ignores document_content_updated events completely (the live text does not travel as events)", async () => {
+    const { store, fetches, clock, bump } = setup();
     await store.open(D1);
     await clock.advance(REFETCH_MIN_INTERVAL_MS + 1);
     bump(2);
-    store.onSignals(signals({ listChanged: true, documents: new Map([[D1, { created: false, renamed: false, contentVersion: 2 }]]) }));
+    store.onSignals(signals({ listChanged: true, documents: new Map([[D1, { created: false, renamed: false, contentVersion: 9 }]]) }));
     await flush();
-    expect(fetches()).toHaveLength(2);
-    expect(store.state.open?.doc?.content_version).toBe(2);
+    expect(fetches()).toHaveLength(1); // no refetch for a content event, whatever its version
+  });
+
+  it("refetches the open document's metadata when it is renamed", async () => {
+    const { store, fetches, clock, bump } = setup();
+    await store.open(D1);
     await clock.advance(REFETCH_MIN_INTERVAL_MS + 1);
+    bump(2);
     store.onSignals(signals({ listChanged: true, documents: new Map([[D1, { created: false, renamed: true, contentVersion: null }]]) }));
     await flush();
-    expect(fetches()).toHaveLength(3);
+    expect(fetches()).toHaveLength(2);
+    expect(store.state.open?.doc?.title).toBe("Renamed 2");
   });
 
   it("reloads everything after a reset (a fresh bootstrap)", async () => {

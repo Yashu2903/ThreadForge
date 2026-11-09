@@ -100,15 +100,10 @@ def create_app(
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the
     # request-context middleware (and its logs) see the real client address.
     # Innermost of the three: the 413 it produces still gets a request id and no-store.
-    # 128 KiB for every JSON route, except the document content save (2 MiB by default).
+    # 128 KiB for every JSON route, except the collaboration service's internal routes below.
     app.add_middleware(
         BodySizeLimitMiddleware,
         rules=(
-            (
-                "PUT",
-                re.compile(r"/rooms/[^/]+/documents/[^/]+/content"),
-                settings.document_save_body_limit_bytes,
-            ),
             # the collaboration service's full Yjs state (default 8 MiB) and validated snapshots
             (
                 "PUT",

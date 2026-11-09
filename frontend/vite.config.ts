@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 
 const client = (file: string) => fileURLToPath(new URL(`../client/src/${file}`, import.meta.url));
 const backend = process.env.THREADFORGE_API ?? "http://127.0.0.1:8000";
+// the collaboration (Yjs/Hocuspocus) service; the browser reaches it at /collab on this same origin
+const collab = process.env.THREADFORGE_COLLAB ?? "http://127.0.0.1:4010";
 
 // The browser talks to ONE origin (this dev server); it forwards the API paths to the backend, so
 // the session cookie is first-party and there is no CORS. The SPA itself uses #/hash routes, so no
@@ -25,6 +27,8 @@ export default defineConfig({
       "/capabilities": { target: backend, changeOrigin: false },
       "/health": { target: backend, changeOrigin: false },
       "/rooms": { target: backend, changeOrigin: false, ws: true },
+      // WebSocket only. The Origin header is forwarded unchanged: the service compares it exactly.
+      "/collab": { target: collab, changeOrigin: false, ws: true },
     },
   },
   test: {

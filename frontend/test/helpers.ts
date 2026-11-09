@@ -44,12 +44,11 @@ export function summary(id: string, title = "Doc", extra: Partial<DocumentSummar
     title,
     template_key: "blank",
     schema_version: 1,
-    content_version: 1,
     metadata_version: 1,
     created_by: "u1",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
-    content_updated_at: "2026-01-01T00:00:00Z",
+    collab_state: "legacy",
     is_active: false,
     requires_review: false,
     ...extra,
@@ -59,9 +58,9 @@ export function summary(id: string, title = "Doc", extra: Partial<DocumentSummar
 export function full(id: string, title = "Doc", extra: Partial<DocumentFull> = {}): DocumentFull {
   return {
     ...summary(id, title),
-    content: { schema_version: 1, blocks: [{ type: "paragraph", id: "p1" }] },
-    content_hash: "ab".repeat(32),
     can_edit: true,
+    collab_path: "/collab",
+    document_name: `doc:${id}`,
     ...extra,
   };
 }

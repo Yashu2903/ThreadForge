@@ -193,6 +193,8 @@ class Settings(BaseSettings):
     # Collaboration (Tiptap + Yjs + Hocuspocus). The Node collaboration service talks to the
     # /internal/collab/* routes with this shared secret. Empty = the internal routes answer 503.
     internal_api_secret: SecretStr = SecretStr("")
+    # Where the browser reaches the collaboration WebSocket (same origin; a proxy path)
+    collab_public_path: str = "/collab"
     collab_lease_ttl_seconds: int = 30  # the service renews every 10 s
     collab_max_state_bytes: int = 8 * 1024 * 1024  # a larger Yjs state is refused with 413
     collab_snapshots_kept: int = 10  # newest N per document, plus the newest seed
@@ -593,6 +595,8 @@ class Settings(BaseSettings):
             )
         elif secret and len(secret) < 16:
             problems.append("INTERNAL_API_SECRET must be at least 16 characters when set.")
+        if not re.fullmatch(r"/[A-Za-z0-9._/-]{1,64}", self.collab_public_path):
+            problems.append("COLLAB_PUBLIC_PATH must be an absolute path like /collab.")
         if not 10 <= self.collab_lease_ttl_seconds <= 600:
             problems.append("COLLAB_LEASE_TTL_SECONDS must be between 10 and 600.")
         if self.collab_max_state_bytes < 64 * 1024:

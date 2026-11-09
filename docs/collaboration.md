@@ -284,7 +284,124 @@ underlying socket; `HocuspocusProvider` exposes `unsyncedChanges`, `authorizedSc
 * Until checkpoint 4 there is no message-rate limit, no connection throttle and no live re-check of access after connecting.
 * A document at the 8 MiB state limit becomes read-only for everyone; its last oversized edit is not stored.
 
-## 5. Later sections
+## 5. The browser editor (cp 3)
 
-Proxy/CSP, live access enforcement, the editor/UI, import/migration commands and the AI hooks are written
-with the checkpoints that build them (3–6).
+### 5.1 What replaced what
+
+| Before | Now |
+|---|---|
+| custom editor (`frontend/src/editor/*`), `Playground` | Tiptap 3.33.0 (`@tiptap/react`) with the shared schema (`createExtensions`), `Collaboration` (field `default`) and `CollaborationCaret` |
+| `PUT .../content`, `expected_content_version`, autosave, 409 "conflict" UI, "Load latest" | **removed** (route, service `save_content`, schemas, tests). There is nothing to save and nothing to conflict: edits merge (Yjs) and stream to the server |
+| `GET document` returned the JSON content | returns metadata only: `collab_state`, `can_edit`, `collab_path` (`/collab`), `document_name` (`doc:<id>`); **no content**, no `content_version`/`content_hash` |
+| `DocumentRead` (viewers, mobile) | the same editor with `editable=false`; viewers get a read-only socket and see edits live |
+| custom undo/redo | Yjs `UndoManager` through the Collaboration extension: undo reverts only YOUR changes |
+| `document_content_updated` per save | nothing emits it; the client ignores it (type kept in the DB CHECK) |
+
+### 5.2 Files (reading order)
+
+1. `frontend/src/collab/status.ts` - the pure function that turns raw provider state into the indicator wording; close codes.
+2. `frontend/src/collab/session.ts` - `CollabSession`: one `Y.Doc` + one `HocuspocusProvider` per open document.
+3. `frontend/src/collab/identity.ts` - caret names from the member list, colours from ids.
+4. `frontend/src/editor/TiptapEditor.tsx` - the editor component (paste/drop guards, key handling).
+5. `frontend/src/editor/formatState.ts`, `commands.ts`, `Toolbar.tsx` - the toolbar: tri-state reading, one Tiptap command per control.
+6. `frontend/src/DocumentEditor.tsx`, `RoomView.tsx` - lifecycle, sync indicator, switching rule.
+7. `backend/app/api/documents.py` (`GET document`), `services/documents.py` (metadata only).
+
+### 5.3 Provider lifecycle
+
+`DocumentEditor` creates a `CollabSession` in an effect and destroys it in the cleanup, keyed by document id.
+Opening another document, leaving the room, an access-lost screen, or unmounting therefore always closes the
+socket and destroys the `Y.Doc` (React StrictMode's mount-unmount-mount included). The connection is same origin
+(`ws(s)://<host>/collab`), authenticated by the session cookie the browser already sends; the provider's `token`
+is the fixed non-secret marker `"cookie"` because the protocol only authenticates when a token is present.
+There is **no offline persistence** (no `y-indexeddb`): unsynced changes live in the tab only.
+
+`editable` follows `can_edit` (from the document API) AND the room client's current role AND the server's
+granted scope AND not-access-lost AND not-mobile. Losing the role makes the editor read-only without
+replacing it; the text stays.
+
+### 5.4 The sync indicator (exact wording)
+
+| Indicator | When | What it means |
+|---|---|---|
+| **Synced** | connected, first sync done, 0 unacknowledged local changes | the SERVER has received everything you typed. It is written to PostgreSQL within a few seconds (debounced); a hard server crash in that window can lose those seconds |
+| **Syncing…** | connected but first sync open, or changes still on their way | not yet safe |
+| **Offline (n unsynced changes)** | no connection | edits stay in this tab and are sent when the connection returns; closing the tab loses them |
+| **Read-only** | viewer or read-only scope | live, cannot change |
+| **Access lost** | server denied/ended access (`session_invalid`, `forbidden`, `needs_repair`, close 4401/4403) | the text stays on the page for copying; no reconnect attempts |
+| Connecting… | the very first connect | |
+
+Temporary denials (`unavailable`, `too_many_connections`) retry the same `Y.Doc` after 3-5 s, so local edits
+are kept and sent once access is granted. `beforeunload` warns while any change is unacknowledged.
+
+### 5.5 Switching documents
+
+Opening a document yourself while changes are unacknowledged asks for confirmation. When the owner makes
+another document active:
+* nothing unacknowledged: the tab follows by itself;
+* unacknowledged changes: the tab stays and shows "The room switched to a different document. Your last
+  changes are not synced yet" with **Stay here** and **Switch anyway and lose those changes**; once the
+  server catches up the pending switch happens by itself (unless you chose Stay).
+
+### 5.6 Names, identity, accessibility
+
+Each collaborator announces only `{id}`; the screen shows the display name from the room's AUTHORITATIVE member
+list (`Someone` for an unknown id) and a colour derived from the id; a client cannot choose either. Caret labels
+are `aria-hidden` so they are not read as part of a sentence. The editor is `role="textbox"`, `aria-multiline`,
+`aria-readonly` follows `editable`. The toolbar is `role="toolbar"` with one tab stop (roving tabindex), arrow
+keys/Home/End move inside it, toggles use `aria-pressed` (`"mixed"` for partly formatted selections), unavailable
+controls use `aria-disabled`; the link form is a popover that returns focus to the text; Escape closes it.
+Shortcuts: Ctrl/Cmd+B/I/U, +Shift+S (strike), +K (link), +Z/+Shift+Z (undo/redo). Tab inside a list nests,
+Shift+Tab lifts, Tab in a table moves to the next cell; otherwise Tab leaves the editor (no keyboard trap).
+
+### 5.7 What cannot reach the document from the browser
+
+* images: only through **Insert image**, which uploads to the existing asset endpoint and inserts `assetId`.
+  Pasted/dropped files are refused with an explanation; pasted HTML has every `<img>` removed unless it is a
+  copy of an image already in THIS document (so a forged `data-asset-id` of another room cannot reach a
+  snapshot and break validation); `data:` and remote URLs never parse (the image node has no `src`).
+* paste goes through the shared ProseMirror schema (anything the schema does not know is dropped); links are
+  checked with the same policy as the server (`http`, `https`, `mailto`).
+* merge/split table cells are not exposed; merged cells are rejected by the shared validator anyway.
+
+### 5.8 Dev and deployment
+
+Dev: run the API (`uvicorn`), the collaboration service (`npm run build` once at the repo root, then
+`node collab/dist/main.js` with `COLLAB_API_BASE_URL`, `INTERNAL_API_SECRET`,
+`COLLAB_ALLOWED_ORIGINS=http://localhost:5173`) and Vite. Vite proxies `/collab` (WebSocket) to
+`THREADFORGE_COLLAB` (default `http://127.0.0.1:4010`), forwarding the browser's Origin unchanged because the
+service compares it exactly. In production the reverse proxy must do the same for `/collab` and must NOT expose
+`/internal`. `COLLAB_PUBLIC_PATH` (API setting, default `/collab`) is the path the document API tells the browser
+to connect to.
+
+**CSP.** The repository has no Content-Security-Policy today (the SPA is served without one), so there was none to
+change. A deployment that adds one needs `connect-src 'self'` plus the same-origin WebSocket scheme
+(`wss://<app host>`); nothing else is required by the editor (no third-party origins, no `unsafe-eval`).
+
+### 5.9 Tests (cp 3)
+
+* Browser (Playwright, real API + PostgreSQL + collaboration service + Vite): two users typing, read-only viewer,
+  caret labels from the member list, persistence across a reload (the text comes from the database), toolbar
+  (bold, heading, list, table, valid and refused links, undo), own-changes-only undo, image upload + alt text +
+  paste filtering (Chromium), offline indicator and delivery on reconnect (a WebSocket proxy cuts the
+  connection, identical in every engine), mobile view-only, the document-switching rules incl. `beforeunload`.
+  Run in Chromium and Firefox.
+* Unit (vitest): indicator wording, terminal vs temporary denials, identity (no HTML from a name), paste
+  sanitising, document store (metadata only, content events ignored), dialogs.
+* Backend: `GET document` shape, ETag, the removed route answers 404 for everyone, permission matrix.
+
+### 5.10 Known limits (cp 3)
+
+* Undoing the insertion of a table (or list) removes it together with text a collaborator typed inside it - the
+  normal Yjs semantic for structural undo; undoing plain typing never removes another person's text.
+* Firefox: the paste-filter browser test is skipped (synthetic paste events carry no clipboard data there); the
+  sanitising function is unit-tested and the same code runs in every engine.
+* Remote caret rendering is cosmetic and relies on awareness, which a modified client could spam; the service's
+  message-rate limit (checkpoint 4) bounds that.
+* Access enforcement over time (revoking a socket while it is open) is checkpoint 4. Until then a removed member
+  loses the room screen at once (the Part 5 event), which unmounts the editor and closes the socket.
+
+## 6. Later sections
+
+Live access enforcement and limits (cp 4), import/migration commands and cleanup (cp 5) and the AI hooks (cp 6)
+are written with the checkpoints that build them.

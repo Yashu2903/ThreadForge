@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { API_PORT, API_URL, BACKEND_DIR, WEB_ORIGIN, WEB_PORT, backendEnv } from "./e2e/env";
+import { API_PORT, API_URL, BACKEND_DIR, COLLAB_URL, WEB_ORIGIN, WEB_PORT, backendEnv, collabEnv } from "./e2e/env";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -27,7 +27,7 @@ export default defineConfig({
     },
     {
       command: `npx vite --port ${WEB_PORT} --strictPort`,
-      env: { ...(process.env as Record<string, string>), THREADFORGE_API: API_URL },
+      env: { ...(process.env as Record<string, string>), THREADFORGE_API: API_URL, THREADFORGE_COLLAB: COLLAB_URL },
       url: WEB_ORIGIN,
       reuseExistingServer: false,
       timeout: 60_000,

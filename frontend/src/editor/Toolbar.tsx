@@ -1,27 +1,45 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
-import type { Editor } from "./editor";
+import { LINE_SPACINGS } from "@threadforge/editor-schema";
+import type { Editor } from "@tiptap/core";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type BlockKind,
+  applyLink,
+  changeIndent,
+  clearColors,
+  insertAssetImage,
+  insertTable,
+  removeLink,
+  setAlign,
+  setBlock,
+  setBlockAttrs,
+  setHighlight,
+  setImageAlt,
+  setScript,
+  setTextStyle,
+  tableCommand,
+} from "./commands";
 import { FONT_OPTIONS, SIZE_OPTIONS } from "./fonts";
-import type { BlockKind } from "./format";
+import { type FormatState, type Tri, readFormatState } from "./formatState";
 
 /**
- * The formatting toolbar. Accessibility rules it follows:
+ * The formatting toolbar, built on Tiptap commands (see commands.ts). Accessibility rules:
  *  - role="toolbar" with ONE tab stop (roving tabindex): Tab enters, Left/Right/Home/End move between
  *    controls, Tab again leaves (no keyboard trap);
- *  - every control has an accessible name and a tooltip; toggles use aria-pressed; unavailable
- *    controls use aria-disabled (they stay focusable and say why) instead of disappearing;
- *  - buttons do not take focus from the text on mouse down (preventDefault on mousedown), so the
- *    editor's selection survives a click; controls that must take focus (selects, colour, the link
- *    and table forms) work on the editor's remembered selection and hand focus back afterwards.
- * The toolbar is React; it only calls the editor's methods and reads editor.formatState().
+ *  - every control has an accessible name and a tooltip with its shortcut; toggles use aria-pressed
+ *    ("mixed" when the selection is partly formatted); unavailable controls use aria-disabled (they
+ *    stay focusable) instead of disappearing;
+ *  - buttons do not take focus from the text on mouse down, so the editor's selection survives a click.
+ * Link and image-description editing use small forms (popovers) that return focus to the text.
+ * Every control calls a command that changes the shared document: there is no control without effect.
  */
-
 interface Props {
   editor: Editor | null;
-  /** bump this when the editor's state changed, so the toolbar re-reads it */
+  /** bump to make the toolbar re-read the editor (set from the editor's transactions) */
   revision: number;
+  /** false: the person cannot edit (read-only, offline-forbidden, access lost) */
+  enabled: boolean;
   linkOpen: boolean;
   onLinkOpenChange: (open: boolean) => void;
-  /** Upload a chosen file and return the asset (the host knows the room). Omit to hide Insert image. */
   uploadImage?: (file: File) => Promise<{ id: string; width_px: number; height_px: number }>;
   onNotice?: (message: string) => void;
 }
@@ -33,16 +51,19 @@ const BLOCKS: { value: BlockKind; label: string }[] = [
   { value: "h3", label: "Heading 3" },
 ];
 const SPACING = [0, 3, 6, 8, 10, 12, 18, 24, 36, 48, 72];
+const MIXED = "mixed";
 
-export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadImage, onNotice }: Props) {
+const triPressed = (v: Tri): boolean | "mixed" => (v === "on" ? true : v === "mixed" ? "mixed" : false);
+
+export function Toolbar({ editor, revision, enabled, linkOpen, onLinkOpenChange, uploadImage, onNotice }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [tableOpen, setTableOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   void revision;
-  const s = editor ? editor.formatState() : null;
-  const off = !editor || !s || s.readOnly;
+  const s: FormatState | null = editor && !editor.isDestroyed ? readFormatState(editor) : null;
+  const off = !editor || !s || !enabled;
 
   // roving tabindex: exactly one control is a tab stop
   useEffect(() => {
@@ -63,7 +84,9 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
     items[next]!.focus();
   }
 
-  const btn = (name: string, run: () => void, opts: { pressed?: boolean; disabled?: boolean; shortcut?: string; children: ReactNode; testid?: string }) => (
+  const mod = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform) ? "Cmd" : "Ctrl";
+
+  const btn = (name: string, run: () => void, opts: { pressed?: boolean | "mixed"; disabled?: boolean; shortcut?: string; children: ReactNode; testid?: string }) => (
     <button
       type="button"
       data-toolbar-item
@@ -82,8 +105,6 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
     </button>
   );
 
-  const mod = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform) ? "Cmd" : "Ctrl";
-  const pressed = (v: unknown) => v === "on";
   const select = (name: string, value: string, options: { value: string; label: string }[], onChange: (v: string) => void, testid?: string) => (
     <select
       data-toolbar-item
@@ -95,7 +116,7 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
       disabled={off}
       onChange={(e) => {
         onChange(e.target.value);
-        editor?.focus();
+        editor?.commands.focus();
       }}
     >
       {options.map((o) => (
@@ -106,49 +127,48 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
     </select>
   );
 
-  if (!s) return <div role="toolbar" aria-label="Formatting" className="toolbar" ref={ref} />;
-  const sizeValue = s.size === "mixed" ? "mixed" : s.size === null ? "" : String(s.size);
-  const fontValue = s.font === "mixed" ? "mixed" : s.font === null ? "" : String(s.font);
-  const blockValue = s.block === "mixed" ? "mixed" : s.block;
+  if (!s || !editor) return <div role="toolbar" aria-label="Formatting" className="toolbar" ref={ref} />;
+  const str = (v: unknown) => (v === MIXED ? MIXED : v === null || v === undefined ? "" : String(v));
   const withMixed = <T extends { value: string; label: string }>(items: T[], current: string) =>
-    current === "mixed" ? [{ value: "mixed", label: "(mixed)" }, ...items] : items;
+    current === MIXED ? [{ value: MIXED, label: "(mixed)" }, ...items] : items;
+  const numOrNull = (v: string): number | null => (v === "" || v === MIXED ? null : Number(v));
 
   return (
     <div role="toolbar" aria-label="Formatting" aria-orientation="horizontal" className="toolbar" ref={ref} onKeyDown={onKeyDown}>
       <div className="tb-group" role="group" aria-label="History">
-        {btn("Undo", () => editor!.undo(), { shortcut: `${mod}+Z`, disabled: !s.canUndo, children: "↶", testid: "tb-undo" })}
-        {btn("Redo", () => editor!.redo(), { shortcut: `${mod}+Shift+Z`, disabled: !s.canRedo, children: "↷", testid: "tb-redo" })}
+        {btn("Undo", () => editor.chain().focus().undo().run(), { shortcut: `${mod}+Z`, disabled: !s.canUndo, children: "↶", testid: "tb-undo" })}
+        {btn("Redo", () => editor.chain().focus().redo().run(), { shortcut: `${mod}+Shift+Z`, disabled: !s.canRedo, children: "↷", testid: "tb-redo" })}
       </div>
 
       <div className="tb-group" role="group" aria-label="Text style">
-        {select("Text style", blockValue, withMixed(BLOCKS, blockValue), (v) => editor!.setBlockKind(v as BlockKind), "tb-block")}
-        {btn("Quote", () => editor!.toggleQuote(), { pressed: s.quote, children: "❝", testid: "tb-quote" })}
+        {select("Text style", str(s.block), withMixed(BLOCKS, str(s.block)), (v) => v !== MIXED && setBlock(editor, v as BlockKind), "tb-block")}
+        {btn("Quote", () => editor.chain().focus().toggleBlockquote().run(), { pressed: s.quote, children: "❝", testid: "tb-quote" })}
       </div>
 
       <div className="tb-group" role="group" aria-label="Font">
         {select(
           "Font",
-          fontValue,
-          withMixed([{ value: "", label: "Default font" }, ...FONT_OPTIONS.map((f) => ({ value: f.key, label: f.label }))], fontValue),
-          (v) => editor!.setMarkValue("font", v === "" || v === "mixed" ? null : v),
+          str(s.font),
+          withMixed([{ value: "", label: "Default font" }, ...FONT_OPTIONS.map((f) => ({ value: f.key, label: f.label }))], str(s.font)),
+          (v) => v !== MIXED && setTextStyle(editor, "fontKey", v === "" ? null : v),
           "tb-font",
         )}
         {select(
           "Font size",
-          sizeValue,
-          withMixed([{ value: "", label: "Size" }, ...SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))], sizeValue),
-          (v) => editor!.setMarkValue("size_pt", v === "" || v === "mixed" ? null : Number(v)),
+          str(s.size),
+          withMixed([{ value: "", label: "Size" }, ...SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))], str(s.size)),
+          (v) => v !== MIXED && setTextStyle(editor, "fontSizePt", v === "" ? null : Number(v)),
           "tb-size",
         )}
       </div>
 
       <div className="tb-group" role="group" aria-label="Character formatting">
-        {btn("Bold", () => editor!.toggleMark("bold"), { pressed: pressed(s.bold), shortcut: `${mod}+B`, children: <b>B</b>, testid: "tb-bold" })}
-        {btn("Italic", () => editor!.toggleMark("italic"), { pressed: pressed(s.italic), shortcut: `${mod}+I`, children: <i>I</i>, testid: "tb-italic" })}
-        {btn("Underline", () => editor!.toggleMark("underline"), { pressed: pressed(s.underline), shortcut: `${mod}+U`, children: <u>U</u>, testid: "tb-underline" })}
-        {btn("Strikethrough", () => editor!.toggleMark("strike"), { pressed: pressed(s.strike), children: <s>S</s>, testid: "tb-strike" })}
-        {btn("Superscript", () => editor!.setMarkValue("script", s.script === "superscript" ? null : "superscript"), { pressed: s.script === "superscript", children: "x²", testid: "tb-sup" })}
-        {btn("Subscript", () => editor!.setMarkValue("script", s.script === "subscript" ? null : "subscript"), { pressed: s.script === "subscript", children: "x₂", testid: "tb-sub" })}
+        {btn("Bold", () => editor.chain().focus().toggleBold().run(), { pressed: triPressed(s.bold), shortcut: `${mod}+B`, children: <b>B</b>, testid: "tb-bold" })}
+        {btn("Italic", () => editor.chain().focus().toggleItalic().run(), { pressed: triPressed(s.italic), shortcut: `${mod}+I`, children: <i>I</i>, testid: "tb-italic" })}
+        {btn("Underline", () => editor.chain().focus().toggleUnderline().run(), { pressed: triPressed(s.underline), shortcut: `${mod}+U`, children: <u>U</u>, testid: "tb-underline" })}
+        {btn("Strikethrough", () => editor.chain().focus().toggleStrike().run(), { pressed: triPressed(s.strike), shortcut: `${mod}+Shift+S`, children: <s>S</s>, testid: "tb-strike" })}
+        {btn("Superscript", () => setScript(editor, s.script === "superscript" ? null : "superscript"), { pressed: s.script === MIXED ? "mixed" : s.script === "superscript", children: "x²", testid: "tb-sup" })}
+        {btn("Subscript", () => setScript(editor, s.script === "subscript" ? null : "subscript"), { pressed: s.script === MIXED ? "mixed" : s.script === "subscript", children: "x₂", testid: "tb-sub" })}
         <label className="color-pick" title="Text colour">
           <span className="sr-only">Text colour</span>
           <input
@@ -158,8 +178,8 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
             aria-label="Text colour"
             aria-disabled={off ? true : undefined}
             disabled={off}
-            value={typeof s.color === "string" ? s.color.toLowerCase() : "#000000"}
-            onChange={(e) => editor!.setMarkValue("color", e.target.value)}
+            value={typeof s.color === "string" && s.color !== MIXED ? s.color.toLowerCase() : "#000000"}
+            onChange={(e) => setTextStyle(editor, "color", e.target.value.toUpperCase())}
           />
         </label>
         <label className="color-pick" title="Highlight colour">
@@ -171,48 +191,51 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
             aria-label="Highlight colour"
             aria-disabled={off ? true : undefined}
             disabled={off}
-            value={typeof s.highlight === "string" ? s.highlight.toLowerCase() : "#ffffff"}
-            onChange={(e) => editor!.setMarkValue("highlight", e.target.value)}
+            value={typeof s.highlight === "string" && s.highlight !== MIXED ? s.highlight.toLowerCase() : "#ffffff"}
+            onChange={(e) => setHighlight(editor, e.target.value.toUpperCase())}
           />
         </label>
-        {btn("Clear colours", () => {
-          editor!.setMarkValue("color", null);
-          editor!.setMarkValue("highlight", null);
-        }, { children: "⌫", testid: "tb-clear-colors" })}
+        {btn("Clear colours", () => clearColors(editor), { children: "⌫", testid: "tb-clear-colors" })}
       </div>
 
       <div className="tb-group" role="group" aria-label="Paragraph">
-        {(["left", "center", "right", "justify"] as const).map((a) =>
-          btn(`Align ${a}`, () => editor!.setAttrs({ align: a }), { pressed: s.align === a, children: { left: "⇤", center: "↔", right: "⇥", justify: "☰" }[a], testid: `tb-align-${a}` }),
-        )}
+        {(["left", "center", "right", "justify"] as const).map((a) => (
+          <Fragment key={a}>
+            {btn(`Align ${a}`, () => setAlign(editor, a), {
+              pressed: s.align === MIXED ? "mixed" : s.align === a,
+              children: { left: "⇤", center: "↔", right: "⇥", justify: "☰" }[a],
+              testid: `tb-align-${a}`,
+            })}
+          </Fragment>
+        ))}
         {select(
           "Line spacing",
-          String(s.lineSpacing),
-          withMixed([1, 1.15, 1.5, 2].map((n) => ({ value: String(n), label: `${n}×` })), String(s.lineSpacing)),
-          (v) => editor!.setAttrs({ line_spacing: Number(v) }),
+          str(s.lineSpacing),
+          withMixed([{ value: "", label: "Spacing" }, ...LINE_SPACINGS.map((n) => ({ value: String(n), label: `${n}×` }))], str(s.lineSpacing)),
+          (v) => v !== MIXED && setBlockAttrs(editor, { lineSpacing: numOrNull(v) }),
           "tb-line-spacing",
         )}
         {select(
           "Space before paragraph",
-          String(s.spaceBefore),
-          withMixed(SPACING.map((n) => ({ value: String(n), label: `↑ ${n} pt` })), String(s.spaceBefore)),
-          (v) => editor!.setAttrs({ space_before_pt: Number(v) }),
+          str(s.spaceBefore),
+          withMixed([{ value: "", label: "↑ default" }, ...SPACING.map((n) => ({ value: String(n), label: `↑ ${n} pt` }))], str(s.spaceBefore)),
+          (v) => v !== MIXED && setBlockAttrs(editor, { spaceBefore: numOrNull(v) }),
           "tb-space-before",
         )}
         {select(
           "Space after paragraph",
-          String(s.spaceAfter),
-          withMixed(SPACING.map((n) => ({ value: String(n), label: `↓ ${n} pt` })), String(s.spaceAfter)),
-          (v) => editor!.setAttrs({ space_after_pt: Number(v) }),
+          str(s.spaceAfter),
+          withMixed([{ value: "", label: "↓ default" }, ...SPACING.map((n) => ({ value: String(n), label: `↓ ${n} pt` }))], str(s.spaceAfter)),
+          (v) => v !== MIXED && setBlockAttrs(editor, { spaceAfter: numOrNull(v) }),
           "tb-space-after",
         )}
-        {btn("Decrease indent", () => editor!.outdent(), { shortcut: "Shift+Tab in a list", children: "⇠", testid: "tb-outdent" })}
-        {btn("Increase indent", () => editor!.indent(), { shortcut: "Tab in a list", children: "⇢", testid: "tb-indent" })}
+        {btn("Decrease indent", () => changeIndent(editor, -1), { shortcut: "Shift+Tab in a list", children: "⇠", testid: "tb-outdent" })}
+        {btn("Increase indent", () => changeIndent(editor, 1), { shortcut: "Tab in a list", children: "⇢", testid: "tb-indent" })}
       </div>
 
       <div className="tb-group" role="group" aria-label="Lists and links">
-        {btn("Bulleted list", () => editor!.toggleList(false), { pressed: !!s.list && s.list.ordered === false, children: "•≡", testid: "tb-bullets" })}
-        {btn("Numbered list", () => editor!.toggleList(true), { pressed: !!s.list && s.list.ordered === true, children: "1.", testid: "tb-numbers" })}
+        {btn("Bulleted list", () => editor.chain().focus().toggleBulletList().run(), { pressed: !!s.list && !s.list.ordered, children: "•≡", testid: "tb-bullets" })}
+        {btn("Numbered list", () => editor.chain().focus().toggleOrderedList().run(), { pressed: !!s.list && s.list.ordered, children: "1.", testid: "tb-numbers" })}
         {btn("Link", () => onLinkOpenChange(!linkOpen), { pressed: linkOpen || !!s.link, shortcut: `${mod}+K`, children: "🔗", testid: "tb-link" })}
       </div>
 
@@ -236,11 +259,10 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 e.target.value = "";
-                if (!file || !editor) return;
+                if (!file) return;
                 setUploading(true);
                 try {
-                  const asset = await uploadImage(file);
-                  editor.insertImage({ asset_id: asset.id, width_px: asset.width_px, height_px: asset.height_px });
+                  insertAssetImage(editor, await uploadImage(file));
                 } catch (err) {
                   onNotice?.(err instanceof Error ? err.message : "The image could not be uploaded.");
                 } finally {
@@ -249,7 +271,7 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
               }}
             />
           )}
-          {s.image && <AltText key={s.image.id} editor={editor!} id={s.image.id} initial={s.image.alt} />}
+          {s.image && <AltText editor={editor} initial={s.image.alt} />}
         </div>
       )}
 
@@ -257,31 +279,27 @@ export function Toolbar({ editor, revision, linkOpen, onLinkOpenChange, uploadIm
         {btn("Insert table", () => setTableOpen(!tableOpen), { pressed: tableOpen, children: "▦", testid: "tb-table" })}
         {s.table && (
           <>
-            {btn("Add row above", () => editor!.addRow("above"), { children: "⤒", testid: "tb-row-above" })}
-            {btn("Add row below", () => editor!.addRow("below"), { children: "⤓", testid: "tb-row-below" })}
-            {btn("Add column left", () => editor!.addColumn("left"), { children: "⇤▮", testid: "tb-col-left" })}
-            {btn("Add column right", () => editor!.addColumn("right"), { children: "▮⇥", testid: "tb-col-right" })}
-            {btn("Delete row", () => editor!.removeRow(), { disabled: s.table.rows === 1, children: "−row", testid: "tb-del-row" })}
-            {btn("Delete column", () => editor!.removeColumn(), { disabled: s.table.cols === 1, children: "−col", testid: "tb-del-col" })}
-            {btn("Delete table", () => editor!.deleteTable(), { children: "🗑", testid: "tb-del-table" })}
+            {btn("Add row above", () => tableCommand.rowAbove(editor), { children: "⤒", testid: "tb-row-above" })}
+            {btn("Add row below", () => tableCommand.rowBelow(editor), { children: "⤓", testid: "tb-row-below" })}
+            {btn("Add column left", () => tableCommand.colLeft(editor), { children: "⇤▮", testid: "tb-col-left" })}
+            {btn("Add column right", () => tableCommand.colRight(editor), { children: "▮⇥", testid: "tb-col-right" })}
+            {btn("Delete row", () => tableCommand.deleteRow(editor), { disabled: s.table.rows === 1, children: "−row", testid: "tb-del-row" })}
+            {btn("Delete column", () => tableCommand.deleteColumn(editor), { disabled: s.table.cols === 1, children: "−col", testid: "tb-del-col" })}
+            {btn("Delete table", () => tableCommand.deleteTable(editor), { children: "🗑", testid: "tb-del-table" })}
           </>
         )}
       </div>
 
-      {linkOpen && editor && <LinkForm editor={editor} initial={s.link?.href ?? ""} hasLink={!!s.link} onClose={() => onLinkOpenChange(false)} />}
-      {tableOpen && editor && <TableForm editor={editor} onClose={() => setTableOpen(false)} />}
-      {s.multiCell && (
-        <p className="tb-hint" role="status">
-          This selection spans table cells: formatting works, typing and deleting do not.
-        </p>
-      )}
+      {linkOpen && <LinkForm editor={editor} initial={s.link?.href ?? ""} hasLink={!!s.link} onClose={() => onLinkOpenChange(false)} />}
+      {tableOpen && <TableForm editor={editor} onClose={() => setTableOpen(false)} />}
     </div>
   );
 }
 
-function AltText(props: { editor: Editor; id: string; initial: string }) {
+function AltText(props: { editor: Editor; initial: string }) {
   const [value, setValue] = useState(props.initial);
-  const commit = () => value !== props.initial && props.editor.setImageAlt(props.id, value);
+  useEffect(() => setValue(props.initial), [props.initial]);
+  const commit = () => value !== props.initial && setImageAlt(props.editor, value);
   return (
     <label className="alt-field">
       <span className="sr-only">Image description (alt text)</span>
@@ -298,7 +316,7 @@ function AltText(props: { editor: Editor; id: string; initial: string }) {
           if (e.key === "Enter") {
             e.preventDefault();
             commit();
-            props.editor.focus();
+            props.editor.commands.focus();
           }
         }}
       />
@@ -312,14 +330,21 @@ function items_(root: HTMLElement | null): HTMLElement[] {
 
 function LinkForm(props: { editor: Editor; initial: string; hasLink: boolean; onClose: () => void }) {
   const [href, setHref] = useState(props.initial);
+  const [problem, setProblem] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => input.current?.focus(), []);
   function apply(e: React.FormEvent) {
     e.preventDefault();
-    if (props.editor.setLink(href.trim())) props.onClose();
+    const result = applyLink(props.editor, href.trim());
+    if (result.ok) props.onClose();
+    else setProblem(result.message);
   }
+  const close = () => {
+    props.onClose();
+    props.editor.commands.focus();
+  };
   return (
-    <form className="tb-form" onSubmit={apply} role="group" aria-label="Link" onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), props.onClose(), props.editor.focus())}>
+    <form className="tb-form" onSubmit={apply} role="group" aria-label="Link" onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), close())}>
       <label>
         Link address
         <input ref={input} type="text" value={href} onChange={(e) => setHref(e.target.value)} placeholder="https://example.com" data-testid="link-input" />
@@ -328,13 +353,18 @@ function LinkForm(props: { editor: Editor; initial: string; hasLink: boolean; on
         Apply
       </button>
       {props.hasLink && (
-        <button type="button" data-testid="link-remove" onClick={() => (props.editor.removeLink(), props.onClose())}>
+        <button type="button" data-testid="link-remove" onClick={() => (removeLink(props.editor), props.onClose())}>
           Remove link
         </button>
       )}
-      <button type="button" onClick={() => (props.onClose(), props.editor.focus())}>
+      <button type="button" onClick={close}>
         Cancel
       </button>
+      {problem && (
+        <span role="alert" className="error" data-testid="link-problem">
+          {problem}
+        </span>
+      )}
     </form>
   );
 }
@@ -343,6 +373,10 @@ function TableForm(props: { editor: Editor; onClose: () => void }) {
   const [rows, setRows] = useState(3);
   const [cols, setCols] = useState(3);
   const [header, setHeader] = useState(true);
+  const close = () => {
+    props.onClose();
+    props.editor.commands.focus();
+  };
   return (
     <form
       className="tb-form"
@@ -350,9 +384,9 @@ function TableForm(props: { editor: Editor; onClose: () => void }) {
       aria-label="Insert table"
       onSubmit={(e) => {
         e.preventDefault();
-        if (props.editor.insertTable(rows, cols, header)) props.onClose();
+        if (insertTable(props.editor, rows, cols, header)) props.onClose();
       }}
-      onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), props.onClose(), props.editor.focus())}
+      onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), close())}
     >
       <label>
         Rows
@@ -368,7 +402,7 @@ function TableForm(props: { editor: Editor; onClose: () => void }) {
       <button type="submit" className="primary" data-testid="table-insert">
         Insert
       </button>
-      <button type="button" onClick={() => (props.onClose(), props.editor.focus())}>
+      <button type="button" onClick={close}>
         Cancel
       </button>
     </form>

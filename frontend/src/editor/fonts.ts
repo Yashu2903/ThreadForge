@@ -1,4 +1,4 @@
-import type { DocumentContent, Inline } from "threadforge-client/document-schema";
+import type { Node as PMNode } from "@tiptap/pm/model";
 
 /** The font keys a document may use, what the picker shows, and what the browser draws them with. */
 export interface FontOption {
@@ -21,16 +21,14 @@ export const FONT_OPTIONS: FontOption[] = [
 
 export const SIZE_OPTIONS = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
 
-/** Font keys that appear in a document, for the "fonts may differ" notice. */
-export function fontsUsed(doc: DocumentContent): Set<string> {
+/** Font keys that appear in a document (a ProseMirror node). */
+export function fontsUsed(doc: PMNode): Set<string> {
   const found = new Set<string>();
-  const walk = (node: unknown) => {
-    if (!node || typeof node !== "object") return;
-    const n = node as { type?: string; children?: unknown[]; marks?: { font?: string } };
-    if (n.type === "text" && n.marks?.font) found.add(n.marks.font);
-    for (const child of (n.children as Inline[] | undefined) ?? []) walk(child);
-  };
-  for (const block of doc.blocks) walk(block);
+  doc.descendants((node) => {
+    for (const mark of node.marks) {
+      if (mark.type.name === "textStyle" && mark.attrs.fontKey) found.add(String(mark.attrs.fontKey));
+    }
+  });
   return found;
 }
 
@@ -39,7 +37,7 @@ export function fontsUsed(doc: DocumentContent): Set<string> {
  * substitutes have the same character widths, so line breaks match, but the glyph shapes differ and
  * a machine with the real font will show the real one. Null when nothing needs saying.
  */
-export function fontNotice(doc: DocumentContent): string | null {
+export function fontNotice(doc: PMNode): string | null {
   const used = [...fontsUsed(doc)].map((k) => FONT_OPTIONS.find((o) => o.key === k)).filter((o): o is FontOption => !!o && !!o.substitute);
   if (used.length === 0) return null;
   const list = used.map((o) => `${o.label} is shown as ${o.substitute}`).join("; ");

@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -71,12 +71,6 @@ class SetActiveDocumentRequest(_StrictRequest):
         return _parse_uuid(value)
 
 
-class SaveContentRequest(_StrictRequest):
-    schema_version: int
-    expected_content_version: int = Field(ge=1, le=MAX_BIGINT)
-    content: dict[str, Any]
-
-
 class DocumentSummaryOut(BaseModel):
     """What the list shows. Never includes content."""
 
@@ -85,31 +79,24 @@ class DocumentSummaryOut(BaseModel):
     title: str
     template_key: str
     schema_version: int
-    content_version: int
     metadata_version: int
     created_by: uuid.UUID
     created_at: datetime
     updated_at: datetime
-    content_updated_at: datetime
     is_active: bool
     requires_review: (
         bool  # an import with review-level warnings (always false before imports exist)
     )
+    collab_state: Literal["legacy", "ready", "needs_repair"]
 
 
 class DocumentOut(DocumentSummaryOut):
-    content: dict[str, Any]
-    content_hash: str  # hex SHA-256 of the canonical serialization
-    can_edit: bool  # the CALLER's permission (owner or editor)
+    """One document: metadata and how to open it. NO content: the editor gets the text from the
+    collaboration service over the WebSocket named here."""
 
-
-class SaveContentOut(BaseModel):
-    content_version: int
-    content_hash: str
-    canonical_changed: bool
-    unchanged: bool
-    # present only when canonical_changed: the server's canonical form of what you sent
-    content: dict[str, Any] | None = None
+    can_edit: bool  # the CALLER's permission (owner or editor); a read-only socket otherwise
+    collab_path: str  # same-origin WebSocket path of the collaboration service, e.g. "/collab"
+    document_name: str  # the Hocuspocus document name to join: "doc:<id>"
 
 
 class ActiveDocumentOut(BaseModel):

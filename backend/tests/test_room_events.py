@@ -543,7 +543,6 @@ EXPECTED_EVENTS = {
     "create_document": {"document_created", "active_document_changed"},
     "rename_document": {"document_renamed"},
     "set_active_document": {"active_document_changed"},
-    "save_content": {"document_content_updated"},
     # AI phase 1: the owner's room switch
     "set_room_ai_enabled": {"room_ai_settings_changed"},
 }
@@ -586,7 +585,9 @@ def test_every_mutating_service_function_records_its_event():
     # the helper itself must record the event it is credited with
     helper_source = Path("app/services/documents.py").read_text(encoding="utf-8")
     assert 'event_type="active_document_changed"' in helper_source
-    assert set().union(*EXPECTED_EVENTS.values()) == set(EVENT_SPECS)  # every type has a producer
+    # every type has a producer, except the DEPRECATED per-save event: the content-save route is
+    # gone, the type stays allowed by the database CHECK (old rows may exist) and clients ignore it
+    assert set().union(*EXPECTED_EVENTS.values()) == set(EVENT_SPECS) - {"document_content_updated"}
 
 
 def test_no_route_or_other_module_writes_events_or_the_outbox():

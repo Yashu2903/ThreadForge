@@ -748,6 +748,11 @@ Backend: `cd backend && uv run pytest` (real PostgreSQL 16 and Redis 7; Part 4 t
 
 ## Part 6: documents (in progress: checkpoint 6 of 9, saving and conflicts)
 
+> **Superseded in part.** The custom editor, `PUT .../content`, version conflicts and autosave described
+> below were replaced by Tiptap + Yjs + Hocuspocus live collaboration; see
+> [docs/collaboration.md](docs/collaboration.md) and [docs/collaboration-progress.md](docs/collaboration-progress.md).
+> These sections are rewritten in collaboration checkpoint 5.
+
 Progress, verification status and the next step live in [docs/documents-progress.md](docs/documents-progress.md);
 the document format is [docs/document-schema.md](docs/document-schema.md).
 

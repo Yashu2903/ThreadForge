@@ -110,16 +110,31 @@ input, textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius
 .tf-editor[aria-readonly="true"] { cursor: default; }
 .tf-editor p, .tf-editor h1, .tf-editor h2, .tf-editor h3 { min-height: 1.2em; }
 .tf-editor img[data-atom] { user-select: all; }
-.playground { max-width: 900px; margin: 0 auto; padding: 16px; }
-.playground pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; }
+/* the paper fills the column (auto side margins would otherwise shrink an empty page to nothing) */
+.editor-host { width: 100%; box-sizing: border-box; }
+/* Tiptap content: the ProseMirror element carries .tf-editor; the schema's own HTML does the rest */
+.tf-editor { white-space: pre-wrap; word-break: break-word; }
+.tf-editor .ProseMirror-selectednode, .tf-editor img.ProseMirror-selectednode { outline: 3px solid var(--focus); outline-offset: 1px; }
+.tf-editor ul, .tf-editor ol { margin: 0 0 6px; padding-left: 28px; }
+.tf-editor li > p { margin: 0 0 2px; }
+.tf-editor mark { background: #ffff00; color: inherit; }
+.tf-editor table { border-collapse: collapse; margin: 6px 0; width: 100%; table-layout: fixed; }
+.tf-editor td, .tf-editor th { border: 1px solid #b8bdc7; padding: 4px 6px; vertical-align: top; position: relative; }
+.tf-editor th { background: #eef0f4; text-align: left; }
+.tf-editor .selectedCell::after { content: ""; position: absolute; inset: 0; background: rgba(26, 85, 200, 0.18); pointer-events: none; }
+.tf-editor p.is-editor-empty:first-child::before { content: ""; }
+/* remote collaborators' carets and selections (names come from our member list, see collab/identity.ts) */
+.collab-caret { position: relative; margin-left: -1px; margin-right: -1px; border-left: 2px solid; border-right: 0; word-break: normal; pointer-events: none; }
+.collab-caret-label { position: absolute; top: -1.35em; left: -2px; font-size: 11px; font-weight: 600; line-height: 1.2; color: #fff; padding: 1px 5px; border-radius: 3px 3px 3px 0; white-space: nowrap; user-select: none; }
 
 /* saving */
 .doc-editor { display: flex; flex-direction: column; gap: 6px; }
 .save-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .save-status { font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--line); }
-.save-status.s-saved { background: #cfe9d4; color: #123d1c; }
-.save-status.s-unsaved, .save-status.s-saving { background: #f4e7b3; color: #4a3a00; }
-.save-status.s-failed, .save-status.s-conflict { background: #f3c4c0; color: #5d0f08; }
+.save-status.s-synced { background: #cfe9d4; color: #123d1c; }
+.save-status.s-syncing, .save-status.s-connecting { background: #f4e7b3; color: #4a3a00; }
+.save-status.s-offline, .save-status.s-access-lost { background: #f3c4c0; color: #5d0f08; }
+.save-status.s-read-only { background: #dfe3ea; color: #243044; }
 .conflict { border: 2px solid var(--danger); border-radius: 8px; padding: 8px 12px; background: color-mix(in srgb, var(--danger) 8%, var(--panel)); }
 .conflict p { margin: 4px 0; }
 /* toolbar */

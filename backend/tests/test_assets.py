@@ -12,11 +12,23 @@ from PIL import Image, PngImagePlugin
 
 from app.assets_pipeline import ImageRejected, configure_pillow, process_image, sniff
 from app.commands.cleanup_documents import cleanup_documents
+from app.services.documents import sync_asset_refs
 from app.storage import Storage, StorageError
-from tests.doc_helpers import content, new_id, room_with_doc, save
+from tests.doc_helpers import new_id
 from tests.helpers import TRUSTED_ORIGIN, add_member, execute, rows, scalar
-from tests.test_documents_save import with_image
 from tests.test_invitations_api import new_room
+
+
+async def set_refs(sessionmaker, room_id, doc_id, asset_ids):
+    """Make the document reference exactly these assets, through the same function the validated
+    collaboration snapshot uses (services/documents.sync_asset_refs). Since the Yjs change a
+    document's references are derived from snapshots; the snapshot route itself (validation,
+    foreign/missing/expired assets) is tested in test_collab_internal.py."""
+    async with sessionmaker() as db, db.begin():
+        await sync_asset_refs(
+            db, uuid.UUID(room_id), uuid.UUID(doc_id), {uuid.UUID(a) for a in asset_ids}
+        )
+
 
 # ---- image builders ---------------------------------------------------------------------------------------
 
@@ -539,15 +551,6 @@ async def test_the_upload_rate_limit_is_per_user_per_room_and_refusals_consume_n
     assert await scalar(sessionmaker, "SELECT count(*) FROM room_assets") == 4
 
 
-async def test_uploading_does_not_use_the_document_save_quota(make_actor, cfg, sessionmaker):
-    limited = cfg.model_copy(update={"document_writes_per_minute": 1})
-    owner = await make_actor("Both", app_settings=limited)
-    room_id, doc = await room_with_doc(owner, sessionmaker)
-    for _ in range(4):
-        assert (await upload(owner, room_id, png())).status_code == 201
-    assert (await save(owner, room_id, doc["id"], 1, content("still allowed"))).status_code == 200
-
-
 # ---- download -------------------------------------------------------------------------------------------------------------------
 
 
@@ -606,7 +609,7 @@ async def test_expired_or_missing_bytes_are_404(make_actor, cfg, sessionmaker, s
     assert (await owner.get(url)).status_code == 404
 
 
-async def test_saving_a_document_attaches_the_asset_and_it_can_be_displayed(
+async def test_a_referenced_asset_becomes_attached_and_can_be_displayed(
     make_actor, cfg, sessionmaker
 ):
     owner, _e, viewer, room_id = await owner_room(make_actor, cfg, sessionmaker)
@@ -617,7 +620,7 @@ async def test_saving_a_document_attaches_the_asset_and_it_can_be_displayed(
         )
     ).json()
     created = (await upload(owner, room_id, png())).json()
-    assert (await save(owner, room_id, doc["id"], 1, with_image(created["id"]))).status_code == 200
+    await set_refs(sessionmaker, room_id, doc["id"], [created["id"]])
     assert await scalar(sessionmaker, "SELECT state FROM room_assets") == "attached"
     assert (await viewer.get(f"/rooms/{room_id}/assets/{created['id']}")).status_code == 200
 
@@ -665,12 +668,8 @@ async def test_a_dropped_image_survives_the_grace_period_then_expires_but_a_refe
         )
     ).json()
     a, b, _c = ids
-    body = with_image(a)
-    body["blocks"][0]["children"].append(
-        {"type": "image", "id": new_id(), "asset_id": b, "width_px": 5, "height_px": 5}
-    )
-    assert (await save(owner, room_id, doc["id"], 1, body)).status_code == 200
-    assert (await save(owner, room_id, doc["id"], 2, with_image(a))).status_code == 200  # b dropped
+    await set_refs(sessionmaker, room_id, doc["id"], [a, b])
+    await set_refs(sessionmaker, room_id, doc["id"], [a])  # b dropped
     assert await scalar(
         sessionmaker, "SELECT unreferenced_since IS NOT NULL FROM room_assets WHERE id = :i", i=b
     )
@@ -716,16 +715,14 @@ async def test_re_referencing_inside_the_grace_period_clears_the_clock(
         )
     ).json()
     a = ids[0]
-    assert (await save(owner, room_id, doc["id"], 1, with_image(a))).status_code == 200
-    assert (await save(owner, room_id, doc["id"], 2, content("none"))).status_code == 200
+    await set_refs(sessionmaker, room_id, doc["id"], [a])
+    await set_refs(sessionmaker, room_id, doc["id"], [])
     await execute(
         sessionmaker,
         "UPDATE room_assets SET unreferenced_since = now() - interval '8 days' WHERE id = :i",
         i=a,
     )
-    assert (
-        await save(owner, room_id, doc["id"], 3, with_image(a))
-    ).status_code == 200  # the undo, saved
+    await set_refs(sessionmaker, room_id, doc["id"], [a])  # the undo, snapshotted
     assert (await cleanup_documents(sessionmaker, store)).unreferenced_expired == 0
 
 

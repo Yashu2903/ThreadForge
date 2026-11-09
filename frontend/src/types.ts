@@ -1,6 +1,4 @@
-/** Shapes returned by the backend (see README "Part 6" and backend/app/schemas/). */
-import type { DocumentContent } from "threadforge-client/document-schema";
-
+/** Shapes returned by the backend (see backend/app/schemas/). */
 export interface Me {
   id: string;
   display_name: string;
@@ -23,20 +21,22 @@ export interface DocumentSummary {
   title: string;
   template_key: string;
   schema_version: number;
-  content_version: number;
   metadata_version: number;
   created_by: string;
   created_at: string;
   updated_at: string;
-  content_updated_at: string;
   is_active: boolean;
   requires_review: boolean;
+  /** legacy: not opened yet; ready: live in the collaboration service; needs_repair: refused */
+  collab_state: "legacy" | "ready" | "needs_repair";
 }
 
+/** One document as the API describes it. There is NO text here: the editor receives the text from
+ *  the collaboration service over `collab_path`, joining the document called `document_name`. */
 export interface DocumentFull extends DocumentSummary {
-  content: DocumentContent;
-  content_hash: string;
   can_edit: boolean;
+  collab_path: string;
+  document_name: string;
 }
 
 export interface Page<T> {

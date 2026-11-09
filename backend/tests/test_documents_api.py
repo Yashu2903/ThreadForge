@@ -6,17 +6,18 @@ import uuid
 import pytest
 
 from app.services import documents as documents_service
-from tests.doc_helpers import content, create_doc, events_of, new_id, room_with_doc, save
+from tests.doc_helpers import create_doc, events_of, new_id, room_with_doc
 from tests.factories import make_settings
 from tests.helpers import add_member, execute, room_row, rows, scalar
 from tests.test_invitations_api import new_room
 
-DOC_FIELDS = {
-    "id", "room_id", "title", "template_key", "schema_version", "content_version",
-    "metadata_version", "created_by", "created_at", "updated_at", "content_updated_at",
-    "is_active", "requires_review", "content", "content_hash", "can_edit",
+SUMMARY_FIELDS = {
+    "id", "room_id", "title", "template_key", "schema_version", "metadata_version", "created_by",
+    "created_at", "updated_at", "is_active", "requires_review", "collab_state",
 }  # fmt: skip
-SUMMARY_FIELDS = DOC_FIELDS - {"content", "content_hash", "can_edit"}
+# the single-document answer adds how to OPEN it; it never carries the text (the collaboration
+# service delivers that)
+DOC_FIELDS = SUMMARY_FIELDS | {"can_edit", "collab_path", "document_name"}
 
 
 async def roles_room(alice, bob, carol, make_actor, sessionmaker):
@@ -49,11 +50,13 @@ async def test_owner_creates_a_document_that_becomes_active_with_two_ordered_eve
     assert response.status_code == 201
     body = response.json()
     assert set(body) == DOC_FIELDS
-    assert (body["title"], body["template_key"], body["content_version"], body["metadata_version"]) == (
-        "Launch plan", "project_brief", 1, 1,
+    assert (body["title"], body["template_key"], body["metadata_version"]) == (
+        "Launch plan", "project_brief", 1,
     )  # fmt: skip
     assert (body["is_active"], body["can_edit"], body["requires_review"]) == (True, True, False)
-    assert len(body["content_hash"]) == 64
+    assert body["collab_state"] == "legacy"  # seeded into Yjs on first open, not at creation
+    assert (body["collab_path"], body["document_name"]) == ("/collab", f"doc:{body['id']}")
+    assert "content" not in body and "content_hash" not in body and "content_version" not in body
     room = await room_row(sessionmaker, room_id)
     assert (str(room["active_document_id"]), room["active_document_version"]) == (body["id"], 1)
     assert room["version"] == 0  # the selection is not a room rename or access change
@@ -95,10 +98,14 @@ async def test_every_template_is_created_valid_with_unique_ids(alice, sessionmak
         "research_summary",
     ):
         body = (await create_doc(alice, room_id, key, key)).json()
-        ids = [b["id"] for b in body["content"]["blocks"]]
+        assert "content" not in body  # the API never returns text; the seed is stored read-only
+        [seed] = await rows(
+            sessionmaker, "SELECT content FROM documents WHERE id = :d", d=body["id"]
+        )
+        ids = [b["id"] for b in seed["content"]["blocks"]]
         assert len(set(ids)) == len(ids) and not (set(ids) & seen)
         seen |= set(ids)
-        assert body["content"]["schema_version"] == 1
+        assert seed["content"]["schema_version"] == 1
 
 
 async def test_a_retry_returns_200_changes_nothing_and_never_reactivates(alice, sessionmaker):
@@ -242,7 +249,7 @@ async def test_list_has_metadata_only_pagination_and_never_selects_content(
     ] == "invalid_cursor"
 
 
-async def test_get_returns_content_and_the_callers_permission(
+async def test_get_returns_metadata_how_to_open_it_and_the_callers_permission(
     alice, bob, carol, make_actor, sessionmaker
 ):
     room_id, doc, actors = await roles_room(alice, bob, carol, make_actor, sessionmaker)
@@ -251,7 +258,8 @@ async def test_get_returns_content_and_the_callers_permission(
         assert response.status_code == 200
         body = response.json()
         assert set(body) == DOC_FIELDS and body["can_edit"] is expected
-        assert body["content"] == doc["content"]
+        assert body["document_name"] == f"doc:{doc['id']}" and body["collab_path"] == "/collab"
+        assert "content" not in body
 
 
 async def test_etag_and_conditional_get(alice, sessionmaker):
@@ -259,18 +267,23 @@ async def test_etag_and_conditional_get(alice, sessionmaker):
     url = f"/rooms/{room_id}/documents/{doc['id']}"
     first = await alice.get(url)
     etag = first.headers["etag"]
-    assert etag == '"c1m1"' and first.headers["cache-control"] == "no-store"
+    assert etag == '"m1-legacy"' and first.headers["cache-control"] == "no-store"
     for header in (etag, "W/" + etag, f'"x", {etag}', "*"):
         cached = await alice.get(url, headers={"If-None-Match": header})
         assert (cached.status_code, cached.content) == (304, b"")
         assert cached.headers["etag"] == etag
-    assert (await alice.get(url, headers={"If-None-Match": '"c9m9"'})).status_code == 200
-    # a rename changes the ETag (metadata_version); a save changes it (content_version)
+    assert (await alice.get(url, headers={"If-None-Match": '"m9-legacy"'})).status_code == 200
+    # a rename changes the ETag (metadata_version); so does the collaboration state
     await alice.patch(url, json={"title": "Renamed"})
     assert (await alice.get(url, headers={"If-None-Match": etag})).status_code == 200
-    assert (await alice.get(url)).headers["etag"] == '"c1m2"'
-    await save(alice, room_id, doc["id"], 1, content("changed"))
-    assert (await alice.get(url)).headers["etag"] == '"c2m2"'
+    assert (await alice.get(url)).headers["etag"] == '"m2-legacy"'
+    await execute(
+        sessionmaker,
+        "UPDATE documents SET collab_state = 'needs_repair' WHERE id = :d",
+        d=doc["id"],
+    )
+    assert (await alice.get(url)).headers["etag"] == '"m2-needs_repair"'
+    assert (await alice.get(url)).json()["collab_state"] == "needs_repair"
 
 
 async def test_inactive_documents_stay_readable(alice, bob, sessionmaker):
@@ -289,7 +302,7 @@ async def test_rename_bumps_metadata_version_only_and_records_an_event(alice, se
     response = await alice.patch(f"/rooms/{room_id}/documents/{doc['id']}", json={"title": " New "})
     assert response.status_code == 200
     body = response.json()
-    assert (body["title"], body["metadata_version"], body["content_version"]) == ("New", 2, 1)
+    assert (body["title"], body["metadata_version"]) == ("New", 2)
     [after] = await rows(sessionmaker, "SELECT * FROM documents")
     assert after["content_updated_at"] == before[0]["content_updated_at"]
     assert after["updated_at"] > before[0]["updated_at"]
@@ -311,15 +324,6 @@ async def test_a_no_op_rename_writes_nothing_and_emits_nothing(alice, sessionmak
         await rows(sessionmaker, "SELECT * FROM documents"),
         await events_of(sessionmaker, room_id),
     ) == before
-
-
-async def test_rename_does_not_conflict_with_a_save_in_flight_on_the_same_content_version(
-    alice, bob, sessionmaker
-):
-    room_id, doc = await room_with_doc(alice, sessionmaker, (bob, "editor"))
-    await alice.patch(f"/rooms/{room_id}/documents/{doc['id']}", json={"title": "Renamed"})
-    saved = await save(bob, room_id, doc["id"], 1, content("bob's text"))  # still version 1
-    assert saved.status_code == 200 and saved.json()["content_version"] == 2
 
 
 async def test_rename_rejects_extra_fields_and_bad_titles(alice, sessionmaker):
@@ -409,7 +413,8 @@ async def test_permission_matrix_for_every_route(alice, bob, carol, make_actor, 
             return await actor.put(
                 f"/rooms/{room_id}/active-document", json={"document_id": doc["id"]}
             )
-        return await save(actor, room_id, doc["id"], 1, content(f"by {role}"))
+        # the old content-save route is gone for everyone
+        return await actor.put(f"{d}/content", json={"junk": 1})
 
     expected = {
         "list": dict(owner=200, editor=200, viewer=200, removed=404, stranger=404),
@@ -417,20 +422,16 @@ async def test_permission_matrix_for_every_route(alice, bob, carol, make_actor, 
         "create": dict(owner=201, editor=403, viewer=403, removed=404, stranger=404),
         "rename": dict(owner=200, editor=403, viewer=403, removed=404, stranger=404),
         "select": dict(owner=200, editor=403, viewer=403, removed=404, stranger=404),
-        "save": dict(owner=200, editor=403, viewer=403, removed=404, stranger=404),
+        "save": dict(owner=404, editor=404, viewer=404, removed=404, stranger=404),
     }
     for kind in ("list", "get", "create", "rename", "select", "save"):
         for role in ("viewer", "editor", "removed", "stranger", "owner"):
-            if kind == "save" and role == "editor":
-                continue  # an editor CAN save; covered below (needs a fresh version)
             response = await call(role, kind)
             assert response.status_code == expected[kind][role], (kind, role, response.text)
             if response.status_code == 403:
                 assert response.json()["error"]["code"] == "insufficient_role"
-            if response.status_code == 404:
+            if response.status_code == 404 and kind != "save":
                 assert response.json()["error"]["code"] == "room_not_found"
-    current = (await alice.get(d)).json()["content_version"]
-    assert (await save(bob, room_id, doc["id"], current, content("editor"))).status_code == 200
 
 
 async def test_unauthenticated_and_csrfless_requests_are_rejected(alice, sessionmaker, client):
@@ -446,11 +447,6 @@ async def test_unauthenticated_and_csrfless_requests_are_rejected(alice, session
         ),
         alice.patch(d, json={"title": "x"}, csrf=False),
         alice.put(f"/rooms/{room_id}/active-document", json={"document_id": doc["id"]}, csrf=False),
-        alice.put(
-            f"{d}/content",
-            json={"schema_version": 1, "expected_content_version": 1, "content": content("x")},
-            csrf=False,
-        ),
     ):
         response = await call
         assert (response.status_code, response.json()["error"]["code"]) == (403, "csrf_failed")
@@ -467,12 +463,8 @@ async def test_a_document_of_another_room_is_not_found_through_any_route(alice, 
     assert (await alice.patch(path, json={"title": "stolen"})).json()["error"][
         "code"
     ] == "document_not_found"
-    saved = await save(alice, room_a, doc_b["id"], 1, content("injected"))
-    assert (saved.status_code, saved.json()["error"]["code"]) == (404, "document_not_found")
-    stored = await rows(
-        sessionmaker, "SELECT title, content_version FROM documents WHERE id = :d", d=doc_b["id"]
-    )
-    assert stored == [{"title": "Plan", "content_version": 1}]
+    stored = await rows(sessionmaker, "SELECT title FROM documents WHERE id = :d", d=doc_b["id"])
+    assert stored == [{"title": "Plan"}]
     for junk in ("not-a-uuid", "0" * 36, str(uuid.uuid4())):
         assert (await alice.get(f"/rooms/{room_a}/documents/{junk}")).status_code == 404
 
@@ -480,9 +472,6 @@ async def test_a_document_of_another_room_is_not_found_through_any_route(alice, 
 async def test_a_nonmember_sending_an_invalid_body_gets_404_not_422(alice, bob, sessionmaker):
     room_id, doc = await room_with_doc(alice, sessionmaker)
     assert (await bob.post(f"/rooms/{room_id}/documents", json={"junk": 1})).status_code == 404
-    assert (
-        await bob.put(f"/rooms/{room_id}/documents/{doc['id']}/content", json={"junk": 1})
-    ).status_code == 404
 
 
 # ---- rooms representation ----------------------------------------------------------------------------------

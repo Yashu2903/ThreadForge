@@ -41,14 +41,6 @@ async def create_doc(owner, room_id, title="Plan", template="blank", rid=None, *
     )
 
 
-async def save(actor, room_id, doc_id, version, body, **kw):
-    return await actor.put(
-        f"/rooms/{room_id}/documents/{doc_id}/content",
-        json={"schema_version": 1, "expected_content_version": version, "content": body},
-        **kw,
-    )
-
-
 async def room_with_doc(alice, sessionmaker, *members, template="blank"):
     """A room owned by alice with one document (active) and the given (actor, role) members."""
     room_id = await new_room(alice)

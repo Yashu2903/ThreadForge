@@ -1,155 +1,150 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { Editor } from "@tiptap/core";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Api } from "./api";
-import { Dialog } from "./components/Dialog";
-import { DocumentSession, type ReadOnlyReason, type SaveStatus } from "./documents/session";
-import type { DocumentStore } from "./documents/store";
+import { CollabSession, collabUrl } from "./collab/session";
+import type { MemberName } from "./collab/identity";
 import { uploadImage } from "./documents/upload";
-import type { Doc } from "./editor/doc";
-import type { Editor } from "./editor/editor";
-import { EditorSurface } from "./editor/EditorSurface";
 import { fontNotice } from "./editor/fonts";
+import { TiptapEditor } from "./editor/TiptapEditor";
 import { Toolbar } from "./editor/Toolbar";
 import type { DocumentFull } from "./types";
 
-const LABELS: Record<SaveStatus, string> = {
-  saved: "Saved",
-  unsaved: "Unsaved changes",
-  saving: "Saving…",
-  failed: "Save failed",
-  conflict: "Conflict",
-  "read-only": "Read-only",
-};
+/** What RoomView needs to know about the open document's live connection. */
+export interface LiveHandle {
+  docId: string;
+  /** local changes the server has not acknowledged yet */
+  unsynced: () => number;
+  /** the document text, to copy out before it is lost */
+  text: () => string;
+}
 
 /**
- * The editable document: toolbar, editor, save status, and the conflict / failure / access-loss
- * messages. The DocumentSession owns every saving rule (see documents/session.ts); this component
- * only shows its state and passes the user's choices to it.
+ * The live document: toolbar, editor, sync indicator and the access / repair messages.
+ *
+ * It owns one CollabSession for the open document. The session is created in an effect and
+ * destroyed in its cleanup, so opening another document, leaving the room, or unmounting always
+ * closes the socket and frees the Yjs document (React StrictMode's mount/unmount/mount included).
+ * The text itself never passes through React state.
  */
 export function DocumentEditor(props: {
   api: Api;
   roomId: string;
+  userId: string;
   doc: DocumentFull;
-  /** the newest copy the document store has fetched from the server */
-  serverDoc: DocumentFull | null;
-  store: DocumentStore;
-  readOnlyReason: ReadOnlyReason | null;
-  onSession: (session: DocumentSession) => void;
+  members: readonly MemberName[];
+  /** a phone or tablet: view only */
+  mobile: boolean;
+  /** the room client's current idea of this person's role (it can change while the editor is open) */
+  roleCanEdit: boolean;
+  onLive: (handle: LiveHandle | null) => void;
+  onAtRisk: (unsynced: number) => void;
 }) {
-  const { api, roomId, doc, store } = props;
-  const session = useMemo(
-    () => new DocumentSession({ api, roomId, initial: doc }),
-    // one session per document; the store refetching the same document must not make a new one
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [api, roomId, doc.id],
-  );
-  const snap = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const { api, roomId, doc } = props;
+  const [session, setSession] = useState<CollabSession | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [revision, setRevision] = useState(0);
   const [linkOpen, setLinkOpen] = useState(false);
   const [notice, setNotice] = useState("");
-  const [confirmLoad, setConfirmLoad] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const initial = useRef(doc.content as unknown as Doc);
+  const editorRef = useRef<Editor | null>(null);
+  editorRef.current = editor;
 
   useEffect(() => {
-    session.activate();
-    props.onSession(session);
-    return () => session.dispose();
-  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+    const created = new CollabSession({
+      url: collabUrl(doc.collab_path),
+      documentName: doc.document_name,
+      canEdit: doc.can_edit && props.roleCanEdit && !props.mobile,
+    });
+    setSession(created);
+    props.onLive({ docId: doc.id, unsynced: () => created.unsyncedChanges, text: () => editorRef.current?.getText({ blockSeparator: "\n" }) ?? "" });
+    return () => {
+      props.onLive(null);
+      props.onAtRisk(0);
+      setSession(null);
+      setEditor(null);
+      created.destroy();
+    };
+    // one session per document of this room
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, roomId, doc.id]);
 
-  // events about this document, straight from the room client (before its cursor advances)
-  useEffect(() => store.onContentEvent((id, version) => id === doc.id && session.onServerEvent(version)), [store, session, doc.id]);
+  const idle = useCallback(() => () => undefined, []);
+  const snap = useSyncExternalStore(session ? session.subscribe : idle, () => session?.getSnapshot() ?? null);
 
-  // the store fetched a newer copy: a clean session adopts it, a dirty one reports a conflict
+  // the permission can change while the editor is open (the room client reports role changes)
+  const mayEdit = doc.can_edit && props.roleCanEdit && !props.mobile;
+  useEffect(() => session?.setCanEdit(mayEdit), [session, mayEdit]);
+
+  // tell the room view how much is at risk (for switching documents)
+  useEffect(() => props.onAtRisk(snap?.atRisk ?? 0), [snap?.atRisk]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // warn before leaving with changes the server has not acknowledged
+  const atRisk = snap?.atRisk ?? 0;
   useEffect(() => {
-    if (props.serverDoc) session.onServerDocument(props.serverDoc);
-  }, [props.serverDoc?.content_version, session]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // losing (or regaining) edit rights
-  useEffect(() => session.setReadOnly(props.readOnlyReason), [props.readOnlyReason, session]);
-
-  // warn before leaving with anything unsaved
-  const risky = snap.dirty || snap.status === "saving" || snap.status === "failed" || snap.status === "conflict";
-  useEffect(() => {
-    if (!risky) return;
+    if (atRisk <= 0) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [risky]);
-
-  async function loadLatest() {
-    setConfirmLoad(false);
-    try {
-      const fresh = await api.get<DocumentFull>(`/rooms/${roomId}/documents/${doc.id}`);
-      session.loadLatest(fresh.body);
-    } catch {
-      setNotice("Could not load the latest version. Your changes are still here.");
-    }
-  }
+  }, [atRisk]);
 
   async function copyMyText() {
-    const text = session.localText();
+    const text = editor?.getText({ blockSeparator: "\n" }) ?? "";
     try {
       await navigator.clipboard.writeText(text);
       setCopied("Copied to the clipboard.");
     } catch {
-      // no clipboard permission: show the text so it can be copied by hand
-      setCopied(text);
+      setCopied(text); // no clipboard permission: show the text so it can be copied by hand
     }
   }
 
-  const readOnly = snap.readOnlyReason !== null;
-  const canSave = !readOnly && snap.status !== "conflict" && (snap.dirty || snap.status === "failed");
-  const font = fontNotice(editor?.getDocument() ?? (doc.content as unknown as Doc));
+  const editable = !!snap && snap.editable && mayEdit;
+  const font = editor ? fontNotice(editor.state.doc) : null;
+  const members = props.members;
 
   return (
     <div className="doc-editor">
       <div className="save-bar">
-        <span role="status" aria-live="polite" className={`save-status s-${snap.status}`} data-testid="save-status">
-          {LABELS[snap.status]}
+        <span
+          role="status"
+          aria-live="polite"
+          className={`save-status s-${snap?.kind ?? "connecting"}`}
+          data-testid="sync-status"
+          title={
+            snap?.kind === "synced"
+              ? "The server has received everything you typed. It is stored in the database within a few seconds."
+              : snap?.kind === "offline"
+                ? "You are offline. Changes stay in this tab and are sent when the connection returns. Closing the tab loses them."
+                : undefined
+          }
+        >
+          {snap?.label ?? "Connecting…"}
         </span>
-        <span className="muted" data-testid="doc-version">
-          Version {snap.contentVersion}
-        </span>
-        {!readOnly && (
-          <button type="button" onClick={() => void session.saveNow()} disabled={!canSave && snap.status !== "saving"} data-testid="save-button">
-            Save
-          </button>
-        )}
-        {snap.status === "failed" && (
-          <button type="button" onClick={() => session.retryNow()} data-testid="retry-button">
-            Retry now
-          </button>
+        {atRisk > 0 && snap?.kind !== "access-lost" && (
+          <span className="muted" data-testid="at-risk">
+            {atRisk} {atRisk === 1 ? "change is" : "changes are"} not on the server yet
+          </span>
         )}
       </div>
 
-      {snap.message && snap.status !== "conflict" && (
-        <p className={snap.status === "failed" ? "error" : "muted"} role={snap.status === "failed" ? "alert" : undefined} data-testid="save-message">
-          {snap.message}
-        </p>
-      )}
-
-      {snap.status === "conflict" && (
-        <div className="conflict" role="alert" data-testid="conflict">
-          <strong>Another session saved a newer version (version {snap.serverVersion ?? "?"}).</strong>
-          <p>Your changes have not been saved, and nothing was overwritten. Your text is still here and you can keep editing it.</p>
-          <div className="actions">
-            <button type="button" onClick={() => void copyMyText()} data-testid="copy-text">
-              Copy my text
-            </button>
-            <button type="button" onClick={() => setConfirmLoad(true)} data-testid="load-latest">
-              Load latest…
-            </button>
-          </div>
-        </div>
-      )}
-
-      {snap.readOnlyReason && snap.dirty && (
-        <div className="conflict" role="alert" data-testid="readonly-unsaved">
-          <p>Your unsaved changes are still on this page. Copy them before you leave.</p>
+      {snap?.kind === "access-lost" && (
+        <div className="conflict" role="alert" data-testid="access-lost">
+          <strong>
+            {snap.denial === "needs_repair"
+              ? "This document needs repair and cannot be opened right now."
+              : "You no longer have access to this document."}
+          </strong>
+          {snap.denial === "needs_repair" ? (
+            <p>An administrator can restore it from its last good version. Nothing you typed earlier was lost from the server.</p>
+          ) : (
+            <p>
+              {atRisk > 0
+                ? "Your last changes were not received by the server. The text is still on this page; copy it before you leave."
+                : "Everything you typed before this was received by the server. The text below is a read-only copy."}
+            </p>
+          )}
           <button type="button" onClick={() => void copyMyText()} data-testid="copy-text">
             Copy my text
           </button>
@@ -165,11 +160,17 @@ export function DocumentEditor(props: {
           {notice}
         </p>
       )}
+      {props.mobile && (
+        <p className="muted" role="note" data-testid="mobile-note">
+          Editing is not supported in mobile browsers; you can view this document, and it updates live.
+        </p>
+      )}
 
-      {!readOnly && (
+      {mayEdit && (
         <Toolbar
           editor={editor}
           revision={revision}
+          enabled={editable}
           linkOpen={linkOpen}
           onLinkOpenChange={setLinkOpen}
           onNotice={setNotice}
@@ -181,41 +182,26 @@ export function DocumentEditor(props: {
           {font}
         </p>
       )}
-      <EditorSurface
-        initialDocument={initial.current}
-        readOnly={readOnly}
-        label={doc.title}
-        assetUrl={(id) => `/rooms/${roomId}/assets/${id}`}
-        onReady={(e) => {
-          setEditor(e);
-          session.attach(e);
-          (window as unknown as { __editor?: Editor }).__editor = e;
-        }}
-        onChange={() => {
-          setNotice("");
-          session.onEditorChange();
-        }}
-        onNotice={setNotice}
-        onSave={() => void session.saveNow()}
-        onLinkRequest={() => setLinkOpen(true)}
-        onStateChange={() => setRevision((n) => n + 1)}
-      />
-
-      {confirmLoad && (
-        <Dialog title="Load the latest version?" onClose={() => setConfirmLoad(false)}>
-          <p>
-            This replaces the document on your screen with the version saved by the other session. <strong>Your unsaved changes will be discarded.</strong>{" "}
-            You can copy your text first.
-          </p>
-          <div className="actions">
-            <button type="button" onClick={() => setConfirmLoad(false)}>
-              Keep my changes
-            </button>
-            <button type="button" className="primary" onClick={() => void loadLatest()} data-testid="confirm-load-latest">
-              Discard my changes and load
-            </button>
-          </div>
-        </Dialog>
+      {session && (
+        <TiptapEditor
+          key={session.options.documentName}
+          session={session}
+          editable={editable}
+          label={doc.title}
+          userId={props.userId}
+          members={members}
+          assetUrl={(id) => `/rooms/${roomId}/assets/${id}`}
+          onEditor={(e) => {
+            setEditor(e);
+            (window as unknown as { __editor?: Editor | null }).__editor = e;
+          }}
+          onTransaction={() => {
+            setNotice("");
+            setRevision((n) => n + 1);
+          }}
+          onNotice={setNotice}
+          onLinkRequest={() => setLinkOpen(true)}
+        />
       )}
     </div>
   );

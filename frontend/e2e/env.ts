@@ -9,6 +9,9 @@ export const API_PORT = 8100;
 export const WEB_PORT = 5173;
 export const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
 export const API_URL = `http://127.0.0.1:${API_PORT}`;
+export const COLLAB_PORT = 4010;
+export const COLLAB_URL = `http://127.0.0.1:${COLLAB_PORT}`;
+export const INTERNAL_SECRET = "e2e-internal-secret-0123456789-abcdefghijklmnop";
 export const BACKEND_DIR = new URL("../../backend/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
 const prefix = process.env.E2E_PREFIX ?? `e2e-${randomBytes(4).toString("hex")}`;
@@ -32,4 +35,16 @@ export const backendEnv: Record<string, string> = {
   DOCUMENT_WRITES_PER_MINUTE: "1000",
   LOG_LEVEL: "WARNING",
   STORAGE_PATH: `${BACKEND_DIR}data/e2e-storage`,
+  INTERNAL_API_SECRET: INTERNAL_SECRET,
+};
+
+/** The collaboration service (Node, Hocuspocus): talks to the API's /internal/collab routes only. */
+export const collabEnv: Record<string, string> = {
+  ...(process.env as Record<string, string>),
+  COLLAB_ADDRESS: "127.0.0.1",
+  COLLAB_PORT: String(COLLAB_PORT),
+  COLLAB_API_BASE_URL: API_URL,
+  INTERNAL_API_SECRET: INTERNAL_SECRET,
+  COLLAB_ALLOWED_ORIGINS: WEB_ORIGIN,
+  COLLAB_LOG_LEVEL: "warn",
 };

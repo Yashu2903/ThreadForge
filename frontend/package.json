@@ -12,8 +12,17 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@hocuspocus/provider": "4.8.0",
+    "@tiptap/core": "3.33.0",
+    "@tiptap/extension-collaboration": "3.33.0",
+    "@tiptap/extension-collaboration-caret": "3.33.0",
+    "@tiptap/pm": "3.33.0",
+    "@tiptap/react": "3.33.0",
+    "@tiptap/y-tiptap": "3.2.0",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "y-protocols": "1.0.7",
+    "yjs": "13.6.33"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

@@ -44,7 +44,7 @@ test.describe("room layout, document list and dialogs", () => {
     // the owner creating a second document moves everyone's active document, live
     await asAlice.createDocument(roomId, "Second doc", "meeting_notes");
     await expect(viewer.page.getByRole("heading", { name: "Second doc" })).toBeVisible();
-    await expect(viewer.page.getByTestId("document-read").getByRole("heading", { name: "Agenda" })).toBeVisible();
+    await expect(viewer.page.getByTestId("editor").getByRole("heading", { name: "Agenda" })).toBeVisible();
 
     await owner.context.close();
     await viewer.context.close();

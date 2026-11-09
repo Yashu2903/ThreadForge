@@ -3,12 +3,12 @@
  *
  * Rules (from the spec, section 7), implemented here so they are testable without React:
  *  - events are coalesced per document by the room client before they reach onSignals();
- *  - a content event for a document that is NOT open only marks the list stale;
- *  - for the open document, a clean local copy is refetched with If-None-Match, at most once per
- *    second per document (a trailing refetch is scheduled if one is asked for sooner);
- *  - an event whose content version is at or below the version we already hold is ignored (our own
- *    acknowledged saves, and repeats).
- * Editing and dirty-copy handling arrive with the saving checkpoint, which extends this class.
+ *  - the store holds METADATA only (title, active flag, collab state, can_edit). The text of a
+ *    document is never fetched over HTTP: the editor gets it from the collaboration service;
+ *  - `document_content_updated` events are ignored (that event type is deprecated: nothing emits it
+ *    any more, and the live text does not travel through room events);
+ *  - for the open document, a rename refetches its metadata with If-None-Match, at most once per
+ *    second per document (a trailing refetch is scheduled if one is asked for sooner).
  */
 import type { DocumentSignals } from "threadforge-client";
 import { type Api, ApiError } from "../api";
@@ -59,7 +59,6 @@ export class DocumentStore {
   private lastRefetchAt = -Infinity;
   private trailing: unknown = null;
   private disposed = false;
-  private contentListeners = new Set<(docId: string, version: number) => void>();
 
   constructor(
     private readonly api: Api,
@@ -186,12 +185,6 @@ export class DocumentStore {
     void this.fetchOpen(id, true);
   }
 
-  /** Called (synchronously, from the room client's batch handler) for each content version announced for a document. */
-  onContentEvent(listener: (docId: string, version: number) => void): () => void {
-    this.contentListeners.add(listener);
-    return () => this.contentListeners.delete(listener);
-  }
-
   // ---- room events ---------------------------------------------------------------------------------------------
   /** Called by the room client BEFORE its cursor advances; it only starts work, it never throws. */
   onSignals(signals: DocumentSignals): void {
@@ -204,16 +197,9 @@ export class DocumentStore {
       this.patchList({ stale: true });
       void this.loadList();
     }
-    for (const [docId, change] of signals.documents) {
-      if (change.contentVersion !== null) for (const l of this.contentListeners) l(docId, change.contentVersion);
-    }
     const id = this.openId;
     const change = id ? signals.documents.get(id) : undefined;
-    if (id && change) {
-      const known = this.state.open?.doc;
-      const newerContent = change.contentVersion !== null && (!known || change.contentVersion > known.content_version);
-      if (newerContent || change.renamed) this.refreshOpen();
-    }
+    if (id && change?.renamed) this.refreshOpen();
   }
 }
 

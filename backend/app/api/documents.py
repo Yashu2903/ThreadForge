@@ -20,13 +20,11 @@ from fastapi import APIRouter, Query, Request, Response
 
 from app.dependencies.rooms import (
     MemberAccess,
-    MemberAccessUnsafe,
     OwnerAccessUnsafe,
     RoomAccess,
     parse_uuid,
 )
-from app.documents.schema import SCHEMA_VERSION, InvalidDocument, validate_document
-from app.errors import document_not_found, insufficient_role, invalid_document_content
+from app.errors import document_not_found, insufficient_role
 from app.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page
 from app.request_body import json_body_docs, parse_json_body
 from app.schemas.auth import ErrorBody
@@ -36,8 +34,6 @@ from app.schemas.documents import (
     DocumentOut,
     DocumentSummaryOut,
     RenameDocumentRequest,
-    SaveContentOut,
-    SaveContentRequest,
     SetActiveDocumentRequest,
 )
 from app.services import documents
@@ -52,8 +48,8 @@ _COMMON = {
 _ETAG_TOKEN = re.compile(r'\s*(?:W/)?("[^"]*"|\*)\s*')
 
 
-def etag_for(content_version: int, metadata_version: int) -> str:
-    return f'"c{content_version}m{metadata_version}"'
+def etag_for(metadata_version: int, collab_state: str) -> str:
+    return f'"m{metadata_version}-{collab_state}"'
 
 
 def _matches(header: str | None, etag: str) -> bool:
@@ -67,8 +63,13 @@ def _matches(header: str | None, etag: str) -> bool:
     return False
 
 
-def _document_out(view: documents.DocumentFull, role: str) -> DocumentOut:
-    return DocumentOut(**view.__dict__, can_edit=role in documents.EDIT_ROLES)
+def _document_out(view: documents.DocumentSummary, role: str, collab_path: str) -> DocumentOut:
+    return DocumentOut(
+        **view.__dict__,
+        can_edit=role in documents.EDIT_ROLES,
+        collab_path=collab_path,
+        document_name=f"doc:{view.id}",
+    )
 
 
 def _summary_out(view: documents.DocumentSummary) -> DocumentSummaryOut:
@@ -113,7 +114,8 @@ async def create_document(
         body.client_request_id,
     )
     response.status_code = 201 if result.created else 200
-    return _document_out(result.document, access.role)
+    path = request.app.state.settings.collab_public_path
+    return _document_out(result.document, access.role, path)
 
 
 @router.get(
@@ -142,17 +144,18 @@ async def list_documents(
 async def get_document(
     request: Request, access: MemberAccess, document_id: str
 ) -> DocumentOut | Response:
-    """Any active member, any role; inactive documents stay readable. ETag is derived from
-    (content_version, metadata_version); a matching If-None-Match gets 304 with no body."""
+    """Any active member, any role; inactive documents stay readable. Metadata only: the text is
+    delivered by the collaboration service. ETag is derived from (metadata_version, collab_state);
+    a matching If-None-Match gets 304 with no body."""
     view = await documents.get_document(
         request.app.state.sessionmaker, access.room_id, _document_id(document_id)
     )
     if view is None:
         raise document_not_found()
-    etag = etag_for(view.content_version, view.metadata_version)
+    etag = etag_for(view.metadata_version, view.collab_state)
     if _matches(request.headers.get("if-none-match"), etag):
         return Response(status_code=304, headers={"ETag": etag})
-    out = _document_out(view, access.role)
+    out = _document_out(view, access.role, request.app.state.settings.collab_public_path)
     return Response(
         content=out.model_dump_json(), media_type="application/json", headers={"ETag": etag}
     )
@@ -196,57 +199,6 @@ async def set_active_document(request: Request, access: OwnerAccessUnsafe) -> Ac
         body.expected_selection_version,
     )
     return ActiveDocumentOut(**selection.__dict__)
-
-
-@router.put(
-    "/rooms/{room_id}/documents/{document_id}/content",
-    response_model=SaveContentOut,
-    responses={
-        409: {"model": ErrorBody, "description": "document_version_conflict"},
-        413: {"model": ErrorBody, "description": "payload_too_large (over 2 MiB)"},
-        422: {"model": ErrorBody, "description": "invalid_document_content / asset_not_found"},
-        429: {"model": ErrorBody, "description": "rate_limited (Retry-After set)"},
-        **_COMMON,
-    },
-    openapi_extra=json_body_docs(SaveContentRequest),
-)
-async def save_content(
-    request: Request, access: MemberAccessUnsafe, document_id: str
-) -> SaveContentOut:
-    """Owner or editor. Send the content_version you last saw; a stale one is 409 (even if the text
-    is identical). The content is validated and canonicalized BEFORE any lock is taken; if the
-    server's canonical form differs from what you sent, canonical_changed is true and the response
-    carries the canonical content."""
-    _require_editor(access)
-    body = await parse_json_body(request, SaveContentRequest)
-    if body.schema_version != SCHEMA_VERSION:
-        raise invalid_document_content(
-            [{"path": "/schema_version", "code": "invalid_value", "message": "must be 1"}]
-        )
-    settings = request.app.state.settings
-    try:
-        validated = validate_document(body.content, documents.limits_from_settings(settings))
-    except InvalidDocument as exc:
-        raise invalid_document_content(
-            [{"path": e.path, "code": e.code, "message": e.message} for e in exc.errors]
-        ) from None
-    result = await documents.save_content(
-        request.app.state.sessionmaker,
-        settings,
-        access.user_id,
-        access.room_id,
-        _document_id(document_id),
-        body.expected_content_version,
-        validated,
-        documents.differs_from_canonical(body.content, validated.content),
-    )
-    return SaveContentOut(
-        content_version=result.content_version,
-        content_hash=result.content_hash,
-        canonical_changed=result.canonical_changed,
-        unchanged=result.unchanged,
-        content=result.content,
-    )
 
 
 def _require_editor(access: RoomAccess) -> None:

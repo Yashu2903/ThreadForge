@@ -71,3 +71,44 @@ AI hooks (cp 6).
 backend 1284 passed in 4 batches (baseline 1251; +33 new), 0 failed; `collab` vitest 28 passed; schema package 91 passed;
 ruff check and format clean; `tsc --noEmit` clean. Not re-run at this checkpoint because nothing they cover changed:
 `client/` vitest (177) and Playwright (69 + 2 skipped).
+
+## Checkpoint 3: the Tiptap editor in the browser
+
+**Done**
+* Frontend: `@tiptap/react` editor on the shared schema with `Collaboration` + `CollaborationCaret`; one
+  `CollabSession` (Y.Doc + HocuspocusProvider) per open document, destroyed on switch/unmount; sync indicator with
+  exact wording (Synced / Syncing / Offline (n unsynced changes) / Read-only / Access lost); `beforeunload`
+  warning; denial handling (terminal vs retry); document-switching rule with Stay / Switch anyway; names and
+  colours from the authoritative member list; mobile and viewers are read-only live; toolbar rebuilt on Tiptap
+  commands (roving tabindex, `aria-pressed` incl. mixed, `aria-disabled`, link and alt-text popovers, shortcuts,
+  tables without merge/split); image upload through the asset endpoint; paste/drop guards.
+* Backend: `GET document` is metadata only (`collab_state`, `can_edit`, `collab_path`, `document_name`);
+  `PUT .../content`, `save_content`, `expected_content_version`, the save body-limit rule and per-save
+  `document_content_updated` emission are removed; `COLLAB_PUBLIC_PATH` setting. DB objects kept (deprecated).
+  Asset tests that used saving now drive `sync_asset_refs` (the function the validated snapshot uses).
+* Removed code: `frontend/src/editor/{doc,dom,editor,EditorSurface,format,history,images,inline,segment,stats,structure}`,
+  `documents/session.ts`, `DocumentRead.tsx`, `Playground.tsx`, their 7 test files and 4 browser specs, and
+  `backend/tests/test_documents_save.py`.
+* Dev/e2e wiring: Vite `/collab` WebSocket proxy; the Playwright setup starts the real collaboration service after
+  the database is prepared.
+* Found and fixed a latent AI-checkpoint-1 defect: `.env.example` had empty numeric AI values, which the existing
+  `test_env_example_is_valid_for_development_and_unsafe_for_production` rejects (I had appended the section after
+  running that batch). Unset numeric settings are now commented out.
+
+**Verified (automated)**
+* Browser (Playwright, real API + PostgreSQL + collaboration service + Vite): 21 passed, 1 skipped
+  (the Firefox paste test: synthetic paste events carry no clipboard data there), Chromium and Firefox.
+* frontend vitest 38 passed (collab status/identity 9, paste 2, store 11, dialogs 12, schema 3, others);
+  `tsc --noEmit` clean; `vite build` succeeds.
+* backend 1351 passed in sequential batches (271 + 657 + 423), ruff clean. `client/` vitest 177 passed,
+  schema package 91 passed.
+* Not re-run: the collab service vitest (28; the service was not changed in this checkpoint).
+
+**Changed existing tests and why**: `test_documents_api.py` (shape without content, new ETag, removed route is 404),
+`test_assets.py` (references via `sync_asset_refs`, the save-quota test is gone with the quota), `test_room_events.py`
+(`save_content` removed from the audit; the deprecated event type has no producer), frontend `store.test.ts`
+(metadata only, content events ignored), `room-layout.spec.ts` (viewer reads in the editor).
+
+**Not verified / limits**: see `docs/collaboration.md` 5.10. No CSP exists in the repository to change (documented
+what a deployment needs). Screen-reader behaviour was reasoned from ARIA roles, not tested with a screen reader.
+Access enforcement while the socket is open (revoking a member's document socket) is checkpoint 4.

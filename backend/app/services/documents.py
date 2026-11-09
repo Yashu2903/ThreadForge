@@ -1,5 +1,12 @@
-"""Documents: the ONLY module that mutates documents, document_asset_refs, document_write_buckets
-and the rooms.active_document_* columns.
+"""Documents: the ONLY module that mutates `documents` rows, document_asset_refs and the
+rooms.active_document_* columns.
+
+A document's CONTENT is not handled here any more. Since the collaboration change the text lives in
+the Yjs state owned by the collaboration service (services/collab.py is the only writer), and this
+module deals in metadata: creating (which also stores the template as read-only SEED content in
+documents.content), listing, renaming and choosing the room's active document.
+`documents.content`, `content_version`, `content_hash` and `document_write_buckets` are DEPRECATED
+columns/tables: kept, never written after creation, never returned.
 
 TRANSACTION PATTERN (Parts 2 and 3, unchanged): a service takes the sessionmaker, never an
 existing session; it opens its own session and ONE transaction (the `async with ... db.begin()`
@@ -8,13 +15,9 @@ relies on each statement seeing the latest committed data.
 
 LOCK ORDER for every write:
     1. room row           SELECT ... FOR NO KEY UPDATE   (lock_room_and_actor)
-    2. document row       SELECT ... FOR UPDATE          (rename / save)
-    3. asset rows         SELECT ... FOR UPDATE          (save, only if the content has images)
-    4. rate-limit bucket  INSERT ... ON CONFLICT DO UPDATE on document_write_buckets
+    2. document row       SELECT ... FOR UPDATE          (rename)
 Because the room lock is held first, the caller's membership and role cannot change underneath the
-request, and the room's event sequence can be allocated (record_room_event). All document writes in
-one room are therefore serialized; at ThreadForge room sizes that is cheap, and it is what makes
-"exactly one of two concurrent saves wins" a property of the database, not of timing.
+request, and the room's event sequence can be allocated (record_room_event).
 
 Every change that matters to other people records a room event in the SAME transaction (events carry
 ids and versions, never titles or content). Responses are built AFTER the commit. Nothing here talks
@@ -26,30 +29,23 @@ from __future__ import annotations
 import hmac
 import json
 import logging
-import math
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
-from sqlalchemy import delete, exists, extract, func, insert, literal, select, text, tuple_, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import delete, exists, func, insert, literal, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
 from app.db import db_error_details
-from app.documents.canonical import canonical_json, content_hash
-from app.documents.schema import Limits, ValidatedDocument
+from app.documents.canonical import content_hash
+from app.documents.schema import Limits
 from app.documents.templates import template_document
 from app.errors import (
-    asset_not_found,
     document_limit_reached,
     document_not_found,
     document_request_id_reused,
-    document_version_conflict,
-    insufficient_role,
-    rate_limited,
     selection_conflict,
 )
 from app.logging_config import APP_LOGGER, request_id_var
@@ -88,40 +84,27 @@ def limits_from_settings(settings: Settings) -> Limits:
 
 @dataclass(frozen=True)
 class DocumentSummary:
+    """Metadata only. A document's CONTENT is never returned by this service: it lives in the Yjs
+    state owned by the collaboration service (docs/collaboration.md)."""
+
     id: uuid.UUID
     room_id: uuid.UUID
     title: str
     template_key: str
     schema_version: int
-    content_version: int
     metadata_version: int
     created_by: uuid.UUID
     created_at: datetime
     updated_at: datetime
-    content_updated_at: datetime
     is_active: bool
     requires_review: bool
-
-
-@dataclass(frozen=True)
-class DocumentFull(DocumentSummary):
-    content: dict[str, Any]
-    content_hash: str
+    collab_state: str  # legacy | ready | needs_repair
 
 
 @dataclass(frozen=True)
 class CreateResult:
-    document: DocumentFull
+    document: DocumentSummary
     created: bool  # True: a new row (201). False: a matching retry of an earlier create (200).
-
-
-@dataclass(frozen=True)
-class SaveResult:
-    content_version: int
-    content_hash: str
-    unchanged: bool
-    canonical_changed: bool
-    content: dict[str, Any] | None
 
 
 @dataclass(frozen=True)
@@ -177,12 +160,11 @@ def _summary_columns():
         _DOCS.c.title,
         _DOCS.c.template_key,
         _DOCS.c.schema_version,
-        _DOCS.c.content_version,
         _DOCS.c.metadata_version,
         _DOCS.c.created_by,
         _DOCS.c.created_at,
         _DOCS.c.updated_at,
-        _DOCS.c.content_updated_at,
+        _DOCS.c.collab_state,
         (_ROOMS.c.active_document_id == _DOCS.c.id).label("is_active"),
         # Imports (a later checkpoint) set this from document_imports; no import can exist yet.
         literal(False).label("requires_review"),
@@ -221,20 +203,13 @@ async def _lock_document(db: AsyncSession, room_id: uuid.UUID, document_id: uuid
 
 async def get_document(
     sessionmaker: async_sessionmaker[AsyncSession], room_id: uuid.UUID, document_id: uuid.UUID
-) -> DocumentFull | None:
-    """One document with its content, scoped by BOTH room and id. No locks."""
+) -> DocumentSummary | None:
+    """One document's metadata, scoped by BOTH room and id. No locks, no content."""
     async with sessionmaker() as db:
         row = (
-            await db.execute(
-                _joined(_DOCS.c.content, _DOCS.c.content_hash).where(
-                    _DOCS.c.id == document_id, _DOCS.c.room_id == room_id
-                )
-            )
+            await db.execute(_joined().where(_DOCS.c.id == document_id, _DOCS.c.room_id == room_id))
         ).one_or_none()
-    if row is None:
-        return None
-    fields = {k: v for k, v in row._mapping.items() if k in DocumentSummary.__dataclass_fields__}
-    return DocumentFull(**fields, content=row.content, content_hash=bytes(row.content_hash).hex())
+    return _summary(row) if row is not None else None
 
 
 async def list_documents(
@@ -503,59 +478,7 @@ async def set_active_document(
     return Selection(document_id, version)
 
 
-# ---- content save -------------------------------------------------------------------------------
-
-
-async def _consume_write_capacity(
-    db: AsyncSession, settings: Settings, room_id: uuid.UUID, user_id: uuid.UUID
-) -> None:
-    """Fixed-window rate limit: ONE atomic statement in the caller's transaction (as for chat, but
-    on document_write_buckets, so autosave can never use up the chat quota).
-
-        INSERT INTO document_write_buckets (room_id, user_id, window_start, count)
-        VALUES (:room, :user, date_trunc('minute', clock_timestamp()), 1)
-        ON CONFLICT (room_id, user_id, window_start)
-        DO UPDATE SET count = document_write_buckets.count + 1
-        WHERE document_write_buckets.count < :limit RETURNING count
-
-    No row returned = the window is full: 429 with Retry-After, and the caller's transaction rolls
-    back, so a rejected or failed save consumed nothing.
-    """
-    statement = (
-        pg_insert(_WRITE_WINDOWS)
-        .values(
-            room_id=room_id,
-            user_id=user_id,
-            window_start=func.date_trunc("minute", func.clock_timestamp()),
-            count=1,
-        )
-        .on_conflict_do_update(
-            index_elements=[
-                _WRITE_WINDOWS.c.room_id,
-                _WRITE_WINDOWS.c.user_id,
-                _WRITE_WINDOWS.c.window_start,
-            ],
-            set_={"count": _WRITE_WINDOWS.c.count + 1},
-            where=_WRITE_WINDOWS.c.count < settings.document_writes_per_minute,
-        )
-        .returning(_WRITE_WINDOWS.c.count)
-    )
-    if (await db.execute(statement)).first() is None:
-        seconds_left = (
-            await db.execute(
-                select(
-                    extract(
-                        "epoch",
-                        func.date_trunc("minute", func.clock_timestamp())
-                        + text("interval '1 minute'")
-                        - func.clock_timestamp(),
-                    )
-                )
-            )
-        ).scalar_one()
-        raise rate_limited(
-            max(1, math.ceil(seconds_left)), "Too many document saves. Try again shortly."
-        )
+# ---- asset references (maintained from validated collaboration snapshots) -----------------------
 
 
 async def _sync_asset_refs(
@@ -608,107 +531,3 @@ async def _sync_asset_refs(
 
 
 sync_asset_refs = _sync_asset_refs  # public name for the collaboration snapshot path
-
-
-async def save_content(
-    sessionmaker: async_sessionmaker[AsyncSession],
-    settings: Settings,
-    actor_id: uuid.UUID,
-    room_id: uuid.UUID,
-    document_id: uuid.UUID,
-    expected_content_version: int,
-    validated: ValidatedDocument,
-    canonical_changed: bool,
-) -> SaveResult:
-    """Owner or editor. `validated` is the canonical tree (validated BEFORE this, outside any lock).
-
-    After the room lock, in this order:
-      1. recheck active membership and role (404 / 403 insufficient_role);
-      2. load the document, scoped to the room, FOR UPDATE                    -> 404;
-      3. expected_content_version != current                                  -> 409
-         document_version_conflict (with current_content_version), EVEN IF the content is identical;
-      4. content_hash equals the stored hash: return the current state with unchanged=true (no
-         version bump, no event, no rate-limit use, no asset change);
-      5. every referenced asset must exist in this room not expired -> 422 asset_not_found;
-      6. consume rate-limit capacity                                          -> 429;
-      7. UPDATE content, content_hash, content_updated_at, updated_at, content_version + 1;
-         maintain document_asset_refs and the assets' states; record document_content_updated.
-
-    A failed, conflicting or rate-limited request leaves everything unchanged, because every step
-    that writes comes after every step that can refuse, inside one transaction. There is no force
-    option: a stale writer must reload (or copy its text out) and save again.
-    """
-    new_hash = content_hash(validated.content)
-    wanted_assets = {uuid.UUID(a) for a in validated.asset_ids}
-    async with sessionmaker() as db, db.begin():
-        locked, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
-        if role not in EDIT_ROLES:
-            raise insufficient_role()
-        doc = await _lock_document(db, room_id, document_id)
-        if doc is None:
-            raise document_not_found()
-        if doc.content_version != expected_content_version:
-            raise document_version_conflict(doc.content_version)
-        if bytes(doc.content_hash) == new_hash:
-            return SaveResult(
-                content_version=doc.content_version,
-                content_hash=new_hash.hex(),
-                unchanged=True,
-                canonical_changed=canonical_changed,
-                content=validated.content if canonical_changed else None,
-            )
-        if wanted_assets:
-            found = {
-                row.id: row.state
-                for row in (
-                    await db.execute(
-                        select(_ASSETS.c.id, _ASSETS.c.state)
-                        .where(_ASSETS.c.room_id == room_id, _ASSETS.c.id.in_(wanted_assets))
-                        .order_by(_ASSETS.c.id)
-                        .with_for_update()
-                    )
-                ).all()
-            }
-            missing = sorted(str(a) for a in wanted_assets if found.get(a) in (None, "expired"))
-            if missing:
-                raise asset_not_found(missing)
-        await _consume_write_capacity(db, settings, room_id, actor_id)
-        new_version = (
-            await db.execute(
-                update(_DOCS)
-                .where(_DOCS.c.id == document_id)
-                .values(
-                    content=validated.content,
-                    content_hash=new_hash,
-                    content_updated_at=func.clock_timestamp(),
-                    updated_at=func.clock_timestamp(),
-                    content_version=_DOCS.c.content_version + 1,
-                )
-                .returning(_DOCS.c.content_version)
-            )
-        ).scalar_one()
-        await _sync_asset_refs(db, room_id, document_id, wanted_assets)
-        await record_room_event(
-            db,
-            locked,
-            event_type="document_content_updated",
-            resource_type="document",
-            resource_id=document_id,
-            resource_version=new_version,
-            actor_id=actor_id,
-            payload={"document_id": str(document_id)},
-        )
-    log_document_event("document_content_updated", room_id, document_id, actor_id)
-    return SaveResult(
-        content_version=new_version,
-        content_hash=new_hash.hex(),
-        unchanged=False,
-        canonical_changed=canonical_changed,
-        content=validated.content if canonical_changed else None,
-    )
-
-
-def differs_from_canonical(raw_content: Any, canonical: dict[str, Any]) -> bool:
-    """canonical_changed: did the server's canonical form differ from what the client sent?
-    Compared as canonical JSON text, so key order and 2 vs 2.0 do not count as changes."""
-    return canonical_json(raw_content) != canonical_json(canonical)
