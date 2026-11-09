@@ -1,9 +1,9 @@
 """Opaque-key file storage on a local directory.
 
-Files live under STORAGE_PATH in namespaces ("assets", later "imports"), named by a random 32-hex
-KEY that the database row stores. A user-supplied name is NEVER part of a path: keys are generated
-here and validated against a strict pattern before any path is built, so no input can traverse out
-of the directory.
+Files live under STORAGE_PATH in namespaces ("assets", "sources", later "imports"), named by a
+random 32-hex KEY that the database row stores. A user-supplied name is NEVER part of a path: keys
+are generated here and validated against a strict pattern before any path is built, so no input
+can traverse out of the directory.
 
 Writes go to a temporary file inside STORAGE_PATH/tmp first and are moved into place with
 os.replace (atomic on one filesystem), so a reader never sees a half-written file. A crash between
@@ -26,7 +26,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 _KEY = re.compile(r"[0-9a-f]{32}")
-NAMESPACES = ("assets", "imports")
+NAMESPACES = ("assets", "imports", "sources")
 
 
 class StorageError(Exception):

@@ -804,6 +804,7 @@ The old `PUT .../content`, `expected_content_version`, `document_version_conflic
 | `python -m app.commands.migrate_documents_to_collab [--dry-run] [--document ID] [--room ID]` | seed legacy documents into Yjs now (idempotent; per-document results; failures stay `legacy`) |
 | `python -m app.commands.restore_document --document ID --backup-dir DIR` | restore a `needs_repair` document from its last valid snapshot (backs up the raw state first; stop the service first) |
 | `python -m app.commands.cleanup_documents` | expire unused assets (skips rooms with a document being edited or needing repair) |
+| `python -m app.commands.cleanup_ai` | expire abandoned source uploads, delete leftover and orphan source files and stale inspector scratch space |
 
 ### Running it
 

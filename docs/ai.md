@@ -1,9 +1,10 @@
 # ThreadForge AI (phase 1)
 
-This document grows with each checkpoint. **Checkpoint 1 (this version)** covers providers, keys,
-consent, switches, `can_write`, the spend ledger, budgets, caps, the usage page and operator commands.
-Sources, analysis, retrieval, `@AI` requests and the evaluation come in checkpoints 2 to 5 and are
-listed under "Not built yet". Progress log: `docs/ai-progress.md`.
+This document grows with each checkpoint. **Checkpoint 1** covers providers, keys, consent, switches,
+`can_write`, the spend ledger, budgets, caps, the usage page and operator commands (sections 2-8).
+**Checkpoint 2 (this version)** adds sources: device uploads, the sandboxed inspector, quotas, removal
+and cleanup (section 9). Analysis, retrieval, `@AI` requests and the evaluation come in checkpoints 3 to 5
+and are listed under "Not built yet". Progress log: `docs/ai-progress.md`.
 
 ## 1. What exists in the repository (inspection result)
 
@@ -13,11 +14,11 @@ The brief says "reuse" for several things. What the repository actually has:
 |---|---|---|
 | authentication, CSRF, rooms, roles, message service, room events, Part 5 client | exists | reused as is |
 | claim-token job pattern (outbox dispatcher) | exists (`workers/outbox_dispatcher.py`) | used for the AI worker in checkpoints 3-4 |
-| storage adapter, image re-encoding (`assets_pipeline.py`), sandboxed conversion with rlimits | storage and image pipeline exist; **no sandboxed child process, no converter** | checkpoint 2 builds the child-process sandbox |
-| import jobs, worker, report, publication | **never built** (they were in the old Part 6 plan, replaced by the Tiptap direction) | not claimed; the upload path in checkpoint 2 is built directly |
+| storage adapter, image re-encoding (`assets_pipeline.py`), sandboxed conversion with rlimits | storage and image pipeline exist; **no sandboxed child process, no converter** | checkpoint 2 built the child-process sandbox (`app/sources/sandbox.py`); the converter pieces (text extraction, DOCX heading paths) are checkpoint 3 |
+| import jobs, worker, report, publication | **never built** (they were in the old Part 6 plan, replaced by the Tiptap direction) | not claimed; the upload path in checkpoint 2 is built directly (intent / bytes / finalize), without a job queue because inspection is cheap |
 | Google Drive connection, Picker, import code | **never built**; only the settings (`GOOGLE_DRIVE_*`) and the `/capabilities` flag exist | Drive as a source stays blocked until a Drive connection exists; the device and room-source paths are built |
 | AES-GCM key-set helper "used for Drive tokens" | **does not exist** (only the `CLOUD_TOKEN_ENCRYPTION_KEYS` setting) | `app/ai/crypto.py` is a new, generic key-set helper; AI uses its own setting `AI_KEY_ENCRYPTION_KEYS` |
-| collaboration service and its internal API | service and internal API exist (collab checkpoints 1-2). **The Tiptap browser editor (collab checkpoint 3) and live access enforcement (checkpoint 4) are not built yet** | document capture (checkpoint 4 of this phase) uses the collaboration service's validated snapshots; "unsynced changes" detection needs the Tiptap provider |
+| collaboration service and its internal API | service, internal API, the Tiptap browser editor and live access enforcement all exist now (collaboration checkpoints 1-6), including the read/apply hooks for AI | document capture (checkpoint 4 of this phase) uses the hooks' `read`; "unsynced changes" detection uses the Tiptap provider |
 | rooms "archived" | no such state exists | the `can_write` clause is documented and has nothing to check yet |
 | pgvector image | `compose.yaml` uses `postgres:16` | switched in checkpoint 3 when vectors first appear |
 
@@ -218,7 +219,7 @@ please confirm each before enabling.
 | Re-normalization | not needed for this model (it normalizes shortened vectors) | same; `AI_EMBED_NORMALIZE` is available if the self-check disagrees |
 | Embedding price | text USD 0.20, image USD 0.45 per 1M tokens (batch is half) | pricing page, checked 2026-11-08 |
 
-## 8. Unverified assumptions (checkpoint 1)
+## 8. Unverified assumptions
 
 These are parsed defensively and decided by the real-provider self-check, which has **not been run** (no
 credentials were used in development; all provider behaviour in tests is an HTTP-level stub):
@@ -235,16 +236,241 @@ credentials were used in development; all provider behaviour in tests is an HTTP
   self-check; if it fails, only figure embedding by image is disabled).
 * Token estimation has no tokenizer match (conservative estimate instead).
 
-## 9. Limits (stated plainly)
+### Added by checkpoint 2
+
+* The Linux resource limits were verified by hand in a `python:3.12-slim` container (limits applied; a
+  600 MiB allocation fails under a 256 MiB limit; a busy loop is killed at its CPU limit; writes fail with
+  `EFBIG`; sockets are refused). The automated tests ran on **Windows**, where only the timeout,
+  environment and output-cap parts are exercised; the POSIX-only test (`rlimits` is true) is skipped there
+  and has **not run in CI** (there is none). Run `pytest tests/test_sources_inspect.py` on Linux.
+* PDFium (`pypdfium2` 5.15.1, BSD-3-Clause / Apache-2.0) on hostile PDFs beyond the fixtures here
+  (truncated, encrypted, garbage) is not fuzzed. A malicious PDF could still exploit PDFium; the child
+  process, its limits and "a crash means refused" are the containment, not a guarantee.
+* "Likely scanned" is a heuristic (no text layer but something drawn). A drawing-only vector page counts
+  as scanned; a scan with an invisible OCR text layer counts as text.
+* The 200:1 ratio and 200 MiB expansion rules for DOCX are conservative choices, not standards.
+* Browser behaviour for a `PUT` of a `File` body (progress, abort, retries) was not exercised: there is no
+  UI yet.
+
+## 9. Checkpoint 2: sources
+
+A **source** is a file in a room (PDF, DOCX, plain text or Markdown) that an AI request can later use as
+evidence. This checkpoint stores files and looks at them *cheaply*; it never reads their text for meaning,
+never runs OCR, never creates embeddings and never calls a provider. Terms used below:
+
+* **Storage key**: a random 32-character name for a stored file (`app/storage.py`). The user's file name
+  is never part of a path, so no name can point outside the storage folder.
+* **Signature**: the first bytes of a file (`%PDF-` for PDF, `PK\x03\x04` for ZIP, which DOCX is). A file
+  called `.pdf` whose first bytes say ZIP is refused no matter what it is called.
+* **Child process / sandbox**: a separate program started just for one job, with almost no environment,
+  an empty working folder, a time limit and (on Linux) memory/CPU/file limits. If a hostile PDF crashes or
+  takes over the PDF reader, it happens in that child, not in the API.
+* **Idempotency key** (`client_request_id`): the browser's own id for one upload attempt. Sending the same
+  id again returns the same upload instead of making a second one.
+* **Immutable version**: replacing a file never overwrites anything; it adds version 2. A request that
+  pinned version 1 keeps seeing exactly version 1.
+
+### Files that matter, in reading order
+
+1. `backend/migrations/versions/0008_ai_sources.py`, `app/models/source.py` - the three tables.
+2. `app/sources/files.py` - names (`sanitize_name`), kinds (`classify`), signatures (`check_signature`),
+   the download header. Pure functions.
+3. `app/sources/inspect_child.py` - the inspector that runs in the child. Standalone: it imports only the
+   standard library and `pypdfium2`, never `app.*`.
+4. `app/sources/sandbox.py` - starts the child, reads its one-line answer, enforces the deadline.
+5. `app/services/sources.py` - every database write: intent, bytes, finalize, list, remove, quotas.
+6. `app/api/sources.py` - the routes. `app/commands/cleanup_ai.py` - cleanup.
+
+### The upload, step by step
+
+```
+browser                           API                                          database / disk
+-------                           ---                                          ---------------
+POST /rooms/{r}/source-uploads    CSRF, role (owner/editor)                    lock room; re-read role
+  {client_request_id, filename,   sanitize name, pick the kind from the        same id seen before? -> return it
+   media_type?, byte_size,        extension, check declared type               rate limit, open-upload cap, quotas
+   source_id?}                                                                 INSERT source_uploads (state intent,
+                                                                                 expires in SOURCE_UPLOAD_TTL_MINUTES)
+PUT .../{upload}/content          CSRF, role, upload is mine and still open    (no lock while streaming)
+  raw file bytes                  stream to tmp/, COUNT bytes, SHA-256,        file moved to sources/<key> (atomic)
+                                  count must equal byte_size, signature        lock room; UPDATE -> state uploaded
+                                  must match the kind
+POST .../{upload}/finalize        CSRF, role                                   (no transaction while the child runs)
+                                  child process inspects the file              lock room; role again; quotas again with
+                                                                                 the REAL size; lock the source row;
+                                                                                 INSERT source (or next version);
+                                                                                 UPDATE sources.current_version_id;
+                                                                                 UPDATE upload -> finalized
+```
+
+* **Transactions.** Each database step is one short transaction that starts by locking the room row and
+  re-reading the caller's role under that lock, so a demotion or removal between steps is caught (tested:
+  demoted before finalize -> 403 and no source). Streaming, the child process and file deletes never run
+  inside a transaction.
+* **Failure behaviour.** Wrong byte count or signature, or an inspector verdict of "no", sets the upload to
+  `failed` with a stable `error_code`, deletes the bytes at once and returns the error; a failed upload is
+  final (start a new one). A client that just disconnects mid-stream leaves the upload `intent`; it can send
+  the bytes again until it expires. A crash between "file moved into storage" and "row updated" leaves an
+  orphan file that cleanup removes after 24 hours.
+* **Idempotency.** Same `client_request_id` + same fields = same upload (200, nothing consumed); same id,
+  different fields = `409 source_upload_id_reused`. The comparison uses an HMAC (keyed with the existing
+  message-fingerprint secret, domain-separated), not a plain hash. Repeating the byte PUT after success
+  returns the stored upload (the response carries `sha256` so a client can compare); repeating finalize
+  returns the same source. Two finalize calls at once make exactly one source (row lock + state re-check).
+* **Replace** is an intent that names `source_id`. It adds a version under a row lock, so concurrent
+  replacements get distinct, gap-free version numbers; the last to commit is current.
+
+### What the inspector measures and refuses
+
+Measured (stored on the version, used for estimates in checkpoint 4): `page_count`, `text_page_count`
+(pages with at least 10 non-space characters of text layer), `likely_scanned_pages` (no text layer but
+something drawn, usually a picture), `image_count`, `text_chars`. DOCX has no real pages, so those three
+are NULL; its `image_count` is the number of `word/media/*` parts and `text_chars` the characters in `w:t`
+runs. Nothing is extracted or stored beyond these numbers.
+
+| Code (`422 invalid_source`, field `reason`) | When |
+|---|---|
+| `pdf_encrypted` | password-protected, or encrypted at all (even owner-password-only) |
+| `pdf_invalid` | PDFium cannot open it, or it has no pages |
+| `too_many_pages` | more than `SOURCE_MAX_PAGES` (400) |
+| `docx_invalid` | not a ZIP; unsafe part names (`..`, absolute, backslash, duplicates); too many parts; expands past `SOURCE_DOCX_MAX_UNCOMPRESSED_BYTES`, or a part over 1 MiB with ratio over 200:1 (zip bomb); `[Content_Types].xml` or `word/document.xml` missing or not well-formed XML; any `DOCTYPE` or entity declaration; main part is not the Word document type |
+| `docx_macros` | `vbaProject.bin`, `vbaData.xml`, `word/activeX/`, or any `macroEnabled` content type |
+| `docx_encrypted` | an encrypted ZIP entry |
+| `text_invalid` | NUL bytes, not UTF-8 (a BOM is fine), empty or whitespace only, 1% or more control characters |
+| `inspection_timeout`, `inspection_failed` | the child hit the deadline, crashed, ran out of memory or gave an unusable answer. A file that breaks the inspector is refused, never accepted |
+| `415 type_mismatch` / `unsupported_media_type` | extension not accepted; declared type disagrees; first bytes disagree with the extension (a PDF renamed `.txt`, a ZIP renamed `.pdf`) |
+| `422 invalid_source`, reason `size_mismatch` | the bytes received differ from the declared size |
+
+**Sandbox limits, honestly.** The child always gets: an empty environment (only what Python needs to start;
+no `DATABASE_URL`, no keys), its own empty working directory (removed afterwards), a wall-clock deadline
+(`SOURCE_INSPECT_TIMEOUT_SECONDS`, default 30; the parent kills it), a cap on what it may print, and it
+refuses to create sockets (Python level). On **Linux/macOS** it also sets address-space
+(`SOURCE_INSPECT_MEMORY_MB`, 1024), CPU-seconds, open-file, written-file-size (0) and no-core-dump limits on
+itself before opening anything. On **Windows** (development machines) those resource limits do not exist;
+the child reports `rlimits: false` and the API logs a warning once. There is **no network namespace**: a
+compromised native library could open a socket in spite of the Python-level block, so production should deny
+the API container outbound access it does not need. There is no seccomp filter.
+
+### Tables (migration `0008`, expand only)
+
+* `sources` (id, room_id, created_by, display_name, current_version_id, state `active`/`removed`,
+  created_at, removed_at, removed_by). `UNIQUE (room_id, id)`.
+* `source_versions` (id, source_id, room_id, version_no, original_name, kind, media_type, byte_size, sha256,
+  storage_key, analysis_state, the inspection counts, error_code, created_by, created_at, removed_at).
+  `UNIQUE (source_id, version_no)`, `UNIQUE (room_id, id)`, composite foreign key `(room_id, source_id)` so a
+  version can never sit in another room than its source. `storage_key` is NULL only once removed and its
+  file is gone. `analysis_state` is `not_analyzed` for everything in this checkpoint (checkpoint 3 moves
+  it through `queued`, `extracting`, `indexing`, `ready`, `failed`).
+* `source_uploads` (the intent, the bytes' hash and key, state `intent`/`uploaded`/`finalized`/`failed`/
+  `cancelled`/`expired`, the idempotency key and fingerprint, `expires_at`). `UNIQUE (room_id, created_by,
+  client_request_id)`. Rows are small and are kept (the idempotency window); they are not pruned.
+* `sources.current_version_id` is a deferrable composite foreign key, added after both tables exist.
+* Nothing existing is altered. The downgrade drops only these three tables.
+
+### API reference
+
+| Route | Who | Notes |
+|---|---|---|
+| `GET /rooms/{id}/sources` | any member | active sources with current version and counts, `used_sources`, `used_bytes`, `limits`, `can_upload`, `can_download` |
+| `GET /rooms/{id}/sources/{sid}` | any member | the source with all versions. (Extracted passages come with checkpoint 3 and will be owners/editors only.) |
+| `POST /rooms/{id}/source-uploads` | owner/editor, CSRF | step 1; `201`, or `200` for a repeated `client_request_id`; include `source_id` to replace |
+| `PUT /rooms/{id}/source-uploads/{uid}/content` | creator, CSRF | step 2; body = raw bytes, streamed and counted; limit `SOURCE_MAX_UPLOAD_BYTES` |
+| `POST /rooms/{id}/source-uploads/{uid}/finalize` | creator, CSRF | step 3; `201` with the source; repeating returns the same source |
+| `GET /rooms/{id}/source-uploads/{uid}` | creator | state, hash, error code |
+| `DELETE /rooms/{id}/source-uploads/{uid}` | creator, CSRF | abandon an unfinished upload now; bytes deleted |
+| `GET /rooms/{id}/sources/{sid}/versions/{vid}/download` | `SOURCE_DOWNLOAD_ROLES` | original bytes: `attachment`, `nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `no-store`, sanitized name |
+| `DELETE /rooms/{id}/sources/{sid}` | owner any; editor own | `204`; see removal |
+
+Permissions (tested route by route): list/inspect: owner, editor, viewer; upload/replace: owner, editor
+(viewer `403 insufficient_role`); an upload belongs to its creator alone (even the owner gets `404`);
+remove: owner any source, editor only a source they created (the creator of the source, not of a later
+version), viewer never; download: roles in `SOURCE_DOWNLOAD_ROLES` (default all three; the setting must
+include `owner`). Outsiders and removed members get `404 room_not_found` before anything else, and a
+non-member sending a malformed body still gets `404`, a viewer `403`, not `422`.
+
+Error codes added: `source_not_found`, `source_upload_not_found` (404), `invalid_source` (422, with
+`reason`), `source_upload_not_open` (409, with `state`), `source_upload_id_reused` (409),
+`too_many_open_uploads` (409), `source_unavailable` (409, lists the version ids; used by checkpoint 4's
+admission), `type_mismatch` / `unsupported_media_type` (415), plus the existing `quota_exceeded` (409),
+`rate_limited` (429, `Retry-After`), `payload_too_large` (413).
+
+### Quotas and rates
+
+Per room: `SOURCE_MAX_PER_ROOM` (100) active sources and `SOURCE_ROOM_QUOTA_BYTES` (500 MiB) over all live
+versions. Uploads in flight **reserve** against both (so two uploads cannot both take the last slot; tested
+with parallel requests); a reservation ends when the upload finishes, fails, is cancelled or expires.
+Per user per room: `SOURCE_UPLOADS_PER_MINUTE` (10, counted from rows, so retries and refused intents
+consume nothing) and `SOURCE_MAX_OPEN_UPLOADS_PER_USER` (3 unfinished at once). Quotas are checked at
+the intent with the declared size and again at finalize with the real size.
+
+### Removal
+
+`DELETE` marks the source and **every** version `removed` in one transaction under the room lock, then
+deletes the original files and clears the storage keys. If a file cannot be deleted the key stays on the
+`removed` row and `cleanup_ai` finishes the job (tested). A removed source disappears from listings and
+returns 404 everywhere; its quota is freed at once. Checkpoint 3 adds chunks, embeddings and figure images
+to this same step; checkpoint 4 adds redaction of stored excerpts and manifests. **Already-published chat
+answers keep their text** (known limit, stated again in the final report).
+
+### Cleanup (`python -m app.commands.cleanup_ai`)
+
+Expires abandoned uploads (open past their `expires_at`, state re-checked under the row lock so a finalize
+that got there first wins - tested racing), deletes the files of failed/cancelled/expired uploads and of
+removed versions that survived, deletes orphan files in `sources/` that no row names and that are older than
+24 h, and removes stale `tmp/inspect-*` directories and `tmp/up-*` files older than an hour. Idempotent;
+needs only `DATABASE_URL` and `STORAGE_PATH`. Later checkpoints add generations, requests, manifests and
+budget windows to it.
+
+### Settings
+
+`SOURCE_MAX_UPLOAD_BYTES` (25 MiB), `SOURCE_MAX_PER_ROOM`, `SOURCE_ROOM_QUOTA_BYTES`,
+`SOURCE_UPLOADS_PER_MINUTE`, `SOURCE_MAX_OPEN_UPLOADS_PER_USER`, `SOURCE_UPLOAD_TTL_MINUTES`,
+`SOURCE_DOWNLOAD_ROLES`, `SOURCE_MAX_PAGES`, `SOURCE_INSPECT_TIMEOUT_SECONDS`, `SOURCE_INSPECT_MEMORY_MB`,
+`SOURCE_INSPECT_CONCURRENCY`, `SOURCE_DOCX_MAX_UNCOMPRESSED_BYTES`, `SOURCE_DOCX_MAX_ENTRIES`. All validated
+at startup with messages that name the setting. They do not depend on `AI_ENABLED`: with AI off, or the
+room switch off, or the global kill switch on, uploads still work and files are stored, not analyzed
+(tested).
+
+### Decisions and what this checkpoint deliberately does not do
+
+* **Google Drive** is not built (the owner deferred it; there is no Drive connection in the repository).
+  The sources tables and routes do not depend on it; a Drive path would produce the same
+  intent -> bytes -> finalize result from a server-side download.
+* **"From room sources (select existing)"** is the list route plus `resolve_versions()` in
+  `services/sources.py`, which checkpoint 4's admission transaction calls to verify that every chosen
+  version belongs to the room, is not removed and its source is active. There is no separate route
+  because selecting happens when the `@AI` request is sent.
+* **No `source_updated` events yet.** The brief lists them with the `@AI` events in checkpoint 4 (event
+  type, payload, bootstrap/replay handling and the Part 5 client change together). Until then clients
+  re-fetch the list.
+* **Passages / "inspect extracted passages"** do not exist yet: there is nothing extracted. The
+  route arrives with checkpoint 3.
+* **Superseded versions are kept** (their bytes count toward the room quota) until checkpoint 4 can tell
+  which are pinned by requests; remove the source to free them.
+* **No UI.** The source panel and attachment control are part of the AI UI in checkpoint 4 (no control
+  without behaviour).
+* Text files must be UTF-8; other encodings are refused rather than guessed.
+
+**New dependencies (licences checked from the installed metadata):** `pypdfium2` 5.15.1 (BSD-3-Clause or
+Apache-2.0; it bundles PDFium, Apache-2.0, and not the AGPL PyMuPDF) is a runtime dependency; `pypdf` 7.0.0
+(BSD-3-Clause) is a development dependency used only to build encrypted-PDF test files.
+
+## 10. Limits (stated plainly)
 
 * If prices are misconfigured too low, spend control is lost: budgets count what the configuration says.
 * Embedding usage is estimated (Google reports none), so embedding spend is approximate.
 * A worker crash between a provider call and its ledger row can lose that row (the spend still happened).
+* A file removed from a room stays in already-published chat answers (their text is never rewritten).
+* Superseded source versions stay stored (and count toward the quota) until the source is removed;
+  checkpoint 4 decides which can be dropped once requests pin versions.
+* Inspection cannot tell a scan from a drawing, and cannot find an unreadable scan (that is only
+  discovered when OCR runs at first use, checkpoint 3).
 * Checkpoint 1 builds no UI for keys, consent, the room switch or usage. The pages arrive with the AI UI
   (checkpoint 4); until then the controls exist only as API routes (no control without behaviour).
 
-## 10. Not built yet
+## 11. Not built yet
 
-Sources and uploads (checkpoint 2), analysis, OCR, figures, embeddings storage, retrieval (3), `@AI`
-requests, document capture, answers, Mermaid, publication, UI (4), evaluation, security sweep, final report (5).
-Google Drive as a source depends on a Drive connection that does not exist in the repository.
+Analysis, OCR, figures, embeddings storage, retrieval, the passages inspect route (3), `@AI` requests,
+document capture, answers, Mermaid, publication, `source_updated` / `ai_request_updated` events, the source
+and AI UI (4), evaluation, security sweep, final report (5). Google Drive as a source depends on a Drive
+connection that does not exist in the repository (deferred by the owner).

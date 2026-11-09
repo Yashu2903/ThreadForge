@@ -257,10 +257,32 @@ class Settings(BaseSettings):
     ai_key_validations_per_ip_per_hour: int = 30
     ai_selfcheck_interval_seconds: int = 3600
 
+    # AI checkpoint 2: sources (files attached to AI requests). Independent of AI_ENABLED: a file
+    # can be uploaded and inspected locally with AI off; nothing leaves the server at upload.
+    source_max_upload_bytes: int = 25 * 1024 * 1024
+    source_max_per_room: int = 100  # active sources
+    source_room_quota_bytes: int = 500 * 1024 * 1024  # all live versions, plus uploads in flight
+    source_uploads_per_minute: int = 10  # per user per room (intents created)
+    source_max_open_uploads_per_user: int = 3  # started but not finished, per user per room
+    source_upload_ttl_minutes: int = 60  # an unfinished upload is abandoned after this
+    source_download_roles: Annotated[list[str], NoDecode] = ["owner", "editor", "viewer"]
+    source_max_pages: int = 400  # PDFs with more pages are refused at upload
+    source_inspect_timeout_seconds: int = 30  # wall clock for the sandboxed inspection
+    source_inspect_memory_mb: int = 1024  # address-space limit of the child (POSIX only)
+    source_inspect_concurrency: int = 2  # inspections at once, per API process
+    source_docx_max_uncompressed_bytes: int = 200 * 1024 * 1024
+    source_docx_max_entries: int = 5000
+
     trusted_proxy_ips: Annotated[list[str], NoDecode] = []
     cookie_secure: bool | None = None
 
-    @field_validator("trusted_origins", "trusted_proxy_ips", "document_font_keys", mode="before")
+    @field_validator(
+        "trusted_origins",
+        "trusted_proxy_ips",
+        "document_font_keys",
+        "source_download_roles",
+        mode="before",
+    )
     @classmethod
     def _csv(cls, value: object) -> object:
         return _split_csv(value)
@@ -430,6 +452,7 @@ class Settings(BaseSettings):
         problems += self._validate_part6()
         problems += self._validate_collab(prod)
         problems += self._validate_ai(prod)
+        problems += self._validate_sources()
         if self.message_writes_per_minute < 1:
             problems.append("MESSAGE_WRITES_PER_MINUTE must be at least 1.")
 
@@ -594,6 +617,40 @@ class Settings(BaseSettings):
             problems.append("COLLAB_MAX_STATE_BYTES must be at least 65536.")
         if self.collab_snapshots_kept < 1:
             problems.append("COLLAB_SNAPSHOTS_KEPT must be at least 1.")
+        return problems
+
+    def _validate_sources(self) -> list[str]:
+        problems = [
+            f"{name} must be at least 1."
+            for name, value in (
+                ("SOURCE_MAX_UPLOAD_BYTES", self.source_max_upload_bytes),
+                ("SOURCE_MAX_PER_ROOM", self.source_max_per_room),
+                ("SOURCE_ROOM_QUOTA_BYTES", self.source_room_quota_bytes),
+                ("SOURCE_UPLOADS_PER_MINUTE", self.source_uploads_per_minute),
+                ("SOURCE_MAX_OPEN_UPLOADS_PER_USER", self.source_max_open_uploads_per_user),
+                ("SOURCE_UPLOAD_TTL_MINUTES", self.source_upload_ttl_minutes),
+                ("SOURCE_MAX_PAGES", self.source_max_pages),
+                ("SOURCE_INSPECT_TIMEOUT_SECONDS", self.source_inspect_timeout_seconds),
+                ("SOURCE_INSPECT_MEMORY_MB", self.source_inspect_memory_mb),
+                ("SOURCE_INSPECT_CONCURRENCY", self.source_inspect_concurrency),
+                ("SOURCE_DOCX_MAX_UNCOMPRESSED_BYTES", self.source_docx_max_uncompressed_bytes),
+                ("SOURCE_DOCX_MAX_ENTRIES", self.source_docx_max_entries),
+            )
+            if value < 1
+        ]
+        if self.source_room_quota_bytes < self.source_max_upload_bytes:
+            problems.append("SOURCE_ROOM_QUOTA_BYTES must be at least SOURCE_MAX_UPLOAD_BYTES.")
+        if self.source_inspect_memory_mb < 256:
+            problems.append(
+                "SOURCE_INSPECT_MEMORY_MB must be at least 256 (PDF rendering needs it)."
+            )
+        roles = set(self.source_download_roles)
+        if not roles or not roles <= {"owner", "editor", "viewer"}:
+            problems.append(
+                "SOURCE_DOWNLOAD_ROLES must be a comma-separated list of owner, editor, viewer."
+            )
+        elif "owner" not in roles:
+            problems.append("SOURCE_DOWNLOAD_ROLES must include owner.")
         return problems
 
     def _validate_ai(self, prod: bool) -> list[str]:
@@ -834,6 +891,23 @@ def load_document_cleanup_settings() -> _DocumentCleanupSettings:
             "ASSET_PENDING_TTL_HOURS and ASSET_UNREFERENCED_GRACE_DAYS must be at least 1."
         )
     return loaded
+
+
+class _AiCleanupSettings(BaseSettings):
+    """What `cleanup_ai` needs: the database and the storage path."""
+
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+    )
+    database_url: SecretStr
+    storage_path: str = "./data/storage"
+
+
+def load_ai_cleanup_settings() -> _AiCleanupSettings:
+    try:
+        return _AiCleanupSettings()  # type: ignore[call-arg]
+    except ValidationError:
+        raise ConfigError("DATABASE_URL: must be set (see .env.example).") from None
 
 
 class _MigrateSettings(BaseSettings):

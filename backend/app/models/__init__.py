@@ -21,6 +21,7 @@ from app.models.outbox import OutboxEntry
 from app.models.room import Room
 from app.models.room_event import RoomEvent
 from app.models.session import Session
+from app.models.source import Source, SourceUpload, SourceVersion
 from app.models.user import User
 
 __all__ = [
@@ -50,5 +51,8 @@ __all__ = [
     "RoomAsset",
     "RoomEvent",
     "Session",
+    "Source",
+    "SourceUpload",
+    "SourceVersion",
     "User",
 ]

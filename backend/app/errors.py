@@ -322,3 +322,50 @@ def budget_exhausted(scope: str) -> AppError:
         "The AI spending budget for this period is used up.",
         extra={"scope": scope},
     )
+
+
+# ---- ThreadForge AI: sources (checkpoint 2) ------------------------------------------------------
+
+
+def source_not_found() -> AppError:
+    return AppError(404, "source_not_found", "Source not found.")
+
+
+def source_upload_not_found() -> AppError:
+    return AppError(404, "source_upload_not_found", "Upload not found.")
+
+
+def file_type_error(code: str, message: str) -> AppError:
+    """415 with the specific code: unsupported_media_type (not an accepted kind) or type_mismatch
+    (the name, the declared type or the real bytes disagree)."""
+    return AppError(415, code, message)
+
+
+def invalid_source(reason: str, message: str) -> AppError:
+    return AppError(422, "invalid_source", message, extra={"reason": reason})
+
+
+def source_upload_not_open(state: str) -> AppError:
+    return AppError(
+        409,
+        "source_upload_not_open",
+        "This upload cannot accept that step in its current state.",
+        extra={"state": state},
+    )
+
+
+def source_upload_id_reused() -> AppError:
+    return AppError(
+        409,
+        "source_upload_id_reused",
+        "That client_request_id was already used for a different upload.",
+    )
+
+
+def source_unavailable(version_ids: list[str]) -> AppError:
+    return AppError(
+        409,
+        "source_unavailable",
+        "A selected file was removed or does not belong to this room.",
+        extra={"source_version_ids": version_ids},
+    )

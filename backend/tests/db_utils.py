@@ -30,6 +30,7 @@ AI_TABLES = (
     "ai_budget_warnings",
     "ai_rate_buckets",
 )
+SOURCE_TABLES = ("sources", "source_versions", "source_uploads")
 APP_TABLES = (
     *PART1_TABLES,
     *PART2_TABLES,
@@ -38,6 +39,7 @@ APP_TABLES = (
     *PART6_TABLES,
     *COLLAB_TABLES,
     *AI_TABLES,
+    *SOURCE_TABLES,
 )
 
 

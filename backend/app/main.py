@@ -30,6 +30,7 @@ from app.api import (
     realtime,
     room_events,
     rooms,
+    sources,
     sync,
 )
 from app.assets_pipeline import configure_pillow
@@ -79,6 +80,7 @@ def create_app(
     app.state.realtime = RealtimeHub(settings, app.state.sessionmaker)
     app.state.storage = Storage(settings.storage_path)
     app.state.asset_slots = asyncio.Semaphore(settings.asset_processing_concurrency)
+    app.state.source_slots = asyncio.Semaphore(settings.source_inspect_concurrency)
     configure_pillow(settings.asset_max_pixels)
 
     install_error_handlers(app)
@@ -95,6 +97,7 @@ def create_app(
     app.include_router(sync.router)
     app.include_router(internal_collab.router)
     app.include_router(ai.router)
+    app.include_router(sources.router)
     app.include_router(realtime.router)
 
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the
@@ -115,6 +118,13 @@ def create_app(
                 re.compile(r"/internal/collab/documents/[^/]+/snapshot"),
                 # a snapshot is canonical JSON plus a little
                 2 * settings.document_max_serialized_bytes,
+            ),
+            # source files are STREAMED too (25 MiB by default), one PUT per upload
+            (
+                "PUT",
+                re.compile(r"/rooms/[^/]+/source-uploads/[^/]+/content"),
+                settings.source_max_upload_bytes,
+                True,
             ),
             # image uploads are STREAMED (never buffered) and counted as they arrive
             (
