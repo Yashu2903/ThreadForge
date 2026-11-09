@@ -13,7 +13,7 @@ from tests.helpers import TRUSTED_ORIGIN, add_member, execute, rows, scalar
 from tests.test_invitations_api import new_room
 
 MESSAGE_FIELDS = {
-    "id", "room_id", "author_id", "author_display_name", "client_message_id", "body",
+    "id", "room_id", "author_id", "author_display_name", "client_message_id", "body", "kind", "ai_request_id",
     "created_at", "edited_at", "deleted_at", "deleted_by", "version", "is_deleted",
 }  # fmt: skip
 

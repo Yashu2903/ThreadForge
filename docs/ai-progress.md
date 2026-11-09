@@ -101,3 +101,51 @@ section 9).
 **Next**: checkpoint 3 (lazy analysis worker, OCR with vision fallback, figures, chunking, embeddings,
 generations, hybrid retrieval, inspect view; switch Compose to a pgvector image and add Tesseract to the
 worker image).
+
+## Checkpoints 3 and 4: lazy analysis, retrieval, `@AI` requests, answers, UI
+
+These two were finished and committed together (see "Commit note" below).
+
+**Done**
+* Migrations `0009_ai_analysis` and `0010_ai_requests` (expand only; downgrade to `0008` and to base
+  both work, upgrade again works; `alembic check` clean on a scratch database).
+* Checkpoint 3: nothing is analyzed at upload. "Analyze" (or sending an `@AI` request that names a file)
+  queues a job; a worker extracts text in a sandboxed child process (real Tesseract OCR with a quality
+  gate, vision fallback), selects figures, chunks (`chunk-v1`), embeds, and publishes an index
+  *generation* atomically. Hybrid retrieval (Postgres full-text + exact pgvector cosine, merged with
+  reciprocal-rank fusion). Source removal cascades analysis data and redacts stored excerpts.
+* Checkpoint 4: `@AI` requests (create, get, context, cancel, retry, result, citations, citation image),
+  a claim/lease request queue, pinned generations, evidence manifests, a strict answer schema with
+  server-side checks of citations, quotes and unsupported share (one repair attempt), Mermaid diagrams
+  (static rules shared with the browser, a Node parse check, sanitized rendering), exactly one reply per
+  request, new events (`ai_request_updated`, `source_updated`), and the browser UI (consent, source
+  panel, `@AI` composer, request and answer cards, citation panel, viewer read-only view).
+
+**Verified (automated)**
+* backend: **1983 passed, 3 skipped** (the skips are POSIX-only sandbox checks and are not run on this
+  Windows machine), run as 15 sequential batches because one process is killed for low memory here.
+  Before checkpoint 3 the count was 1594.
+* `ruff check` and `ruff format --check` clean; `alembic check` clean.
+* editor-schema 126 passed, client 76, frontend 84 (vitest), collaboration service 64; typechecks clean.
+* Browser (Playwright, chromium, real API + real AI worker + real collaboration service, with a local
+  HTTP stand-in for the two providers): 2 passed. Covers notice acceptance, upload without analysis,
+  "@AI" typed in a plain message triggering nothing, the mention menu, asking, the cited answer card,
+  the citation panel, the viewer's read-only view, the message kinds, and owner deletion of an answer.
+
+**Not verified**
+* Nothing has run against the real Google or other providers (no credentials here). Answer quality, OCR
+  accuracy on real scans, real latency and real cost are therefore unmeasured; the checkpoint 5
+  evaluation harness is the place for those numbers.
+* The POSIX resource limits of the new extractor child have not run in an automated Linux run.
+* The Docker image (`backend/Dockerfile`, with Node and Tesseract) has not been built here (memory).
+* Only chromium was run for the browser spec.
+
+**Blocked / deferred**: Google Drive as a source (deferred by the owner). Phase 2 is not started.
+
+**Commit note**: the brief asks for one commit per checkpoint. The two checkpoints share many files
+(`config.py`, `ai_worker.py`, `services/sources.py`, `docs/ai.md`, the room client and the frontend), and
+the checkpoint-3-only state was never run as a whole suite, so a split commit would claim a verification
+that did not happen. They are one commit; the full-suite numbers above are for that commit.
+
+**Next**: checkpoint 5 (evaluation harness and recorded results, security and regression sweep, final
+report in `docs/ai.md`).

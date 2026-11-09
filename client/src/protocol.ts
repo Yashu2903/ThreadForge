@@ -40,6 +40,10 @@ export interface Message {
   deleted_by: string | null;
   version: number;
   is_deleted: boolean;
+  /** AI phase 1: an ordinary message, an `@AI` request, or the AI's answer (authored by the system user). */
+  kind?: "user" | "ai_request" | "ai_answer";
+  /** The request an `ai_request`/`ai_answer` message belongs to. */
+  ai_request_id?: string | null;
 }
 
 export interface RoomInfo {
@@ -67,6 +71,18 @@ export interface DocumentSignals {
   /** The newest selection announced in the batch, if any (already applied to state.room). */
   active: { documentId: string; selectionVersion: number } | null;
   /** The room state was replaced by a fresh bootstrap: refetch everything you hold. */
+  reset: boolean;
+}
+
+/** What one batch of events says about AI (checkpoint 4). Events carry ids and states only. */
+export interface AiSignals {
+  /** request id -> the LAST state announced for it in this batch */
+  requests: Map<string, string>;
+  /** source id -> the last announced state (created | ready | failed | removed) */
+  sources: Map<string, { versionId: string; state: string }>;
+  /** the owner's room AI switch, if it changed in this batch (the last value wins) */
+  aiEnabled: boolean | null;
+  /** the room state was replaced by a fresh bootstrap: refetch everything AI-related you hold */
   reset: boolean;
 }
 

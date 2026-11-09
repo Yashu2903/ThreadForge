@@ -78,6 +78,11 @@ def classify_status(
         )
     if status in (401, 403):
         return ProviderError(KEY_REJECTED, safe, status=status)
+    if status == 400 and ("API_KEY_INVALID" in body_text or "API key not valid" in body_text):
+        # Google reports an invalid key as 400, not 401 (Gemini API errors). It is a rejected key
+        # wherever it happens, not only at save time, or a job would fail as a 'bad request' and
+        # the user would never be told to replace the key.
+        return ProviderError(KEY_REJECTED, safe, status=status)
     if status == 408:
         return ProviderError(TIMEOUT, safe, status=status, retryable=True)
     return ProviderError(BAD_REQUEST, safe, status=status)

@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
@@ -60,6 +60,7 @@ from app.errors import (
 )
 from app.logging_config import APP_LOGGER, request_id_var
 from app.models import Source, SourceUpload, SourceVersion
+from app.services.room_events import record_room_event
 from app.services.rooms import lock_room_and_actor
 from app.sources import files
 from app.sources.sandbox import InspectionRejected, inspect_file
@@ -446,7 +447,7 @@ async def record_bytes(
     """After the file is in storage: `intent` -> `uploaded`, under the room lock. If this raises the
     caller deletes the stored file."""
     async with sessionmaker() as db, db.begin():
-        _locked, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
+        locked_room, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
         if role not in EDIT_ROLES:
             raise insufficient_role()
         row = await _load_upload(db, room_id, actor_id, upload_id, lock=True)
@@ -577,7 +578,7 @@ async def finalize_upload(
         raise rejection_error(exc.code, exc.message) from None
 
     async with sessionmaker() as db, db.begin():
-        _locked, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
+        locked_room, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
         if role not in EDIT_ROLES:
             raise insufficient_role()
         row = await _load_upload(db, room_id, actor_id, upload_id, lock=True)
@@ -666,6 +667,7 @@ async def finalize_upload(
                 )
             )
             created = (source_id, version_id, version_no)
+            await emit_source_event(db, locked_room, source_id, version_id, "created", actor_id)
     if created:
         log.info(
             "action=source_version_created room_id=%s source_id=%s version_id=%s version_no=%s "
@@ -853,6 +855,28 @@ async def resolve_versions(
     return [found[v] for v in wanted]
 
 
+async def emit_source_event(
+    db: AsyncSession,
+    locked,
+    source_id: uuid.UUID,
+    version_id: uuid.UUID,
+    state: str,
+    actor_id: uuid.UUID,
+) -> None:
+    """`source_updated`: a new version, an analysis that reached ready or failed, a removal. Ids and
+    the state only; the details come from the authorized endpoints. Needs the room lock."""
+    await record_room_event(
+        db,
+        locked,
+        event_type="source_updated",
+        resource_type="source",
+        resource_id=source_id,
+        resource_version=None,
+        actor_id=actor_id,
+        payload={"source_id": str(source_id), "source_version_id": str(version_id), "state": state},
+    )
+
+
 # ---- removal ----------------------------------------------------------------------------------------
 
 
@@ -874,7 +898,7 @@ async def remove_source(
     redaction of stored excerpts and manifests. Already-published chat text stays (docs/ai.md).
     """
     async with sessionmaker() as db, db.begin():
-        _locked, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
+        locked_room, role = await lock_room_and_actor(db, room_id, actor_id, owner_only=False)
         src = (
             await db.execute(
                 select(_SRC)
@@ -896,13 +920,35 @@ async def remove_source(
                 await db.execute(
                     update(_VER)
                     .where(_VER.c.source_id == source_id, _VER.c.analysis_state != "removed")
-                    .values(analysis_state="removed", removed_at=func.clock_timestamp())
+                    .values(
+                        analysis_state="removed",
+                        removed_at=func.clock_timestamp(),
+                        current_generation_id=None,
+                    )
                     .returning(_VER.c.storage_key)
                 )
             )
             .scalars()
             .all()
         )
+        # Analysis data goes in the SAME transaction: jobs stop (a running worker finds its claim
+        # gone), and every generation of these versions is deleted, which cascades to the chunks, the
+        # vectors and the figure rows. Only the figure IMAGE FILES are deleted after the commit.
+        figure_keys = await _remove_analysis(db, source_id)
+        # published answers keep their text but lose the excerpts and quotes taken from these files;
+        # manifests lose the stored passages (citations become 'source removed' stubs)
+        from app.services import ai_requests  # late import: that module imports this one
+
+        removed_ids = list(
+            (await db.execute(select(_VER.c.id).where(_VER.c.source_id == source_id)))
+            .scalars()
+            .all()
+        )
+        await ai_requests.redact_for_removed_versions(db, removed_ids)
+        if removed_ids:
+            await emit_source_event(
+                db, locked_room, source_id, removed_ids[-1], "removed", actor_id
+            )
     log.info(
         "action=source_removed room_id=%s source_id=%s actor_id=%s files=%s request_id=%s",
         room_id,
@@ -911,7 +957,51 @@ async def remove_source(
         len(keys),
         request_id_var.get(),
     )
+    await _delete_figure_files(storage, figure_keys)
     return await delete_removed_files(sessionmaker, storage, list(keys))
+
+
+async def _remove_analysis(db: AsyncSession, source_id: uuid.UUID) -> list[str]:
+    """Cancel the analysis jobs of the source's versions and delete their indexes. Returns the storage
+    keys of figure images to delete once the transaction has committed."""
+    version_ids = list(
+        (await db.execute(select(_VER.c.id).where(_VER.c.source_id == source_id))).scalars().all()
+    )
+    if not version_ids:
+        return []
+    await db.execute(
+        text(
+            """UPDATE analysis_jobs SET state = 'cancelled', claim_token = NULL,
+                   lease_expires_at = NULL, stage = NULL, finished_at = now()
+                WHERE source_version_id = ANY(:v) AND state IN ('queued', 'running')"""
+        ),
+        {"v": version_ids},
+    )
+    figure_keys = list(
+        (
+            await db.execute(
+                text(
+                    "SELECT storage_key FROM figures WHERE source_version_id = ANY(:v) "
+                    "AND storage_key IS NOT NULL"
+                ),
+                {"v": version_ids},
+            )
+        )
+        .scalars()
+        .all()
+    )
+    await db.execute(
+        text("DELETE FROM index_generations WHERE source_version_id = ANY(:v)"), {"v": version_ids}
+    )
+    return figure_keys
+
+
+async def _delete_figure_files(storage: Storage, keys: list[str]) -> None:
+    for key in keys:
+        try:
+            storage.delete("figures", key)
+        except OSError:
+            log.warning("action=figure_file_delete_failed")  # cleanup_ai removes the orphan
 
 
 async def delete_removed_files(

@@ -5,6 +5,7 @@ export * from "./extensions.js";
 export * from "./hash.js";
 export * from "./limits.js";
 export * from "./links.js";
+export * from "./mermaid.js";
 export * from "./schema.js";
 export * from "./text.js";
 export * from "./validate.js";

@@ -108,6 +108,29 @@ class GoogleEmbedding:
         )
         return await self._embed(contents, usage)
 
+    async def embed_interleaved(self, items: list[tuple[str, ImagePart]]) -> EmbedResult:
+        """One embedding per (text, image) pair: the model aggregates interleaved parts of ONE content
+        object into a single vector (Gemini embeddings guide). Used for figures when
+        AI_FIGURE_EMBEDDING_MODE=image_plus_description."""
+        prefix = self._settings.ai_embed_document_prefix
+        contents = [
+            {
+                "parts": [
+                    {"text": prefix + text},
+                    {
+                        "inline_data": {
+                            "mime_type": image.media_type,
+                            "data": base64.b64encode(image.data).decode(),
+                        }
+                    },
+                ]
+            }
+            for text, image in items
+        ]
+        tokens = sum(estimate_text_tokens(self._settings, prefix + t) for t, _ in items)
+        tokens += len(items) * self._settings.ai_embed_image_tokens_estimate
+        return await self._embed(contents, Usage(tokens, 0, len(items), estimated=True))
+
     async def _embed(self, contents: list[dict[str, Any]], usage: Usage) -> EmbedResult:
         vectors: list[list[float]] = []
         size = self._settings.ai_embed_batch_size

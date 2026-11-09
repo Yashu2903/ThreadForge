@@ -93,6 +93,8 @@ class MessageOut(BaseModel):
     deleted_by: uuid.UUID | None
     version: int
     is_deleted: bool
+    kind: str = "user"  # user | ai_request | ai_answer
+    ai_request_id: uuid.UUID | None = None
 
 
 class MessagePage(BaseModel):

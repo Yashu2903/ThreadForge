@@ -15,8 +15,27 @@ and expired budget windows to this same command):
      are retried;
   3. ORPHAN files: any file under STORAGE_PATH/sources that no source version and no upload names,
      and that is older than 24 hours (a crash between "file stored" and "row written"), is deleted;
-  4. SCRATCH: `tmp/inspect-*` directories (a killed inspector) and `tmp/up-*` files older than one
-     hour.
+  4. SCRATCH: `tmp/inspect-*` directories (a killed inspector or extractor) and `tmp/up-*` files
+     older than one hour.
+
+Checkpoint 3 steps:
+
+  5. STALE `building` generations: left by a worker that died, and no queued or running job owns them
+     any more (or they are over an hour old with no running job): deleted with their chunks, vectors
+     and figure files;
+  6. SUPERSEDED generations older than AI_SUPERSEDED_GENERATION_GRACE_HOURS (an old index outlives its
+     replacement, so a request that pinned it keeps working). Checkpoint 4 adds "and no unfinished
+     request pins it";
+  7. ORPHAN figure images: files under STORAGE_PATH/figures that no `figures` row names and that are
+     older than 24 hours.
+
+Checkpoint 4 steps:
+
+  8. MANIFESTS past retention: `ai_requests.retain_until` (finished + AI_RESULT_RETENTION_DAYS) has
+     passed -> the manifest (retrieved passages, document captures, chat copies, records of images
+     sent) is deleted. The published answer and its short citation excerpts stay.
+  9. EXPIRED budget windows (older than 62 days), their warnings, and old rate-limit buckets.
+  (step 6 now also keeps a superseded index that an unfinished request still pins)
 
 The row is updated BEFORE its file is deleted, never the other way round, and the storage key is
 cleared only after the file is gone.
@@ -34,9 +53,10 @@ import sys
 import time
 from dataclasses import dataclass
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.ai.analysis.store import FIGURE_NAMESPACE, discard_generations
 from app.config import ConfigError, load_ai_cleanup_settings
 from app.db import create_engine_from_url, create_sessionmaker
 from app.models import SourceUpload, SourceVersion
@@ -57,6 +77,10 @@ class AiCleanupResult:
     removed_version_files_deleted: int = 0
     orphan_files: int = 0
     scratch_removed: int = 0
+    generations_removed: int = 0
+    orphan_figure_files: int = 0
+    manifests_deleted: int = 0
+    budget_rows_deleted: int = 0
 
 
 async def _expire_uploads(sessionmaker: async_sessionmaker[AsyncSession], batch_size: int) -> int:
@@ -197,12 +221,125 @@ def _sweep_scratch(storage: Storage, now: float) -> int:
     return removed
 
 
+async def _remove_stale_generations(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    storage: Storage,
+    grace_hours: int,
+    batch_size: int,
+) -> int:
+    """Steps 5 and 6. Each batch is selected and deleted by generation id; the state is re-read by the
+    DELETE inside `discard_generations`' own transaction semantics (rows are simply gone or not)."""
+    total = 0
+    while True:
+        async with sessionmaker() as db:
+            ids = list(
+                (
+                    await db.execute(
+                        text(
+                            """
+                            SELECT g.id FROM index_generations g
+                             WHERE (g.state = 'building'
+                                    AND g.created_at < now() - interval '1 hour'
+                                    AND NOT EXISTS (SELECT 1 FROM analysis_jobs j
+                                                     WHERE j.id = g.job_id AND j.state = 'running'
+                                                       AND j.lease_expires_at >= now()))
+                                OR g.state = 'failed'
+                                OR (g.state = 'superseded'
+                                    AND g.published_at < now() - make_interval(hours => :grace)
+                                    AND NOT EXISTS (
+                                        SELECT 1 FROM ai_request_sources rs
+                                          JOIN ai_requests r ON r.id = rs.request_id
+                                         WHERE rs.generation_id = g.id
+                                           AND r.state IN ('waiting_for_sources', 'queued', 'running',
+                                                           'validating', 'cancelling')))
+                             ORDER BY g.created_at LIMIT :n
+                            """
+                        ),
+                        {"grace": grace_hours, "n": batch_size},
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        if not ids:
+            return total
+        await discard_generations(sessionmaker, storage, ids)
+        total += len(ids)
+        if len(ids) < batch_size:
+            return total
+
+
+async def _delete_old_manifests(
+    sessionmaker: async_sessionmaker[AsyncSession], batch_size: int
+) -> int:
+    total = 0
+    while True:
+        async with sessionmaker() as db, db.begin():
+            done = (
+                await db.execute(
+                    text(
+                        """DELETE FROM ai_manifests m USING (
+                               SELECT m2.request_id, m2.attempt FROM ai_manifests m2
+                                 JOIN ai_requests r ON r.id = m2.request_id
+                                WHERE r.retain_until IS NOT NULL AND r.retain_until < now()
+                                LIMIT :n) old
+                            WHERE m.request_id = old.request_id AND m.attempt = old.attempt"""
+                    ),
+                    {"n": batch_size},
+                )
+            ).rowcount
+        total += done
+        if done < batch_size:
+            return total
+
+
+async def _delete_expired_budget_rows(sessionmaker: async_sessionmaker[AsyncSession]) -> int:
+    async with sessionmaker() as db, db.begin():
+        n = 0
+        for table, column, age in (
+            ("ai_budget_windows", "window_start", "current_date - 62"),
+            ("ai_budget_warnings", "window_start", "current_date - 62"),
+            ("ai_rate_buckets", "window_start", "now() - interval '2 days'"),
+        ):
+            n += (await db.execute(text(f"DELETE FROM {table} WHERE {column} < {age}"))).rowcount  # noqa: S608
+    return n
+
+
+async def _sweep_orphan_figures(
+    sessionmaker: async_sessionmaker[AsyncSession], storage: Storage, now: float, batch_size: int
+) -> int:
+    candidates = [
+        key
+        for key, _path, mtime in storage.iter_files(FIGURE_NAMESPACE)
+        if now - mtime > ORPHAN_AGE_SECONDS
+    ]
+    orphans = 0
+    for start in range(0, len(candidates), batch_size):
+        chunk = candidates[start : start + batch_size]
+        async with sessionmaker() as db:
+            used = set(
+                (
+                    await db.execute(
+                        text("SELECT storage_key FROM figures WHERE storage_key = ANY(:k)"),
+                        {"k": chunk},
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        for key in chunk:
+            if key not in used and storage.delete(FIGURE_NAMESPACE, key):
+                orphans += 1
+    return orphans
+
+
 async def cleanup_ai(
     sessionmaker: async_sessionmaker[AsyncSession],
     storage: Storage,
     *,
     batch_size: int = 200,
     now: float | None = None,
+    grace_hours: int = 24,
 ) -> AiCleanupResult:
     now = time.time() if now is None else now
     expired = await _expire_uploads(sessionmaker, batch_size)
@@ -210,7 +347,21 @@ async def cleanup_ai(
     version_files = await _delete_removed_version_files(sessionmaker, storage, batch_size)
     orphans = await _sweep_orphans(sessionmaker, storage, now, batch_size)
     scratch = await asyncio.to_thread(_sweep_scratch, storage, now)
-    return AiCleanupResult(expired, upload_files, version_files, orphans, scratch)
+    generations = await _remove_stale_generations(sessionmaker, storage, grace_hours, batch_size)
+    orphan_figures = await _sweep_orphan_figures(sessionmaker, storage, now, batch_size)
+    manifests = await _delete_old_manifests(sessionmaker, batch_size)
+    budget_rows = await _delete_expired_budget_rows(sessionmaker)
+    return AiCleanupResult(
+        expired,
+        upload_files,
+        version_files,
+        orphans,
+        scratch,
+        generations,
+        orphan_figures,
+        manifests,
+        budget_rows,
+    )
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -224,7 +375,10 @@ async def _run(args: argparse.Namespace) -> AiCleanupResult:
     engine = create_engine_from_url(settings.database_url.get_secret_value())
     try:
         return await cleanup_ai(
-            create_sessionmaker(engine), Storage(settings.storage_path), batch_size=args.batch_size
+            create_sessionmaker(engine),
+            Storage(settings.storage_path),
+            batch_size=args.batch_size,
+            grace_hours=settings.ai_superseded_generation_grace_hours,
         )
     finally:
         await engine.dispose()
@@ -244,7 +398,9 @@ def main(argv: list[str] | None = None) -> int:
         f"expired {result.uploads_expired} abandoned uploads; deleted "
         f"{result.upload_files_deleted} upload files, {result.removed_version_files_deleted} files "
         f"of removed sources, {result.orphan_files} orphan files; removed {result.scratch_removed} "
-        f"stale scratch items"
+        f"stale scratch items, {result.generations_removed} stale index generations and "
+        f"{result.orphan_figure_files} orphan figure files; deleted {result.manifests_deleted} "
+        f"manifests past retention and {result.budget_rows_deleted} expired budget/rate rows"
     )
     return 0
 

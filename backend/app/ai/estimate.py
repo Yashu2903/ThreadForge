@@ -136,3 +136,63 @@ async def estimate_request(
 def round_up_thousands(value: int) -> int:
     """UI-friendly rounding for 'about N tokens'."""
     return int(math.ceil(value / 100) * 100)
+
+
+# ---- analysis of a source version (checkpoint 3) ---------------------------------------------------
+
+
+@dataclass
+class AnalysisEstimate:
+    """Approximate work for analyzing ONE source version for the first time. Worst-case where the
+    truth is unknown before reading the file: every likely-scanned page might need the vision model."""
+
+    embed_tokens: int
+    vision_pages: int
+    figures: int
+    calls: int
+    cost_known: bool
+    expected_cost_micros: int | None
+    max_cost_micros: int | None
+
+
+def estimate_analysis(
+    settings: Settings,
+    *,
+    text_chars: int,
+    likely_scanned_pages: int | None,
+    image_count: int,
+    kind: str,
+) -> AnalysisEstimate:
+    scanned = likely_scanned_pages or 0
+    vision_pages = min(scanned, settings.ai_vision_fallback_max_pages) if kind == "pdf" else 0
+    # figures: embedded pictures (DOCX/PDF) plus drawing pages we cannot count yet; capped
+    figures = min(
+        image_count, settings.ai_max_new_analysis_figures, settings.ai_max_figures_per_source
+    )
+    text_tokens = estimate_text_tokens(settings, "x" * text_chars) + scanned * 600
+    chunks = max(1, math.ceil(text_tokens / max(1, settings.ai_chunk_target_tokens))) + figures
+    embed_tokens = text_tokens + figures * 200
+    calls = math.ceil(chunks / max(1, settings.ai_embed_batch_size)) + vision_pages + figures
+    prices = Prices.of(settings)
+    expected = worst = None
+    if prices.llm_known or prices.embed_text is not None:
+        embed_cost = prices.embed_text_cost(Usage(embed_tokens))
+        page_in = settings.ai_image_tokens_estimate + 300
+        expected = embed_cost + prices.llm_cost(Usage(page_in * vision_pages, 1500 * vision_pages))
+        expected += prices.llm_cost(Usage((page_in + 100) * figures, 500 * figures))
+        worst = expected + prices.llm_cost(
+            Usage(0, (OCR_OUT_MAX - 1500) * vision_pages + (DESCRIBE_OUT_MAX - 500) * figures)
+        )
+    return AnalysisEstimate(
+        embed_tokens=embed_tokens,
+        vision_pages=vision_pages,
+        figures=figures,
+        calls=calls,
+        cost_known=prices.llm_known or prices.embed_text is not None,
+        expected_cost_micros=expected,
+        max_cost_micros=worst,
+    )
+
+
+OCR_OUT_MAX = 4000
+DESCRIBE_OUT_MAX = 1500

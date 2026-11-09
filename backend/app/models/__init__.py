@@ -8,6 +8,14 @@ from app.models.ai import (
     AiUsageLedger,
     UserProviderKey,
 )
+from app.models.ai_request import AiManifest, AiRequest, AiRequestSource, AiResult
+from app.models.analysis import (
+    AnalysisJob,
+    AnalysisJobWaiter,
+    Chunk,
+    Figure,
+    IndexGeneration,
+)
 from app.models.auth_identity import AuthIdentity
 from app.models.base import Base
 from app.models.collab import CollabLease, DocumentSnapshot, DocumentYjsState
@@ -25,6 +33,15 @@ from app.models.source import Source, SourceUpload, SourceVersion
 from app.models.user import User
 
 __all__ = [
+    "AiManifest",
+    "AiRequest",
+    "AiRequestSource",
+    "AiResult",
+    "AnalysisJob",
+    "AnalysisJobWaiter",
+    "Chunk",
+    "Figure",
+    "IndexGeneration",
     "AiBudgetWarning",
     "AiBudgetWindow",
     "AiCapabilityStatus",

@@ -19,6 +19,8 @@
     "@tiptap/pm": "3.33.0",
     "@tiptap/react": "3.33.0",
     "@tiptap/y-tiptap": "3.2.0",
+    "dompurify": "3.4.16",
+    "mermaid": "12.2.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "y-protocols": "1.0.7",

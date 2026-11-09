@@ -33,6 +33,8 @@ EVENT_TYPES = (
     "active_document_changed",
     "document_content_updated",
     "room_ai_settings_changed",
+    "ai_request_updated",
+    "source_updated",
 )
 _TYPE_LIST = ", ".join(f"'{t}'" for t in EVENT_TYPES)
 
@@ -58,7 +60,7 @@ class RoomEvent(Base):
         CheckConstraint("schema_version >= 1", name="schema_version_positive"),
         CheckConstraint(f"type IN ({_TYPE_LIST})", name="type_valid"),
         CheckConstraint(
-            "resource_type IN ('room', 'membership', 'message', 'document')",
+            "resource_type IN ('room', 'membership', 'message', 'document', 'ai_request', 'source')",
             name="resource_type_valid",
         ),
         CheckConstraint("jsonb_typeof(payload) = 'object'", name="payload_is_object"),

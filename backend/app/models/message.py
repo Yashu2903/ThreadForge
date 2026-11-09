@@ -8,8 +8,10 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     LargeBinary,
+    String,
     Text,
     UniqueConstraint,
     text,
@@ -55,7 +57,23 @@ class Message(Base):
         CheckConstraint(
             "octet_length(initial_request_fingerprint) = 32", name="fingerprint_length"
         ),
+        CheckConstraint("kind IN ('user', 'ai_request', 'ai_answer')", name="kind_valid"),
+        CheckConstraint("(kind = 'user') = (ai_request_id IS NULL)", name="ai_link_consistent"),
+        ForeignKeyConstraint(
+            ["ai_request_id"],
+            ["ai_requests.id"],
+            name="fk_messages_ai_request_id_ai_requests",
+            ondelete="RESTRICT",
+            deferrable=True,
+            initially="DEFERRED",
+            use_alter=True,
+        ),
         Index("ix_messages_room_id_created_at_id", "room_id", "created_at", "id"),
+        Index(
+            "ix_messages_ai_request_id",
+            "ai_request_id",
+            postgresql_where=text("ai_request_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -76,3 +94,7 @@ class Message(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
     version: Mapped[int] = mapped_column(BigInteger, server_default=text("1"), nullable=False)
+    # 'user' (every ordinary message), 'ai_request' (an @AI message) or 'ai_answer' (the reply, authored
+    # by the system user). Immutable after insert (trigger). AI messages cannot be edited.
+    kind: Mapped[str] = mapped_column(String(10), server_default=text("'user'"), nullable=False)
+    ai_request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

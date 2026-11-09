@@ -1,10 +1,12 @@
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { BACKEND_DIR, COLLAB_URL, collabEnv } from "./env";
+import { AI_STUB_PORT, AI_STUB_URL, BACKEND_DIR, COLLAB_URL, collabEnv } from "./env";
 import { backendEnv } from "./env";
 
 let dispatcher: ChildProcess | null = null;
 let collab: ChildProcess | null = null;
+let aiStub: ChildProcess | null = null;
+let aiWorker: ChildProcess | null = null;
 const COLLAB_DIR = new URL("../../collab/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
 function killTree(child: ChildProcess | null): void {
@@ -20,11 +22,11 @@ function killTree(child: ChildProcess | null): void {
   }
 }
 
-async function waitFor(url: string, ms: number): Promise<void> {
+async function waitFor(url: string, ms: number, headers: Record<string, string> = {}): Promise<void> {
   const end = Date.now() + ms;
   for (;;) {
     try {
-      if ((await fetch(url)).ok) return;
+      if ((await fetch(url, { headers })).ok) return;
     } catch {
       /* not up yet */
     }
@@ -47,7 +49,23 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   if (!existsSync(`${COLLAB_DIR}dist/main.js`)) throw new Error("Run `npm run build` at the repository root first (collab/dist is missing).");
   collab = spawn("node", ["dist/main.js"], { cwd: COLLAB_DIR, env: collabEnv, stdio: "inherit", windowsHide: true });
   await waitFor(`${COLLAB_URL}/health`, 30_000);
+  // The AI provider stand-in and the AI worker (analysis + `@AI` requests), against the e2e database.
+  aiStub = spawn("uv", ["run", "python", "-m", "scripts.e2e_ai_stub", "--port", String(AI_STUB_PORT)], {
+    cwd: BACKEND_DIR,
+    env: backendEnv,
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  await waitFor(`${AI_STUB_URL}/v1/models/test-llm`, 30_000, { authorization: "Bearer sk-server-openai-0123456789abcdef" });
+  aiWorker = spawn("uv", ["run", "python", "-m", "app.workers.ai_worker"], {
+    cwd: BACKEND_DIR,
+    env: backendEnv,
+    stdio: "ignore",
+    windowsHide: true,
+  });
   return async () => {
+    killTree(aiWorker);
+    killTree(aiStub);
     killTree(collab);
     killTree(dispatcher);
   };

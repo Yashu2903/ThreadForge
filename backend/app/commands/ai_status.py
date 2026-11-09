@@ -2,9 +2,9 @@
 
     python -m app.commands.ai_status
 
-Shows the global switch, capability self-check results, failures by code over 24 h, and spend today
-and this month (server key vs user key). Queue depth and oldest-job age are reported once the
-request/analysis queues exist (checkpoints 3-4); until then they are absent, not zero.
+Shows the global switch, capability self-check results, failures by code over 24 h, spend today and
+this month (server key vs user key), and the analysis queue: jobs by state, the age of the oldest
+waiting one, and job failures by code over 24 h. (The request queue joins in checkpoint 4.)
 Needs only DATABASE_URL.
 """
 
@@ -35,6 +35,20 @@ _FAILURES = text(
 )
 
 
+_QUEUE = text(
+    """
+    SELECT state, count(*) AS n, min(created_at) AS oldest
+      FROM analysis_jobs WHERE state IN ('queued', 'running') GROUP BY state ORDER BY state
+    """
+)
+_JOB_FAILURES = text(
+    """
+    SELECT error_code, count(*) AS n FROM analysis_jobs
+     WHERE state = 'failed' AND finished_at > now() - interval '24 hours' GROUP BY 1 ORDER BY 2 DESC
+    """
+)
+
+
 async def collect() -> dict[str, Any]:
     engine = create_engine_from_url(load_database_url())
     try:
@@ -49,6 +63,9 @@ async def collect() -> dict[str, Any]:
             ).all()
             failures = (await db.execute(_FAILURES)).all()
             spend = (await db.execute(_SPEND)).all()
+            queue = (await db.execute(_QUEUE)).all()
+            job_failures = (await db.execute(_JOB_FAILURES)).all()
+            now = (await db.execute(text("SELECT now()"))).scalar_one()
     finally:
         await engine.dispose()
     return {
@@ -57,6 +74,10 @@ async def collect() -> dict[str, Any]:
         "capabilities": [(c.capability, "ok" if c.ok else c.code, c.checked_at) for c in caps],
         "failures_24h": [(f.error_code or "-", f.n) for f in failures],
         "spend_micros": [(s.key_source, int(s.today), int(s.month)) for s in spend],
+        "analysis_queue": [
+            (q.state, q.n, int((now - q.oldest).total_seconds()) if q.oldest else 0) for q in queue
+        ],
+        "analysis_failures_24h": [(f.error_code or "-", f.n) for f in job_failures],
     }
 
 
@@ -74,7 +95,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"failures 24 h : {failures}")
     for source, today, month in info["spend_micros"]:
         print(f"spend {source:6}: today ${today / 1e6:.4f}  month ${month / 1e6:.4f}")
-    print("queue         : not available yet (no queue tables before checkpoint 3)")
+    queue = ", ".join(f"{state}={n} (oldest {age}s)" for state, n, age in info["analysis_queue"])
+    print(f"analysis queue: {queue or 'empty'}")
+    job_failures = ", ".join(f"{code}={n}" for code, n in info["analysis_failures_24h"]) or "none"
+    print(f"job failures  : {job_failures} (24 h)")
     return 0
 
 

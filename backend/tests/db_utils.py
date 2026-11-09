@@ -31,6 +31,14 @@ AI_TABLES = (
     "ai_rate_buckets",
 )
 SOURCE_TABLES = ("sources", "source_versions", "source_uploads")
+ANALYSIS_TABLES = (
+    "analysis_jobs",
+    "analysis_job_waiters",
+    "index_generations",
+    "chunks",
+    "figures",
+)
+REQUEST_TABLES = ("ai_requests", "ai_request_sources", "ai_manifests", "ai_results")
 APP_TABLES = (
     *PART1_TABLES,
     *PART2_TABLES,
@@ -40,6 +48,8 @@ APP_TABLES = (
     *COLLAB_TABLES,
     *AI_TABLES,
     *SOURCE_TABLES,
+    *ANALYSIS_TABLES,
+    *REQUEST_TABLES,
 )
 
 

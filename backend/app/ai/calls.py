@@ -38,22 +38,33 @@ class CapExceeded(Exception):
 
 
 class RequestMeter:
-    """Counts the provider calls, input tokens and images one request is allowed to use."""
+    """Counts the provider calls, input tokens and images one request is allowed to use.
 
-    def __init__(self, settings: Settings) -> None:
+    The defaults are the per-request caps from the settings. An analysis job (many small embedding
+    and vision calls for one file) passes its own limits, from the caps snapshot stored on the job."""
+
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        max_calls: int | None = None,
+        max_images: int | None = None,
+    ) -> None:
         self.settings = settings
         self.calls = 0
         self.images = 0
+        self._max_calls = settings.ai_max_provider_calls if max_calls is None else max_calls
+        self._max_images = settings.ai_max_images if max_images is None else max_images
 
     def before_call(self, input_tokens: int, output_tokens: int, images: int) -> None:
         s = self.settings
-        if self.calls + 1 > s.ai_max_provider_calls:
+        if self.calls + 1 > self._max_calls:
             raise CapExceeded("max_provider_calls")
         if input_tokens > s.ai_max_input_tokens:
             raise CapExceeded("max_input_tokens")
         if output_tokens > s.ai_max_output_tokens:
             raise CapExceeded("max_output_tokens")
-        if self.images + images > s.ai_max_images:
+        if self.images + images > self._max_images:
             raise CapExceeded("max_images")
         self.calls += 1
         self.images += images

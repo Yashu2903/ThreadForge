@@ -26,6 +26,7 @@ export default defineConfig({
       "/capabilities": { target: backend, changeOrigin: false },
       "/health": { target: backend, changeOrigin: false },
       "/rooms": { target: backend, changeOrigin: false, ws: true },
+      "/ai": { target: backend, changeOrigin: false },
       // WebSocket only. The Origin header is forwarded unchanged: the service compares it exactly.
       "/collab": { target: collab, changeOrigin: false, ws: true },
     },

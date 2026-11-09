@@ -28,6 +28,7 @@ import {
   type Member,
   type Message,
   type DocumentChange,
+  type AiSignals,
   type DocumentSignals,
   type RoomEvent,
   type RoomInfo,
@@ -104,6 +105,13 @@ export interface Options {
    * Also called with reset: true after a fresh bootstrap replaced the room state.
    */
   onDocumentSignals?: (signals: DocumentSignals) => Promise<void> | void;
+  /**
+   * AI phase 1. Same contract as onDocumentSignals: called with the AI part of each batch
+   * (`ai_request_updated`, `source_updated`, `room_ai_settings_changed`) BEFORE the cursor advances,
+   * and with reset: true after a fresh bootstrap. Events say THAT something changed; the details come
+   * from the authorized AI endpoints.
+   */
+  onAiSignals?: (signals: AiSignals) => Promise<void> | void;
 }
 
 export interface State {
@@ -155,6 +163,10 @@ class FetchFailed extends Error {}
 
 function emptySignals(): DocumentSignals {
   return { listChanged: false, documents: new Map(), active: null, reset: false };
+}
+
+function emptyAiSignals(): AiSignals {
+  return { requests: new Map(), sources: new Map(), aiEnabled: null, reset: false };
 }
 
 export class RoomClient {
@@ -340,6 +352,7 @@ export class RoomClient {
     s.nextBefore = boot.next_before;
     s.cursor = boot.through_seq;
     this.pendingReset = true;
+    this.pendingAiReset = true;
     // frames already buffered beyond the bootstrap stay (they continue it); the rest is covered
     this.buffer = this.buffer.filter((e) => e.room_seq > boot.through_seq);
     this.lastQueuedSeq = Math.max(boot.through_seq, this.buffer.at(-1)?.room_seq ?? 0);
@@ -533,7 +546,9 @@ export class RoomClient {
     let roomDirty = false;
     let membersDirty = false;
     const signals = emptySignals();
+    const ai = emptyAiSignals();
     for (const e of batch) {
+      this.collectAiEvent(ai, e);
       if (e.resource_type === "document" && e.resource_id) this.collectDocumentEvent(signals, e);
       if (e.event_type === "member_removed" && (e.payload as { user_id?: string }).user_id === this.opts.userId) {
         return this.terminal("access_lost", true); // I was removed: stop everything, clear
@@ -580,6 +595,8 @@ export class RoomClient {
     // The application acts on the document news BEFORE the cursor moves, like every other fetch.
     await this.deliverDocumentSignals(gen, signals);
     if (gen !== this.generation) return;
+    await this.deliverAiSignals(gen, ai);
+    if (gen !== this.generation) return;
     this.state.cursor = Math.max(this.state.cursor, last); // ONLY now: all fetches and handlers succeeded
     this.lastQueuedSeq = Math.max(this.lastQueuedSeq, this.state.cursor);
     this.emit();
@@ -602,6 +619,39 @@ export class RoomClient {
         signals.active = { documentId: id, selectionVersion: version };
       }
     }
+  }
+
+  /** Fold one AI event into the batch's signals (the last announcement per id wins). */
+  private collectAiEvent(ai: AiSignals, e: RoomEvent): void {
+    const payload = e.payload as Record<string, unknown>;
+    if (e.event_type === "ai_request_updated" && typeof payload.request_id === "string" && typeof payload.state === "string") {
+      ai.requests.set(payload.request_id, payload.state);
+    } else if (
+      e.event_type === "source_updated" &&
+      typeof payload.source_id === "string" &&
+      typeof payload.source_version_id === "string" &&
+      typeof payload.state === "string"
+    ) {
+      ai.sources.set(payload.source_id, { versionId: payload.source_version_id, state: payload.state });
+    } else if (e.event_type === "room_ai_settings_changed" && typeof payload.ai_enabled === "boolean") {
+      ai.aiEnabled = payload.ai_enabled;
+    }
+  }
+
+  private pendingAiReset = false;
+
+  private async deliverAiSignals(gen: number, ai: AiSignals): Promise<void> {
+    ai.reset = this.pendingAiReset;
+    const news = ai.requests.size > 0 || ai.sources.size > 0 || ai.aiEnabled !== null || ai.reset;
+    const handler = this.opts.onAiSignals;
+    if (!news || !handler) {
+      if (!handler) this.pendingAiReset = false;
+      return;
+    }
+    await this.withRetries(gen, async () => {
+      await handler(ai);
+    });
+    if (gen === this.generation && ai.reset) this.pendingAiReset = false;
   }
 
   /** The selection moves forward only: a stale or repeated announcement changes nothing. */
@@ -758,6 +808,7 @@ export class RoomClient {
     void this.retryPending();
     // after a (re)bootstrap the app must refetch what it holds: tell it once we are live
     if (this.pendingReset) void this.deliverDocumentSignals(gen, emptySignals()).catch(() => undefined);
+    if (this.pendingAiReset) void this.deliverAiSignals(gen, emptyAiSignals()).catch(() => undefined);
   }
 
   /** Acks are batched (the server accepts 10/second) and sent only for processed events. */
@@ -868,6 +919,7 @@ export class RoomClient {
     const s = this.state;
     s.room = null;
     this.pendingReset = false;
+    this.pendingAiReset = false;
     s.role = null;
     s.members = [];
     s.messages = new Map();

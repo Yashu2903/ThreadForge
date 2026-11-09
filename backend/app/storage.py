@@ -26,7 +26,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 _KEY = re.compile(r"[0-9a-f]{32}")
-NAMESPACES = ("assets", "imports", "sources")
+NAMESPACES = ("assets", "imports", "sources", "figures")
 
 
 class StorageError(Exception):

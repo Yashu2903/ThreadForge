@@ -2,9 +2,12 @@
 
 This document grows with each checkpoint. **Checkpoint 1** covers providers, keys, consent, switches,
 `can_write`, the spend ledger, budgets, caps, the usage page and operator commands (sections 2-8).
-**Checkpoint 2 (this version)** adds sources: device uploads, the sandboxed inspector, quotas, removal
-and cleanup (section 9). Analysis, retrieval, `@AI` requests and the evaluation come in checkpoints 3 to 5
-and are listed under "Not built yet". Progress log: `docs/ai-progress.md`.
+**Checkpoint 2** adds sources: device uploads, the sandboxed inspector, quotas, removal and cleanup
+(section 9). **Checkpoint 3** adds lazy analysis and retrieval: the analysis queue and
+worker, OCR with a vision fallback, figures, chunking, embeddings, published index generations and hybrid
+retrieval (section 10). **Checkpoint 4** adds `@AI` requests, document capture, strategies, validated cited
+answers, Mermaid diagrams and the chat UI (section 11). The evaluation and the final report come in
+checkpoint 5 and are listed under "Not built yet". Progress log: `docs/ai-progress.md`.
 
 ## 1. What exists in the repository (inspection result)
 
@@ -13,14 +16,14 @@ The brief says "reuse" for several things. What the repository actually has:
 | Brief says reuse | Reality | Adaptation |
 |---|---|---|
 | authentication, CSRF, rooms, roles, message service, room events, Part 5 client | exists | reused as is |
-| claim-token job pattern (outbox dispatcher) | exists (`workers/outbox_dispatcher.py`) | used for the AI worker in checkpoints 3-4 |
+| claim-token job pattern (outbox dispatcher) | exists (`workers/outbox_dispatcher.py`) | the same idea (token, lease, `SKIP LOCKED`) drives the analysis queue (section 10); requests join it in checkpoint 4 |
 | storage adapter, image re-encoding (`assets_pipeline.py`), sandboxed conversion with rlimits | storage and image pipeline exist; **no sandboxed child process, no converter** | checkpoint 2 built the child-process sandbox (`app/sources/sandbox.py`); the converter pieces (text extraction, DOCX heading paths) are checkpoint 3 |
 | import jobs, worker, report, publication | **never built** (they were in the old Part 6 plan, replaced by the Tiptap direction) | not claimed; the upload path in checkpoint 2 is built directly (intent / bytes / finalize), without a job queue because inspection is cheap |
 | Google Drive connection, Picker, import code | **never built**; only the settings (`GOOGLE_DRIVE_*`) and the `/capabilities` flag exist | Drive as a source stays blocked until a Drive connection exists; the device and room-source paths are built |
 | AES-GCM key-set helper "used for Drive tokens" | **does not exist** (only the `CLOUD_TOKEN_ENCRYPTION_KEYS` setting) | `app/ai/crypto.py` is a new, generic key-set helper; AI uses its own setting `AI_KEY_ENCRYPTION_KEYS` |
 | collaboration service and its internal API | service, internal API, the Tiptap browser editor and live access enforcement all exist now (collaboration checkpoints 1-6), including the read/apply hooks for AI | document capture (checkpoint 4 of this phase) uses the hooks' `read`; "unsynced changes" detection uses the Tiptap provider |
 | rooms "archived" | no such state exists | the `can_write` clause is documented and has nothing to check yet |
-| pgvector image | `compose.yaml` uses `postgres:16` | switched in checkpoint 3 when vectors first appear |
+| pgvector image | `compose.yaml` used `postgres:16` | checkpoint 3 switched it to `pgvector/pgvector:pg16` (same major version, same data volume) |
 
 ## 2. Checkpoint 1: how it works (simple terms)
 
@@ -455,7 +458,573 @@ room switch off, or the global kill switch on, uploads still work and files are 
 Apache-2.0; it bundles PDFium, Apache-2.0, and not the AGPL PyMuPDF) is a runtime dependency; `pypdf` 7.0.0
 (BSD-3-Clause) is a development dependency used only to build encrypted-PDF test files.
 
-## 10. Limits (stated plainly)
+## 10. Checkpoint 3: lazy analysis and retrieval
+
+Attaching a file to an AI request (or pressing "Analyze now") is what makes the system read it. This
+checkpoint is everything between "a file is stored" (checkpoint 2) and "its passages can be searched":
+a queue, a worker, a sandboxed extractor, local OCR with a vision fallback, figure descriptions,
+chunking, embeddings, an atomically published index, and hybrid retrieval. No `@AI` request exists yet
+(checkpoint 4); the API can only ask for analysis, cancel it, show its status and let owners and editors
+read the extracted passages.
+
+Terms used below:
+
+* **Job** (`analysis_jobs`): "analyze THIS source version with THIS configuration". The table is the
+  **queue**.
+* **Claim token and lease**: a worker takes a job by writing a random token and a deadline on it. It
+  renews the deadline while it works (a heartbeat every third of the lease) and presents the token for
+  every later write. A worker that dies stops renewing; after the deadline another worker takes the job
+  (new token, attempts + 1). A worker that was only slow wakes up, finds its token gone, and can no
+  longer change anything.
+* **`FOR UPDATE SKIP LOCKED`**: "give me a row nobody else has locked". Two workers claiming at once get
+  different jobs; neither waits for the other.
+* **Waiter** (`analysis_job_waiters`): who is waiting for a job (an `@AI` request in checkpoint 4, or a
+  person who pressed Analyze now). Two requests attaching the same file share ONE job (a partial unique
+  index makes that true even in a race). When the last waiter leaves, the job is cancelled.
+* **Generation** (`index_generations`): one complete index of one source version, built with one
+  configuration. **Chunk** (`chunks`): one passage of it (text or figure) with its locator, its
+  full-text column and its **embedding**, a list of numbers (a **vector**) that stands for the meaning
+  of the passage, so "similar meaning" becomes "nearby numbers" (stored with **pgvector**).
+* **OCR**: reading text from a picture of a page. **Tesseract** is the local OCR program. The **vision
+  fallback** sends the page image to the generation model, with a transcription-only prompt, when
+  Tesseract's result is not good enough.
+* **RRF** (reciprocal rank fusion): combining two ranked lists by adding `1 / (60 + rank)` for each list a
+  passage appears in.
+
+### Files that matter, in reading order
+
+1. `backend/migrations/versions/0009_ai_analysis.py`, `app/models/analysis.py` - the tables.
+2. `app/sources/extract_child.py` - the sandboxed extractor (PDF text layer, Tesseract, figures, DOCX
+   structure, Markdown/TXT). Standalone: imports only the standard library, pypdfium2 and Pillow.
+   `app/sources/extract_sandbox.py` starts it and validates what it writes.
+3. `app/ai/analysis/chunking.py` - policy `chunk-v1` (pure functions). `vision.py` - prompts, strict
+   schemas, parsing of replies, the cross-check.
+4. `app/ai/analysis/jobs.py` - enqueue, claim, lease, cancel. `gateway.py` - the one door to the
+   providers for a job. `store.py` - building and publishing a generation.
+5. `app/ai/analysis/pipeline.py` - the whole job. `app/workers/ai_worker.py` - the process around it.
+6. `app/ai/retrieval.py` - hybrid retrieval. `app/services/analysis.py`, `app/api/analysis.py` - the API.
+7. `app/commands/ai_retrieve.py`, `cleanup_ai.py`, `ai_status.py` - operator tools.
+
+### The path of one analysis
+
+```
+POST .../versions/{v}/analyze  (owner/editor, CSRF)          ONE transaction, room row locked first
+   role re-read under the lock -> AI gate (role, config, kill switch, capability, room switch,
+   can_write on the anchor document, consent) -> keys decided (server or personal, per provider) ->
+   page cap -> enqueue:  ready index with this configuration?  ->  "ready"  (no job, no provider call)
+                         queued/running job exists?            ->  join it   ("joined")
+                         otherwise                             ->  new job   ("created"; state `queued`)
+
+AI worker (python -m app.workers.ai_worker), N claim loops
+   claim_next  (UPDATE ... WHERE id = (SELECT ... FOR UPDATE SKIP LOCKED ORDER BY fairness, age))
+   gate again  (same function, requester's own rights)   <- before ANY file or model access
+   heartbeat task renews the lease every lease/3; cancel / lost claim / removal interrupt the stage
+   1 extracting   sandboxed child reads the file (text layer, Tesseract on pages without one, figures)
+   2 ocr          pages Tesseract could not read -> vision transcription (capped) -> else a GAP
+   3 figures      each non-decorative figure: re-encode, store, describe with the vision model
+   4 chunking     units -> passages (chunk-v1); figure passages appended
+   5 embedding    batches: embed -> write chunks into a `building` generation (own short transaction each)
+   6 publishing   validate, then ONE transaction: generation ready, version pointer switched, old
+                  generation superseded, job succeeded
+```
+
+* **States users see** (`source_versions.analysis_state`): `not_analyzed`, `queued`, `extracting`
+  (stages 1-4), `indexing` (5-6), `ready`, `failed`, `removed`. No percentages: the system does not know
+  how far along a PDFium or Tesseract run is, and does not invent it.
+* **Where transactions end.** Every database step is short. No transaction is open while the extractor
+  child, Tesseract or any provider call runs. A ledger row, a budget reservation and a settle are each
+  their own transaction (checkpoint 1).
+* **Locks.** `enqueue` runs under the room lock and locks the version row. `claim_next` uses row locks
+  with `SKIP LOCKED`. `publish` locks the job row and the version row, in that order, so removing a
+  source (which locks the source and its versions) and publishing cannot interleave into a state where a
+  removed source gets an index.
+* **Fair claim order.** The job whose room has the fewest jobs running right now goes first, oldest first
+  inside that, so one room queueing fifty files cannot starve the others (tested).
+* **Cancellation.** `release_waiter` deletes the waiter and, if none is left, cancels a queued job at once
+  or flags a running job (`cancel_requested_at`); the heartbeat notices within a third of the lease and
+  interrupts the stage; the call policy also checks before every provider call and between retries.
+  A late result is discarded; usage that already happened stays in the ledger.
+* **Retry.** A crash (lease expiry) gives the job to another worker, up to `AI_ANALYSIS_MAX_ATTEMPTS`;
+  then `sweep_abandoned` fails it (`attempts_exhausted`). A provider that stays down after the call
+  policy's own retries requeues the whole job with a delay (30 s, 60 s, ... capped at 5 minutes). A
+  worker that dies mid-build leaves a `building` generation; the next attempt deletes it first, so a
+  crash and a retry yield exactly one generation (tested), and `cleanup_ai` deletes strays.
+* **The first requester pays.** A shared job runs with the keys chosen for the first request, and its cost
+  is charged to that person (or to the server budget if they use the server key). Later requesters get
+  the index for free. Stated in the consent notice's spirit; not hidden.
+
+### The extractor and local OCR
+
+The extractor is a child process like the inspector (scrubbed environment, its own empty directory,
+wall-clock deadline, POSIX rlimits, sockets refused) with two differences: it WRITES files into its
+directory (`result.json`, page images for the vision fallback, figure candidates), and it may start
+exactly one program, Tesseract, by the absolute path the parent resolved. The parent reads `result.json`
+with a size cap and validates every field; anything malformed fails the extraction.
+
+* **Per PDF page:** if the page has at least 10 non-space characters of text layer, that text is used
+  (`text_layer`). Otherwise, if something is drawn on it, the page is rendered at `AI_OCR_DPI` (300) and
+  Tesseract reads it. A page with nothing drawn is blank, not a gap.
+* **The OCR quality gate** (a page FAILS if any is true): no words; fewer words than expected for the page
+  size (`min(AI_OCR_MIN_WORDS_PER_PAGE, 0.25 words per square inch of page)`, at least 3); mean word
+  confidence below `AI_OCR_MIN_CONFIDENCE` (60); more than `AI_OCR_MAX_IMPLAUSIBLE_SHARE` of the tokens
+  look like keyboard mash; Tesseract crashed or timed out. **The last test is a heuristic, not a
+  dictionary**: the standard library has no word list, so a token is "implausible" if it has no vowel
+  (unless it is a short all-capital acronym), has six consonants in a row, repeats a character four
+  times, or mixes letters and digits oddly. It catches symbol soup; it does not prove the words are
+  right. Tesseract's own confidence is the stronger signal.
+* **Failed pages** go to the vision fallback, at most `AI_VISION_FALLBACK_MAX_PAGES` (20) per source and
+  within the budgets. The prompt is transcription only: exactly what is printed, `[illegible]` where it
+  cannot be read, no summaries or corrections. **Cross-check:** the words Tesseract was sure about
+  (confidence 80+, four or more letters) must also appear in the transcription; if fewer than half do,
+  the passage is flagged `low_agreement` (shown as unverified) and a warning is recorded. With fewer than
+  five sure words there is nothing to compare.
+* **Gaps.** A page nobody could read (vision cap, vision unavailable, empty or mostly `[illegible]` reply,
+  an unusable reply) is recorded as a gap with a reason. **More than `AI_UNREADABLE_FAIL_SHARE` (30 %)
+  unreadable pages fails the version** (`too_many_unreadable_pages`): it is never marked ready.
+  Otherwise it is ready with a visible `unreadable_pages` warning listing the pages.
+* **Limits.** Pages per source (`SOURCE_MAX_PAGES`, checked at upload; `AI_MAX_NEW_ANALYSIS_PAGES`,
+  checked at admission), OCR pages (`AI_OCR_MAX_PAGES_PER_SOURCE`), extracted characters
+  (`AI_MAX_EXTRACTED_CHARS`), chunks (`AI_MAX_CHUNKS_PER_SOURCE`, a `chunks_capped` warning says how many
+  were found and how many indexed).
+* **DOCX** keeps heading levels (from `word/styles.xml`), list items, tables (rows, header first) and the
+  order of the pictures. **Markdown** keeps `#` headings, lists and pipe tables. **TXT** is paragraphs.
+  PDF headings come from the document outline when it has one.
+
+### Figures
+
+Candidates: embedded pictures (PDF and DOCX) and PDF pages that are mostly a drawing (little text, 20 or
+more vector/image objects). **Decorative** ones are dropped before any model sees them: under
+`AI_FIGURE_MIN_PIXELS` (10,000) or 32 pixels on a side, near-blank (one flat colour), or the same picture
+on more than `AI_FIGURE_MAX_REPEATS` (3) pages (logos, letterheads). At most `AI_MAX_FIGURES_PER_SOURCE`
+(40) are analyzed; if more exist the result says "N of M figures analyzed" (`figures_capped`).
+
+Each kept figure is re-encoded through the existing image pipeline (`assets_pipeline.process_image`:
+EXIF/ICC/text chunks gone, PNG/JPEG/WebP only, pixel limits), stored under an opaque key in
+`STORAGE_PATH/figures/`, and described by the vision model with a fixed strict schema (kind,
+description, visible text, elements, connections). The description becomes a **figure passage**
+(`extraction = vision`) with the figure number and page in its locator. A figure whose reply is unusable
+is skipped with a `figure_not_described` warning (its file is deleted); a provider outage is not a skip,
+it fails or requeues the job.
+
+**How figures are embedded** (`AI_FIGURE_EMBEDDING_MODE`): `description` (default: the description text),
+`image` (the picture itself), or `image_plus_description` (one embedding of both, the model aggregates
+interleaved parts). The default is `description` because it needs only the text-embedding capability and
+is the only mode the documentation example does not leave open; **which mode retrieves best is an
+empirical question for the evaluation harness (checkpoint 5), which needs real credentials.** If the
+image-embedding self-check failed, `image` modes degrade to `description` with a warning, and the
+generation records the mode actually used.
+
+If the vision capability failed its self-check, no figure is analyzed and unreadable scanned pages are
+gaps (`figures_not_analyzed` warning); text-layer pages and DOCX/Markdown/TXT still work.
+
+### Chunking (`chunk-v1`)
+
+Target about 400 tokens (`AI_CHUNK_TARGET_TOKENS`), hard maximum 900 (`AI_CHUNK_MAX_TOKENS`, validated
+below the embedding model's input limit), 40 tokens of overlap inside a section. Token counts are the
+conservative estimate of `pricing.py`, so real chunks are smaller than they look. A heading starts a new
+chunk and is its first line; the heading path is in the locator; a page boundary closes a chunk once it
+is half full; paragraphs are cut at sentences, and a single over-long sentence at word boundaries; tables
+are one line per row with the header row repeated in every chunk the table needs and never share a chunk
+with prose. Each chunk records `ordinal`, `text`, `text_hash` (SHA-256), `token_count`, `kind`
+(`text`/`figure`), `extraction` (the least trustworthy way any of its text was obtained), the lowest OCR
+confidence, `flags` (`low_agreement`), and a **locator**: `{heading_path, page_start, page_end}` plus
+`figure_number` for figures. `section_key` (heading path, else a block of ten pages, else a block of
+twenty chunks) is what checkpoint 4's summaries use to cover a file section by section.
+
+### Embeddings and the index
+
+* The text embedded for a passage is its heading path (if the text does not already start with it) plus
+  the text; the **stored** text is exactly the passage. Documents use the document prefix, queries the
+  query prefix (both settings, `docs/ai.md` section 7).
+* Vectors live in `chunks.embedding` as pgvector's `vector` type **without a fixed dimension**, because
+  the dimension is configuration. Integrity comes from three things: each generation records its model
+  and dimension; a CHECK constraint makes every stored vector's `vector_dims` equal its row's
+  `embedding_dims`; and publishing refuses a generation where any chunk is missing a vector or has
+  another dimension. Retrieval's vector query only looks at generations whose recorded model and
+  dimension equal the query vector's. **Vectors of different models or dimensions never meet** (tested).
+* There is no ANN index. At the sizes of this phase (a few thousand passages in scope) an exact scan of
+  the filtered rows is fast and always correct. Add HNSW only when measurements say so.
+* The Compose database image is `pgvector/pgvector:pg16` (the official `postgres:16` plus the extension;
+  the data volume stays compatible). Migration 0009 runs `CREATE EXTENSION IF NOT EXISTS vector`, which
+  needs a role allowed to create extensions (the Compose user is a superuser; a managed database needs
+  the extension enabled by its administrator). The downgrade leaves the extension installed on purpose.
+
+### Publishing and what readers can see
+
+Retrieval and the passages route follow only `source_versions.current_generation_id`. While a worker
+builds, the new generation is `building` and the pointer still names the previous ready generation (or
+nothing). `publish` re-checks that the job still owns the claim, is not cancelled and the source is not
+removed, validates counts, ordinals, vectors and dimensions, then in one transaction marks the generation
+ready, switches the pointer, marks the old generation `superseded`, and finishes the job. A reader sees
+all of it or none of it. **Re-analysis never replaces a usable index with a partial one** (tested: a
+re-analysis whose embedding fails leaves the old generation current). A superseded generation is kept
+for `AI_SUPERSEDED_GENERATION_GRACE_HOURS` (24) so a request that pinned it keeps working; `cleanup_ai`
+deletes it afterwards (checkpoint 4 adds "and nothing pins it").
+
+### Retrieval
+
+`retrieve(db, settings, room_id, generation_ids, query, query_vector)`:
+
+1. **The scope is part of the query.** Every statement has `room_id = :room AND generation_id =
+   ANY(:gens)` (and a join that excludes removed versions) in its WHERE clause, before ranking and
+   limiting. A passage of an unselected, removed or other-room source cannot appear in any list. A static
+   test pins the SQL text; behavioural tests prove it (five sources: select three, then the other two,
+   and the second bundle shares no passage with the first; a query that only matches unselected sources
+   returns nothing, with no fallback; a removed source is gone; another room's generation id yields
+   nothing).
+2. **Lexical:** the query's words, joined by `or` (`lexical_query`), through `websearch_to_tsquery
+   ('english', ...)`, ranked with `ts_rank_cd` over the generated `tsv` column (GIN index), top 20 per
+   generation. Only word characters survive, so the query cannot carry operators. Stop words are dropped
+   by PostgreSQL. (Plain `websearch_to_tsquery` ANDs the words, so a natural question would almost never
+   match one passage; a test found this.)
+3. **Vector:** exact cosine distance to the query embedding, top 20 per generation, discarding hits farther
+   than `AI_RETRIEVAL_MAX_DISTANCE` (0.6), so "nothing relevant" is a real answer.
+4. **Fusion:** RRF with k = 60 over both lists, figure and text passages together. Ranks are computed per
+   generation, so with several sources each contributes its own best passages.
+5. **Packing:** fit into the evidence token budget; with several sources each keeps at least
+   `AI_RETRIEVAL_MIN_SOURCE_SHARE` (20 %) of it from its own best passages before the rest is filled in
+   fused order. The top `AI_RETRIEVAL_FIGURE_TOP_K` (5) figure passages are returned as the images to
+   attach to the answer call (checkpoint 4 reads their bytes and enforces the image cap).
+
+The result also says which generations were searched, which could only be searched lexically (another
+embedding model or dimension) and which were unavailable (removed or gone), so a caller can fail or warn
+instead of guessing.
+
+**The inspect view.** `GET .../passages` shows the extracted passages of a version (owners and editors),
+optionally narrowed by full-text search `?q=`. "Exactly which passages would this query retrieve" needs
+the query embedded, and provider calls happen only in worker-class processes, so that view is an
+operator command, not an API route: `python -m app.commands.ai_retrieve --room R --user U --version V
+"question"` runs the same `retrieve` with the same scope and prints ids, locators, ranks and a short
+excerpt (one real, ledgered embedding call with that user's key choice). In checkpoint 4 every request's
+manifest records the retrieved passages, which is the permanent record.
+
+### API reference
+
+| Route | Who | Notes |
+|---|---|---|
+| `POST /rooms/{r}/sources/{s}/versions/{v}/analyze` | owner/editor with `can_write` on `document_id`, CSRF | body `{document_id}`; `202` `{status: ready/created/joined, job_id, generation_id, key sources, estimate}` |
+| `DELETE .../analyze` | owner/editor, CSRF | withdraw YOUR request; cancels the job only if nobody else waits; `204` |
+| `GET .../analysis` | any member | state, stage, job state and error code, waiters, counts, warnings, gaps. No text |
+| `GET .../passages?after=&limit=&q=` | owner/editor (viewers `403`) | the current index's passages in order, with locators; `next_after` pages |
+
+Gate order as in section 3, then: `404 source_not_found` / `source_version_not_found`,
+`409 key_unavailable` / `key_rejected` (the provider key chosen for this person is missing or was
+rejected; there is no silent switch), `409 analysis_cap_exceeded` (`cap`, `limit`, `actual`).
+Job failure codes (on the version's `error_code` and the job): `too_many_unreadable_pages`,
+`no_extractable_text`, `extracted_text_too_large`, `index_incomplete`, `analysis_cap_exceeded`,
+`budget_exhausted`, `key_unavailable`, `key_rejected`, `attempts_exhausted`, `extraction_timeout`,
+`extraction_failed`, the file codes of section 9, the gate's own codes (`insufficient_role`,
+`room_access_lost`, `ai_disabled_for_room`, `ai_disabled`, `ai_write_access_required`,
+`consent_required`, ...) and the provider codes (`provider_unavailable`, `provider_bad_request`, ...).
+
+### Removal, cleanup and operator commands
+
+* **Removing a source** now also, in the same transaction: cancels its queued and running jobs (a running
+  worker finds its claim gone and stops), clears the version pointers and deletes every generation of its
+  versions, which cascades to chunks, vectors and figure rows. The figure image files are deleted right
+  after the commit (a failure leaves an orphan that cleanup removes). Redacting stored excerpts and
+  manifests comes with checkpoint 4. Published chat text stays (section 10, limits).
+* **`cleanup_ai`** adds: stale `building` generations (no live job owns them), `failed` generations,
+  `superseded` generations older than the grace period, and orphan figure files older than 24 hours.
+* **`ai_status`** adds the analysis queue (jobs queued/running, age of the oldest) and job failures by
+  code over 24 hours. **`ai_retrieve`** is the inspect view above.
+* **`python -m app.workers.ai_worker`** runs the self-check loop and `AI_WORKER_CONCURRENCY` claim loops;
+  `--drain` runs queued jobs and exits; `--once` is the self-check only.
+* **Docker:** `backend/Dockerfile` (Python 3.12 + Tesseract with English data) and the `ai-worker` Compose
+  service (profile `ai`) that mounts the same storage directory as the API.
+
+### Decisions and deviations, stated plainly
+
+* **Google Drive** is still deferred by the owner; the sources and analysis tables do not depend on it.
+* **`source_updated` and `ai_request_updated` events** are checkpoint 4 (event type, schema, replay and the
+  Part 5 client change together). Until then clients poll `GET .../analysis`.
+* **"Analyze now" is allowed to owners and editors only, with a document**, because every AI action has an
+  anchor document for the permission check (the brief's anchor rule). The worker re-runs the same gate
+  with the requester's rights when it claims the job; a change of role after that does not tear down a
+  job in flight (keys were decided at admission), but the person's next job is refused (tested).
+* **The page cap** `AI_MAX_NEW_ANALYSIS_PAGES` (default 100) is checked per file at admission. A 150-page
+  PDF is refused with `analysis_cap_exceeded` until the setting is raised: a deliberate default, since
+  analysis spends money.
+* **Per-request budget caps for analysis** use the job's own snapshot (`caps`): the provider-call cap is
+  `AI_ANALYSIS_MAX_PROVIDER_CALLS`, the image cap derives from the vision and figure caps, and the
+  per-call output cap is the smaller of the vision output size and `AI_MAX_OUTPUT_TOKENS`.
+* **Bug found by the tests and fixed:** Google reports an invalid key as HTTP 400 `API_KEY_INVALID`, and
+  only the key-validation call translated that; a rejected key during a job surfaced as a generic bad
+  request. It is now `key_rejected` everywhere.
+
+## 11. Checkpoint 4: `@AI` requests and cited answers
+
+A person with write access to a document chooses `@AI` in the chat composer, picks files (and optionally
+the open document, selected blocks, or some chat messages) and asks. The system waits for the files to
+be analyzed, gathers evidence from exactly those files and exactly that context, asks the generation
+model for a structured answer, **validates it on the server**, and posts one reply in the chat. Nothing is
+ever written into a document (that is Phase 2).
+
+Terms used below:
+
+* **Request** (`ai_requests`): one `@AI` question with its inputs, state and keys. It is created together
+  with its chat message in one transaction.
+* **Pin**: at admission the request records the exact source *versions* it uses
+  (`ai_request_sources`). When they are ready, it also freezes each version's index *generation*. A newer
+  version of a file, or a re-index, never changes what a running request reads.
+* **Label**: the model never sees database ids. Evidence is labelled `P1..Pn` (retrieved passages),
+  `S1..Sk` (section summaries), `D1..Dm` (blocks of the open document) and `C1..Cj` (chat messages).
+  Labels are local to one request. The server maps a cited label back to what it stands for; a label
+  that does not exist is invalid.
+* **Manifest** (`ai_manifests`): the record of what was actually sent for one attempt, written before
+  the answer is generated and never changed (except by redaction, below).
+* **Coverage statement**: computed by the server from counts, never written by the model: per file the
+  sections read of the total and the mode (`full`, `sampled`, `retrieval`), figures examined versus
+  found, the document's blocks included versus total with the update counter it was captured at.
+
+### Files that matter, in reading order
+
+1. `backend/migrations/versions/0010_ai_requests.py`, `app/models/ai_request.py` - tables; `messages.kind`.
+2. `app/services/ai_requests.py` - **admission**, the state machine, cancel/retry, claiming, publication.
+3. `app/api/ai_requests.py` - the routes.
+4. `app/ai/answer/execute.py` - one request in the worker. `strategies.py` - evidence per task kind.
+   `capture.py` - the open document. `prompts.py` - prompts and how untrusted content is delimited.
+5. `app/ai/answer/answer.py` - the answer schema and **all server-side validation**.
+   `mermaid.py` + `packages/editor-schema/src/mermaid.ts` + `packages/mermaid-check` - diagrams.
+6. Frontend: `frontend/src/ai/` (`store.ts`, `Composer.tsx`, `Cards.tsx`, `SafeMermaid.tsx`, `Panels.tsx`),
+   `client/src/room-client.ts` (the AI signals).
+
+### The path of one request
+
+```
+POST /rooms/{r}/ai-requests  (owner/editor, CSRF)                  ONE transaction, room row locked first
+  role re-read under the lock; same client_request_id? -> the same request (200) or 409 if inputs differ
+  -> AI gate (role, config, kill switch, capability, room switch, can_write on the anchor document, consent)
+  -> keys decided per provider (server or personal; recorded; never swapped later)
+  -> capacity (per user 3, per room 10 active) -> pinned versions resolved (this room, not removed)
+  -> chat ids validated -> estimate + caps (new-analysis pages/figures) -> confirm_large if over threshold
+  -> the human write bucket is consumed -> INSERT message(kind=ai_request) + request + pins
+  -> analysis jobs enqueued for files not ready (the request is a waiter) -> ai_request_updated event
+  state: queued (all files ready, generations frozen)  |  waiting_for_sources
+
+AI worker loop (advance, expire, sweep, claim)
+  waiting_for_sources -> queued when every pinned version is ready (generations frozen);
+                         -> failed source_removed / source_failed (never skipped, never replaced by a newer one)
+  claim: UPDATE ... FOR UPDATE SKIP LOCKED, fair across rooms, lease + token
+  0 gate again (requester's rights)  1 classify (auto only)  2 capture the document  3 gather evidence
+  4 manifest  5 answer call  6 validate / repair  7 re-gate, re-check files, publish in ONE transaction
+```
+
+* **States and events.** `waiting_for_sources`, `queued`, `running`, `validating`, `succeeded`, `failed`,
+  `cancelling`, `cancelled`, `expired`. Every transition records `ai_request_updated {request_id, state}`
+  in the same transaction as the change. A request waiting or queued longer than `AI_REQUEST_TTL_MINUTES`
+  (30) expires and releases its analysis jobs.
+* **Lock order** is always the room row first, then the request row. The worker's claim is the one
+  exception (it takes only the request row, because it does not know the room yet and records no event);
+  "running" is announced by a second step. Taking them in the other order anywhere would deadlock.
+* **Exactly one reply.** `ai_results` is `UNIQUE (request_id)` and the reply message has a client message
+  id derived from the request id, authored by the system user, which the messages table makes unique. A
+  worker that crashes and is replaced may repeat the computation (and spend); it cannot publish twice
+  (tested by running a second worker over an already-published request).
+* **Late results.** Cancellation is checked at every stage and before every provider call. A result that
+  arrives after a cancel, a lost claim or a removed source is discarded; its usage stays in the ledger.
+* **Retries.** The requester may retry a failed, cancelled or expired request up to
+  `AI_REQUEST_MAX_ATTEMPTS` (3) attempts in total; it re-checks everything, uses the same pinned versions
+  and the same recorded key sources, and starts a new manifest attempt. A provider outage requeues the
+  request with a delay; a worker that keeps dying is failed after 5 claims.
+* **Chat messages.** An `@AI` message is an ordinary message with `kind = ai_request` (so it has its
+  sequence, event, outbox row and counts against the human write bucket). It can never be edited
+  (`409 message_locked`) and an edit never reruns AI. Deleting it cancels an unfinished request. The reply is
+  `kind = ai_answer`, authored by the **system user** "ThreadForge AI" (an active `users` row with no
+  authentication identity, no sessions and no membership, so it appears in no member list, presence or
+  invitation). It cannot be edited; the owner can delete it, which redacts the stored result. The schema
+  impact is two columns on `messages`, immutable after insert (a trigger enforces it), and two event
+  types; nothing else changed.
+
+### Who may do what
+
+| Action | Owner | Editor | Viewer |
+|---|---|---|---|
+| Send / retry / cancel own request | with `can_write` on the anchor document | same | `403 insufficient_role` |
+| Cancel any request in the room | yes | no | no |
+| Request progress, context summary | requester; others only with `can_write` on the request's document | same | `403` (they see the chat message only) |
+| Read the published answer | yes | yes | yes |
+| Citation text and figure thumbnails | roles in `SOURCE_DOWNLOAD_ROLES` | same | same |
+| Delete an AI answer | yes | no (`403`) | no |
+
+Outsiders and removed members get `404` everywhere. Gate codes as in section 3.
+
+### The request, field by field
+
+`client_request_id` (also the message's id), `instruction` (1-4,000 characters; control characters
+removed), `task_hint` (`auto`, `ask`, `summarize`, `compare`), `document_id` (the **anchor** for the
+permission check; the document's content is only used when asked for), `include_document_content` with
+`document_scope` (`none` | `whole` | `blocks`), `selected_block_ids` + `selection_hash`,
+`source_version_ids` (at most 10), `include_chat_context` with explicit `chat_message_ids` (at most 20),
+`confirm_large`. Unknown fields are refused: a client cannot supply an actor, a role, a key source or a
+price. A request needs a file or the document (`422 ai_context_required`): chat messages are context,
+never evidence, so they cannot be its only material. A chat message that is deleted, from another room or
+an AI answer is refused (`422 invalid_ai_request`, reason `chat_messages`). In "sources only" mode, no
+document text, no chat and no earlier AI output ever reaches the model (tested on the actual prompt).
+
+### Task kinds
+
+| Kind | How the evidence is gathered |
+|---|---|
+| `qa` | embed the instruction, hybrid retrieval over the pinned generations (section 10), one answer call |
+| `compare` | the same retrieval **per source** with an equal share of the evidence budget, so one long file cannot crowd out another; one comparison call |
+| `summarize` | not retrieval: each file is cut into sections (heading path, else page ranges), sections are summarized in batches (map calls, capped), the answer call combines the summaries (reduce). Above `AI_SUMMARIZE_SOURCE_TOKENS` the sections are **sampled evenly, first and last always kept**, and the coverage statement says `sampled` |
+| `document_review` | the captured document as labelled blocks; too long for the budget -> sections by heading, map then reduce |
+
+`auto` runs one small classification call with **only the instruction text** (tested: no evidence reaches
+it). It can pick among strategies the request's own context supports; it can never widen scope: `compare`
+with fewer than two files becomes `qa`, `summarize` with no files becomes `document_review` (if the
+document is included) or `qa`, `document_review` without the document becomes `qa`. A failed
+classification means `qa`. If retrieval finds nothing relevant and there is no document or chat context,
+the server answers "I could not find anything relevant" **without calling the model** (it could only
+invent something).
+
+### Reading the open document (read-only)
+
+When the document is included, the worker asks the collaboration service's private route
+`POST /internal/ai/read` for the requester. The service stores pending edits, validates the content with
+the shared schema and answers with the content, its hash, the exact `yjs_update_counter` and every
+block with an id (type, text, own hash). It re-runs the same `can_write` as the editor, so a demoted user
+gets `403` there too. The capture is taken **once per attempt and bound to `document_id`**: a later change
+of the room's active document never redirects a running request (tested). The deprecated JSON column and
+stale snapshots are never used; if no reliable capture is possible the request fails
+(`capture_unavailable`, retried later; `document_unavailable`; `ai_write_access_required`).
+
+* **What the server cannot see.** Edits that have not yet reached the collaboration service. The composer
+  disables "Use open document" and "Use selected blocks" while the editor reports unsynced changes, and the
+  answer card states the update counter it was captured at.
+* **Selected blocks.** The client sends the ids of the top-level blocks it highlighted and
+  `selection_hash = sha256("\n".join(f"{id}:{block_hash}"))` over them in document order, where
+  `block_hash` is the shared package's `blockHash` (the function the service uses). If a block is gone or the
+  hash differs, the text changed after it was selected: `selection_changed`, "select it again".
+* **Document images** inside the scope are attached under the same image cap, read from asset storage
+  with the room checked.
+
+### Prompting and untrusted content
+
+Sources, document text, chat, OCR text, figure descriptions, file names and earlier model output are
+**data**. They reach the model only between `===== BEGIN UNTRUSTED DATA <random> =====` and the matching
+END line, where the token is generated per call (a file cannot contain the closing line in advance). The
+system prompt (`answer-v1`, recorded in every manifest) says that the data cannot change its rules, the task,
+who may see what, or what the model may do; that instructions inside it are content to describe; and that
+it has no tools or network. The request body contains no `tools` field (tested). The honest limit: a
+model can still be *influenced* by hostile text and write a wrong answer; what the design guarantees is
+that it cannot *act*, and that the server's checks below bound how wrong a published answer can be.
+
+### The answer and its validation
+
+The model returns blocks of type `paragraph`, `bullet_list` or `diagram`, each claim with citations
+`{ref: "P3", quote: null | "exact words"}`, plus `evidence_gaps`. The server (`answer.py`):
+
+* refuses a reply of the wrong shape (once repaired, else `answer_invalid`);
+* removes citations that name no existing label (chat labels are not citable);
+* keeps a **quote** only if it is a whitespace-normalized substring of the cited passage **and** the
+  passage came from a text layer, Word text or plain text. On OCR, vision, figure and section evidence
+  a quote is dropped and the citation is marked *machine-generated*; a quote that is **not** in the passage
+  removes that citation (a fabricated quote makes it untrustworthy);
+* flags a claim with no valid citation as `unsupported` (shown as "(no citation)" in the card and the
+  chat text);
+* if **more than 30 %** of the claims lose support (or none keeps any), one repair attempt with the reason;
+  still bad: the request fails `answer_unsupported` and publishes nothing.
+
+A citation shows which passage the answer *referenced*. It does not prove the passage supports the claim;
+the card says so. A published result keeps only excerpts of at most 300 characters.
+
+### Diagrams (Mermaid)
+
+* **Static rules** (shared by the server, the checker and the browser from one set of test cases): only
+  `flowchart`, `graph`, `erDiagram`, `sequenceDiagram`, `classDiagram`, `stateDiagram(-v2)`, `gantt`,
+  `mindmap`, `timeline`; at most 20,000 characters and 500 lines; no `%%{ }%%` directives (they can change
+  Mermaid's security level), no `click`/`href`/`link`, no HTML tags, no URLs, no `javascript:`/`data:`, no
+  entities. They hold even when Node is missing.
+* **Where the parse check runs - decision:** **server-side, in a sandboxed Node child**
+  (`packages/mermaid-check`: Mermaid under jsdom, scrubbed environment, wall-clock deadline). Reason: the
+  answer path wants to repair a bad diagram once with the parser's own message, and to know before
+  publishing. Measured here: about 3.4 s cold start for a batch, about 20 ms per diagram afterwards. The
+  browser parses again when it draws. If Node is not available the diagram is published `unchecked`
+  (never silently `ok`). A diagram that still fails after its one repair is published with its **source and
+  the error**, never an empty box.
+* **Drawing** (`SafeMermaid`, shared by chat cards and reused in Phase 2): Mermaid 12.2.0 (pinned),
+  `securityLevel: "strict"`, `htmlLabels: false`, a fixed theme, bounded text/edges, an 8 s render timeout, a
+  size limit, and DOMPurify (3.4.16, SVG profile; script, foreignObject, iframe, use, image, links and all
+  event attributes removed) on the result. Hostile text and hostile SVG are tested.
+
+### Events and the client
+
+`ai_request_updated {request_id, state}`, `source_updated {source_id, source_version_id, state}` (a new
+version, an analysis that became `ready`/`failed`, a removal) and `room_ai_settings_changed` carry **ids and
+states only** (the payload schemas reject anything else; a test checks no instruction text appears). The
+room client folds them into `AiSignals` and delivers them to the application **before the cursor advances**
+(same contract as document signals: if the handler throws, the batch is retried and replayed), plus
+`reset` after a fresh bootstrap. Messages carry `kind` and `ai_request_id` in every read path (history, sync,
+single). Stage labels ("Waiting for files", "Analyzing files", "Gathering context", "Generating",
+"Validating") come from polling `GET .../ai-requests/{id}` with growing delays while a card is on screen;
+there are no per-token events.
+
+### API reference
+
+| Route | Who | Notes |
+|---|---|---|
+| `POST /rooms/{r}/ai-requests` | owner/editor, CSRF | `201`, or `200` for a repeated `client_request_id`; `409 confirmation_required` (with the estimate) until `confirm_large` |
+| `POST /rooms/{r}/ai-requests/estimate` | member, CSRF | now accepts `source_version_ids`; includes the cost of analyzing files not analyzed yet |
+| `GET .../ai-requests/{id}` | requester, or owner/editor with `can_write` | state, stage label, queue position, sources, `can_cancel`, `can_retry` |
+| `GET .../ai-requests/{id}/context` | same | the authorized context summary: files and versions, counts, document update counter, models; never the text |
+| `POST .../{id}/cancel`, `POST .../{id}/retry` | requester (cancel: or owner) | |
+| `GET .../{id}/result` | any member | the answer, citations (excerpts only for `SOURCE_DOWNLOAD_ROLES`), coverage |
+| `GET .../{id}/citations/{n}`, `.../image` | `SOURCE_DOWNLOAD_ROLES` | the resolved passage; the stored figure image (`no-store`, `nosniff`, sandbox CSP) |
+
+New codes: `ai_request_not_found`, `ai_request_id_reused`, `ai_context_required`, `invalid_ai_request`
+(+ `reason`), `ai_capacity` (429, `scope`), `confirmation_required`, `ai_request_not_cancellable`,
+`ai_request_not_retryable` (+ `reason`), `message_locked`, `citation_not_found`. Request failure codes
+(`error_code`): `source_failed`, `source_removed`, `selection_changed`, `capture_unavailable`,
+`document_unavailable`, `answer_unsupported`, `answer_invalid`, `budget_exhausted`, `request_expired`,
+`execution_attempts_exhausted`, plus the gate's and the provider's codes.
+
+### Removal, retention and cleanup
+
+* **Removing a source** now also redacts: in published results the citations to its versions lose
+  `excerpt`/`quotes` and become stubs ("source removed", with version id and locator); in manifests the
+  stored passages of those versions lose their text. **Already-published chat text stays** (stated limit).
+  The figure thumbnail route returns `404`.
+* **Deleting an AI answer** (owner) wipes the stored answer and the citation excerpts and quotes, keeps the
+  citation stubs, and redacts the manifests of that request.
+* **Retention.** `retain_until = finished_at + AI_RESULT_RETENTION_DAYS` (30). `cleanup_ai` deletes
+  manifests past it (passages, document captures, chat copies, records of images sent) and keeps the
+  published answer with its short excerpts. It also deletes expired budget windows and rate buckets and
+  never deletes a superseded index that an unfinished request pins.
+
+### The frontend
+
+* **Composer.** `@AI` is an entity chosen from a menu (typing `@` offers it); typed `@AI` text is an ordinary
+  message. Removable chips show the chosen files (each with its state, and "will be analyzed when you send"
+  with a size for unanalyzed ones), "Use open document" (with the real title, disabled while unsynced),
+  "Use selected blocks", "Include chat context" (off by default; messages are ticked in the chat list),
+  and task chips Auto / Ask / Summarize / Compare. Output is "Answer in chat" only. The estimate and the
+  key that would be charged show before sending; a large request asks to confirm. Selections reset after
+  each send. For viewers the AI controls are replaced by a short explanation.
+* **Cards.** The requester sees a request card (state, stage label, queue position, a plain reason on
+  failure, Cancel / Try again). Every member sees the answer card: text only (never HTML or links),
+  numbered citations that open the passage, locator and a figure thumbnail, "(no citation)" on unsupported
+  claims, a machine-generated note on OCR/vision evidence, evidence gaps, the coverage statement and the
+  "citations are references, not proof" note. Diagrams go through `SafeMermaid`.
+* **Files panel and AI settings.** List, status, upload, replace, remove, download, inspect extracted
+  passages, "Analyze now"; the data notice, personal keys, the owner's switch and usage. Chat and
+  everything else stay usable when AI is off, unavailable, out of budget or has no key.
+
+### Decisions and what this checkpoint does not do
+
+* **Google Drive** remains deferred by the owner (no Drive connection exists in the repository).
+* **Provider rate-limit backoff** is the call policy's (checkpoint 1) plus a requeue with a delay; the
+  **queue position** shown is the request's rank among queued requests by age.
+* **The classifier and the map step use the generation model**, as the brief's single generation model.
+* **An AI answer's reply text** (the chat message) is a plain-text rendering of at most 4,000 characters with
+  `[n]` citation marks and a pointer to the card; the card is rendered from the stored result, so what
+  viewers see is the validated structure, not the text blob.
+* **Not verified against the real providers:** whether the strict structured-output mode accepts the
+  `["string", "null"]` unions in the answer schema (the checkpoint-1 self-check uses a simpler schema);
+  see section 8.
+
+## 12. Limits (stated plainly)
 
 * If prices are misconfigured too low, spend control is lost: budgets count what the configuration says.
 * Embedding usage is estimated (Google reports none), so embedding spend is approximate.
@@ -463,14 +1032,18 @@ Apache-2.0; it bundles PDFium, Apache-2.0, and not the AGPL PyMuPDF) is a runtim
 * A file removed from a room stays in already-published chat answers (their text is never rewritten).
 * Superseded source versions stay stored (and count toward the quota) until the source is removed;
   checkpoint 4 decides which can be dropped once requests pin versions.
-* Inspection cannot tell a scan from a drawing, and cannot find an unreadable scan (that is only
-  discovered when OCR runs at first use, checkpoint 3).
+* Inspection cannot tell a scan from a drawing; an unreadable scan is discovered when OCR runs at first
+  use (checkpoint 3 does that: such pages become gaps, and over 30 % unreadable fails the version).
+* OCR and figure descriptions can be wrong. Tesseract's confidence and the plausibility heuristic are
+  signals, not proof, and a vision transcription is a model's reading of a picture.
+* Caps can leave parts of a large file unanalyzed (chunks, figures, OCR and vision pages). The result of
+  every analysis states what was left out (`warnings`, `gaps`); a caller must show it.
+* A shared analysis job is paid for by whoever's request created it.
 * Checkpoint 1 builds no UI for keys, consent, the room switch or usage. The pages arrive with the AI UI
   (checkpoint 4); until then the controls exist only as API routes (no control without behaviour).
 
-## 11. Not built yet
+## 13. Not built yet
 
-Analysis, OCR, figures, embeddings storage, retrieval, the passages inspect route (3), `@AI` requests,
-document capture, answers, Mermaid, publication, `source_updated` / `ai_request_updated` events, the source
-and AI UI (4), evaluation, security sweep, final report (5). Google Drive as a source depends on a Drive
-connection that does not exist in the repository (deferred by the owner).
+The evaluation harness and its results, the security sweep and the final report (checkpoint 5).
+Google Drive as a source depends on a Drive connection that does not exist in the repository (deferred by
+the owner). Phase 2 (anything that writes into a document) is not started.

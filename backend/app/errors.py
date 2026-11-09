@@ -369,3 +369,83 @@ def source_unavailable(version_ids: list[str]) -> AppError:
         "A selected file was removed or does not belong to this room.",
         extra={"source_version_ids": version_ids},
     )
+
+
+# ---- ThreadForge AI: analysis (checkpoint 3) ----------------------------------------------
+
+
+def analysis_cap_exceeded(cap: str, limit: int, actual: int) -> AppError:
+    return AppError(
+        409,
+        "analysis_cap_exceeded",
+        "This file is larger than one request may analyze.",  # noqa: E501
+        extra={"cap": cap, "limit": limit, "actual": actual},
+    )
+
+
+def source_version_not_found() -> AppError:
+    return AppError(404, "source_version_not_found", "File version not found.")
+
+
+# ---- ThreadForge AI: requests (checkpoint 4) -------------------------------------
+
+
+def message_locked() -> AppError:
+    return AppError(409, "message_locked", "AI requests and AI answers cannot be edited.")
+
+
+def ai_request_not_found() -> AppError:
+    return AppError(404, "ai_request_not_found", "AI request not found.")
+
+
+def ai_request_id_reused() -> AppError:
+    return AppError(
+        409,
+        "ai_request_id_reused",
+        "That client_request_id was already used for a different request.",
+    )
+
+
+def ai_context_required() -> AppError:
+    return AppError(
+        422,
+        "ai_context_required",
+        "Select at least one file or include the open document (chat alone is not enough).",
+    )
+
+
+def invalid_ai_request(reason: str, message: str) -> AppError:
+    return AppError(422, "invalid_ai_request", message, extra={"reason": reason})
+
+
+def ai_capacity(scope: str, limit: int) -> AppError:
+    return AppError(
+        429,
+        "ai_capacity",
+        "Too many AI requests are already running. Wait for one to finish.",
+        extra={"scope": scope, "limit": limit},
+    )
+
+
+def confirmation_required(estimate: dict) -> AppError:
+    return AppError(
+        409,
+        "confirmation_required",
+        "This request is large. Confirm to send it.",
+        extra={"estimate": estimate},
+    )
+
+
+def ai_request_not_cancellable(state: str) -> AppError:
+    return AppError(
+        409,
+        "ai_request_not_cancellable",
+        "This request has already finished.",
+        extra={"state": state},
+    )
+
+
+def ai_request_not_retryable(reason: str) -> AppError:
+    return AppError(
+        409, "ai_request_not_retryable", "This request cannot be retried.", extra={"reason": reason}
+    )

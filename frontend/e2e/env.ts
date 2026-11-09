@@ -11,6 +11,8 @@ export const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
 export const API_URL = `http://127.0.0.1:${API_PORT}`;
 export const COLLAB_PORT = 4010;
 export const COLLAB_URL = `http://127.0.0.1:${COLLAB_PORT}`;
+export const AI_STUB_PORT = 8190;
+export const AI_STUB_URL = `http://127.0.0.1:${AI_STUB_PORT}`;
 export const INTERNAL_SECRET = "e2e-internal-secret-0123456789-abcdefghijklmnop";
 export const BACKEND_DIR = new URL("../../backend/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
@@ -35,6 +37,28 @@ export const backendEnv: Record<string, string> = {
   LOG_LEVEL: "WARNING",
   STORAGE_PATH: `${BACKEND_DIR}data/e2e-storage`,
   INTERNAL_API_SECRET: INTERNAL_SECRET,
+  COLLAB_SERVICE_URL: COLLAB_URL,
+  // AI: the REAL adapters, worker and API against a local stand-in for the two providers (the same
+  // stub the pytest suite uses). Server keys only, so no key-encryption setting is needed. These keys
+  // are the stub's, not real credentials.
+  AI_ENABLED: "true",
+  AI_KEY_POLICY: "server_only",
+  AI_OPENAI_API_KEY: "sk-server-openai-0123456789abcdef",
+  AI_GOOGLE_API_KEY: "AIzaServerGoogleKey0123456789abcdef",
+  AI_OPENAI_BASE_URL: AI_STUB_URL,
+  AI_GOOGLE_BASE_URL: AI_STUB_URL,
+  AI_LLM_MODEL: "test-llm",
+  AI_LLM_CONTEXT_TOKENS: "100000",
+  AI_LLM_MAX_OUTPUT_TOKENS: "4000",
+  AI_EMBED_MODEL: "test-embed",
+  AI_EMBED_DIMENSIONS: "8",
+  AI_EMBED_MAX_INPUT_TOKENS: "8000",
+  AI_MAX_INPUT_TOKENS: "50000",
+  AI_MAX_OUTPUT_TOKENS: "2000",
+  AI_RETRY_BASE_DELAY_SECONDS: "0.05",
+  AI_RETRY_MAX_DELAY_SECONDS: "0.2",
+  AI_WORKER_POLL_SECONDS: "0.5",
+  AI_SELFCHECK_INTERVAL_SECONDS: "3600",
 };
 
 /** The collaboration service (Node, Hocuspocus): talks to the API's /internal/collab routes only. */

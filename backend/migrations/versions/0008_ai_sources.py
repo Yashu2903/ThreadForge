@@ -53,7 +53,10 @@ def _in(values: Sequence[str]) -> str:
 
 def _uuid_pk() -> sa.Column:
     return sa.Column(
-        "id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False
+        "id",
+        postgresql.UUID(as_uuid=True),
+        server_default=sa.text("gen_random_uuid()"),
+        nullable=False,
     )
 
 
@@ -110,7 +113,10 @@ def upgrade() -> None:
         sa.Column("sha256", sa.LargeBinary(), nullable=False),
         sa.Column("storage_key", sa.String(128), nullable=True),
         sa.Column(
-            "analysis_state", sa.String(16), server_default=sa.text("'not_analyzed'"), nullable=False
+            "analysis_state",
+            sa.String(16),
+            server_default=sa.text("'not_analyzed'"),
+            nullable=False,
         ),
         sa.Column("page_count", sa.Integer(), nullable=True),
         sa.Column("text_page_count", sa.Integer(), nullable=True),
@@ -240,7 +246,9 @@ def upgrade() -> None:
             "client_request_id",
             name="uq_source_uploads_room_id_created_by_client_request_id",
         ),
-        sa.CheckConstraint(f"state IN ({_in(UPLOAD_STATES)})", name=op.f("ck_source_uploads_state_valid")),
+        sa.CheckConstraint(
+            f"state IN ({_in(UPLOAD_STATES)})", name=op.f("ck_source_uploads_state_valid")
+        ),
         sa.CheckConstraint(f"kind IN ({_in(KINDS)})", name=op.f("ck_source_uploads_kind_valid")),
         sa.CheckConstraint(
             "declared_size > 0", name=op.f("ck_source_uploads_declared_size_positive")
@@ -262,9 +270,7 @@ def upgrade() -> None:
             name=op.f("ck_source_uploads_finalized_has_version"),
         ),
     )
-    op.create_index(
-        "ix_source_uploads_state_expires_at", "source_uploads", ["state", "expires_at"]
-    )
+    op.create_index("ix_source_uploads_state_expires_at", "source_uploads", ["state", "expires_at"])
     op.create_index(
         "ix_source_uploads_room_id_created_by_created_at",
         "source_uploads",

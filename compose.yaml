@@ -3,7 +3,8 @@ name: threadforge
 
 services:
   postgres:
-    image: postgres:16
+    # pgvector/pgvector is the official postgres:16 image plus the "vector" extension (AI retrieval)
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-threadforge}
@@ -64,6 +65,33 @@ services:
       - "host.docker.internal:host-gateway"
     expose:
       - "4010"
+
+  # The AI worker (the only process that calls AI providers): runs the provider self-check and the
+  # lazy-analysis queue. Behind a profile because AI is off until configured:
+  #   docker compose --profile ai up -d --build ai-worker
+  # It needs the SAME storage directory as the API: STORAGE_DIR on the host (default
+  # ./backend/data/storage, where the dev API writes) is mounted at /data/storage. Provider keys and
+  # AI_* settings come from the repo-root .env; only the addresses below are overridden so the
+  # container reaches the compose database. The image contains Tesseract with English data.
+  ai-worker:
+    profiles: ["ai"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-threadforge}:${POSTGRES_PASSWORD:-threadforge-dev-password}@postgres:5432/${POSTGRES_DB:-threadforge}
+      STORAGE_PATH: /data/storage
+      AI_ENABLED: ${AI_ENABLED:-false}
+    volumes:
+      - ${STORAGE_DIR:-./backend/data/storage}:/data/storage
+    # the worker makes outbound calls to the providers and needs nothing else; it exposes no port
 
 volumes:
   threadforge_pgdata:

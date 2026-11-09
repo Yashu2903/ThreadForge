@@ -44,10 +44,10 @@ export class Api {
   }
 
   /** Send raw bytes (an image upload) with the CSRF token; returns the parsed JSON answer. */
-  async upload<T>(path: string, body: Blob, contentType: string): Promise<ApiResponse<T>> {
+  async upload<T>(path: string, body: Blob, contentType: string, method: "POST" | "PUT" = "POST"): Promise<ApiResponse<T>> {
     for (const force of [false, true]) {
       const res = await this.doFetch(`${this.base}${path}`, {
-        method: "POST",
+        method,
         headers: { "X-CSRF-Token": await this.token(force), "Content-Type": contentType },
         credentials: "include",
         body,

@@ -125,6 +125,15 @@ class SourceVersion(Base):
             " AND (likely_scanned_pages IS NULL OR likely_scanned_pages >= 0)",
             name="counts_non_negative",
         ),
+        ForeignKeyConstraint(
+            ["room_id", "current_generation_id"],
+            ["index_generations.room_id", "index_generations.id"],
+            name="fk_source_versions_room_id_current_generation_id",
+            ondelete="RESTRICT",
+            deferrable=True,
+            initially="DEFERRED",
+            use_alter=True,
+        ),
         Index("ix_source_versions_source_id", "source_id"),
         Index("ix_source_versions_room_id_state", "room_id", "analysis_state"),
         Index(
@@ -160,6 +169,10 @@ class SourceVersion(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # the ONE index generation retrieval may use; switched in a single transaction (checkpoint 3)
+    current_generation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
 
 
 class SourceUpload(Base):

@@ -243,6 +243,46 @@ async def estimate(
             selected_chars=body.selected_chars,
             chat_message_ids=body.chat_message_ids if body.include_chat_context else [],
         )
+        extra = {}
+        if body.source_version_ids:
+            from sqlalchemy import select as sa_select
+
+            from app.models import SourceVersion
+            from app.services import ai_requests as request_service
+            from app.services import sources as source_service
+
+            await source_service.resolve_versions(
+                db, access_.room_id, list(body.source_version_ids)
+            )
+            versions = (
+                await db.execute(
+                    sa_select(SourceVersion.__table__).where(
+                        SourceVersion.__table__.c.id.in_(body.source_version_ids)
+                    )
+                )
+            ).all()
+            est, extra, _pages, _figures = await request_service._estimate(
+                db,
+                settings,
+                access_.room_id,
+                request_service.RequestInput(
+                    client_request_id=uuid.uuid4(),
+                    instruction=body.instruction,
+                    task_hint=body.task_hint,
+                    document_id=body.document_id,
+                    include_document_content=body.include_document_content,
+                    document_scope=body.document_scope,
+                    selected_block_ids=(),
+                    selection_hash=None,
+                    source_version_ids=tuple(body.source_version_ids),
+                    include_chat_context=body.include_chat_context,
+                    chat_message_ids=tuple(body.chat_message_ids)
+                    if body.include_chat_context
+                    else (),
+                    confirm_large=False,
+                ),
+                list(versions),
+            )
     usable = all(c.source is not None for c in admission.key_sources.values())
     blocking = next((c.problem for c in admission.key_sources.values() if c.problem), None)
     if est.over_caps:
@@ -259,10 +299,12 @@ async def estimate(
             "max_cost_micros": est.max_cost_micros,
             "requires_confirmation": est.requires_confirmation,
             "over_caps": est.over_caps,
+            "new_analysis_pages": extra.get("new_analysis_pages", 0),
+            "new_analysis_figures": extra.get("new_analysis_figures", 0),
         },
         "key_sources": {k: _choice(v) for k, v in admission.key_sources.items()},
         "consent_given": admission.consent_given,
         "can_send": usable and not est.over_caps and admission.consent_given,
         "blocking_code": blocking,
-        "note": "Estimates are approximate; sources add to them when you attach files.",
+        "note": "Estimates are approximate. Files not yet analyzed add the cost of analyzing them.",
     }

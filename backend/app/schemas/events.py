@@ -49,6 +49,27 @@ class AiSettingsPayload(_Strict):
     ai_enabled: bool
 
 
+class AiRequestPayload(_Strict):
+    request_id: uuid.UUID
+    state: Literal[
+        "waiting_for_sources",
+        "queued",
+        "running",
+        "validating",
+        "succeeded",
+        "failed",
+        "cancelling",
+        "cancelled",
+        "expired",
+    ]
+
+
+class SourcePayload(_Strict):
+    source_id: uuid.UUID
+    source_version_id: uuid.UUID
+    state: Literal["created", "ready", "failed", "removed"]
+
+
 @dataclass(frozen=True)
 class EventSpec:
     resource_type: str
@@ -73,6 +94,10 @@ EVENT_SPECS: dict[str, EventSpec] = {
     "document_content_updated": EventSpec("document", True, DocumentPayload),
     # AI phase 1: the owner's room switch. Carries the new value only (never any AI content).
     "room_ai_settings_changed": EventSpec("room", False, AiSettingsPayload),
+    # AI phase 1, checkpoint 4. Ids and states only: details come from authorized endpoints.
+    "ai_request_updated": EventSpec("ai_request", False, AiRequestPayload),
+    # terminal analysis states and new versions only (never a name, never any content)
+    "source_updated": EventSpec("source", False, SourcePayload),
 }
 
 

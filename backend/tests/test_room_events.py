@@ -503,7 +503,7 @@ def test_payload_schemas_are_strict(event_type, resource_type, version, payload)
 def test_every_supported_event_type_has_a_spec_and_nothing_else_does():
     from app.models.room_event import EVENT_TYPES
 
-    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 13
+    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 15
 
 
 # ---- privacy ------------------------------------------------------------------------------------------------
@@ -528,7 +528,15 @@ async def test_events_and_outbox_never_contain_text_tokens_or_credentials(alice,
 # ---- completeness audit ---------------------------------------------------------------------------------------
 
 
-SERVICE_FILES = ["rooms", "memberships", "invitations", "messages", "documents"]
+SERVICE_FILES = [
+    "rooms",
+    "memberships",
+    "invitations",
+    "messages",
+    "documents",
+    "ai_requests",
+    "sources",
+]
 # Functions that open a transaction and mutate: which events each must record.
 EXPECTED_EVENTS = {
     "create_room": {"room_created"},
@@ -545,11 +553,42 @@ EXPECTED_EVENTS = {
     "set_active_document": {"active_document_changed"},
     # AI phase 1: the owner's room switch
     "set_room_ai_enabled": {"room_ai_settings_changed"},
+    # AI phase 1, checkpoint 4: `@AI` requests (a message plus the request's own events) and sources
+    "create_request": {"message_created", "ai_request_updated"},
+    "retry_request": {"ai_request_updated"},
+    "advance_waiting": {"ai_request_updated"},
+    "expire_stale": {"ai_request_updated"},
+    "sweep_abandoned": {"ai_request_updated"},
+    "finish": {"ai_request_updated"},
+    "requeue": {"ai_request_updated"},
+    "claim_next": {"ai_request_updated"},  # announces "running"
+    "publish_success": {"message_created", "ai_request_updated"},
+    "finalize_upload": {"source_updated"},
+    "remove_source": {"source_updated"},
 }
 # Helpers that record an event on behalf of the functions that call them.
-HELPER_EVENTS = {"_activate(": {"active_document_changed"}}
+HELPER_EVENTS = {
+    "_activate(": {"active_document_changed"},
+    "insert_message_row(": {"message_created"},  # the message service's shared insert
+    "_emit(": {"ai_request_updated"},  # the request service's state announcement
+    "_fail_locked(": {"ai_request_updated"},
+    "_mark_succeeded(": {"ai_request_updated"},
+    "emit_source_event(": {"source_updated"},
+}
 # Deliberately event-less (invitations are not room events: spec section 5).
-NO_EVENT_BY_DESIGN = {"create_invitation", "revoke_invitation"}
+NO_EVENT_BY_DESIGN = {
+    "create_invitation",
+    "revoke_invitation",
+    # upload bookkeeping is announced when it ends in a new version (finalize), not step by step
+    "create_upload_intent",
+    "record_bytes",
+    "end_upload",
+    "release_upload_bytes",
+    "cancel_upload",
+    "delete_removed_files",  # file deletion after a removal that already announced itself
+    # task type is metadata of a running request; its state changes are what is announced
+    "set_task_type",
+}
 
 
 def _transaction_functions():

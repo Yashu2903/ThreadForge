@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { type Api, ApiError } from "./api";
+import { AiSettingsDialog, SourcePanel } from "./ai/Panels";
 import { ChatPanel } from "./components/ChatPanel";
 import { OpenDialog } from "./components/OpenDialog";
 import { StartDialog } from "./components/StartDialog";
 import type { Capabilities, DocumentFull, Me } from "./types";
 import { DocumentEditor, type LiveHandle } from "./DocumentEditor";
-import { useClientState, useRoomHandles, useStore } from "./useRoom";
+import { useAi, useClientState, useRoomHandles, useStore } from "./useRoom";
 
 /** Phones and tablets can view documents but editing is not supported there. */
 export function useIsMobile(): boolean {
@@ -29,8 +30,10 @@ export function useIsMobile(): boolean {
  */
 export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () => void }) {
   const { api, me, roomId } = props;
-  const { client, store } = useRoomHandles(api, roomId, me.id);
+  const { client, store, ai } = useRoomHandles(api, roomId, me.id);
   const state = useClientState(client);
+  const aiSnap = useAi(ai);
+  const [aiDialog, setAiDialog] = useState(false);
   const docs = useStore(store);
   const [dialog, setDialog] = useState<"start" | "open" | null>(null);
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
@@ -186,6 +189,8 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
           </div>
         )}
         <button onClick={() => setDialog("open")}>Open document</button>
+        <SourcePanel store={ai} snap={aiSnap} role={role} documentId={docs.open?.id ?? null} userId={me.id} />
+        <button onClick={() => setAiDialog(true)}>AI settings</button>
         <ul className="doc-nav" aria-label="Documents in this room">
           {docs.list.items.map((doc) => (
             <li key={doc.id}>
@@ -279,7 +284,20 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
         )}
       </main>
 
-      <ChatPanel client={client} userId={me.id} />
+      <ChatPanel
+        client={client}
+        userId={me.id}
+        ai={{
+          api,
+          store: ai,
+          snap: aiSnap,
+          documentId: docs.open?.id ?? null,
+          documentTitle: docs.open?.doc?.title ?? null,
+          unsynced: atRisk,
+          readSelection: async () => (await liveRef.current?.selection()) ?? null,
+        }}
+      />
+      {aiDialog && <AiSettingsDialog store={ai} snap={aiSnap} isOwner={isOwner} onClose={() => setAiDialog(false)} />}
 
       {dialog === "start" && <StartDialog api={api} roomId={roomId} onCreated={created} onClose={() => setDialog(null)} />}
       {dialog === "open" && (

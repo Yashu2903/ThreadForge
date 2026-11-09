@@ -273,6 +273,70 @@ class Settings(BaseSettings):
     source_docx_max_uncompressed_bytes: int = 200 * 1024 * 1024
     source_docx_max_entries: int = 5000
 
+    # AI checkpoint 3: lazy analysis (extraction, OCR, figures, chunking, embeddings) and retrieval.
+    # Analysis runs only in the AI worker, only when a source version is attached to a request.
+    ai_tesseract_command: str = (
+        "tesseract"  # looked up on PATH by the PARENT; the child gets a path
+    )
+    ai_ocr_dpi: int = 300  # page render resolution for OCR
+    ai_ocr_min_confidence: int = 60  # mean word confidence (0-100) below this = the page failed OCR
+    ai_ocr_min_words_per_page: int = 12  # fewer words than this on a mostly-text page = failed
+    ai_ocr_max_implausible_share: float = 0.5  # share of non-word-like tokens above this = failed
+    ai_ocr_timeout_seconds: int = 60  # per page, Tesseract
+    ai_ocr_max_pages_per_source: int = 100
+    ai_vision_fallback_max_pages: int = 20  # pages sent to the vision model after failed OCR
+    ai_unreadable_fail_share: float = 0.3  # more unreadable pages than this = the version fails
+    ai_max_figures_per_source: int = 40
+    ai_figure_embedding_mode: Literal["image", "description", "image_plus_description"] = (
+        "description"
+    )
+    ai_figure_min_pixels: int = 10_000  # smaller images are decorative
+    ai_figure_max_repeats: int = 3  # the same image on more pages than this is a logo/decoration
+    ai_chunk_target_tokens: int = 400
+    ai_chunk_max_tokens: int = 900  # hard maximum; must stay under AI_EMBED_MAX_INPUT_TOKENS
+    ai_chunk_overlap_tokens: int = 40
+    ai_max_chunks_per_source: int = 2000
+    ai_max_extracted_chars: int = 5_000_000
+    ai_extract_timeout_seconds: int = 600  # wall clock for the whole sandboxed extraction
+    ai_extract_memory_mb: int = 2048  # address-space limit of the extractor child (POSIX only)
+    ai_analysis_max_provider_calls: int = 600  # per analysis job (embedding batches, vision calls)
+    ai_analysis_lease_seconds: int = 120  # a claimed job not renewed within this is up for grabs
+    ai_analysis_max_attempts: int = 3
+    ai_worker_concurrency: int = 2  # jobs at once, per worker process
+    ai_worker_poll_seconds: float = 2.0
+    ai_retrieval_lexical_k: int = 20
+    ai_retrieval_vector_k: int = 20
+    ai_retrieval_rrf_k: int = 60
+    ai_retrieval_evidence_tokens: int = 24_000  # the evidence budget one request may fill
+    ai_retrieval_figure_top_k: int = 5  # figure images attached to the answer call
+    ai_retrieval_min_source_share: float = 0.2  # each selected source gets at least this share
+    # a vector hit farther than this cosine distance is not 'relevant' (0 = identical, 2 = opposite)
+    ai_retrieval_max_distance: float = 0.6
+    ai_superseded_generation_grace_hours: int = (
+        24  # an old index outlives its replacement this long
+    )
+
+    # AI checkpoint 4: `@AI` requests, answers, document capture, Mermaid.
+    ai_request_ttl_minutes: int = 30  # waiting/queued longer than this = expired
+    ai_max_active_requests_per_user: int = 3
+    ai_max_active_requests_per_room: int = 10
+    ai_request_max_chat_context: int = 20
+    ai_request_max_sources: int = 10
+    ai_request_lease_seconds: int = 120
+    ai_request_max_attempts: int = 3  # the requester may retry a failed request this many times
+    ai_result_retention_days: int = 30  # manifests older than this are deleted by cleanup_ai
+    ai_summarize_section_tokens: int = 3000  # map-step input budget per call
+    ai_summarize_source_tokens: int = 60_000  # per-source input budget before sampling kicks in
+    ai_collab_timeout_seconds: float = 20.0
+    ai_node_command: str = "node"
+    ai_mermaid_check_script: str = (
+        ""  # empty = packages/mermaid-check/dist/cli.js in the repository
+    )
+    ai_mermaid_check_timeout_seconds: float = 25.0
+    collab_service_url: str = (
+        "http://127.0.0.1:4010"  # the private address of the collaboration service
+    )
+
     trusted_proxy_ips: Annotated[list[str], NoDecode] = []
     cookie_secure: bool | None = None
 
@@ -732,6 +796,74 @@ class Settings(BaseSettings):
                 KeySet.parse(self.ai_key_encryption_keys.get_secret_value())
             except ValueError as exc:
                 problems.append(f"AI_KEY_ENCRYPTION_KEYS: {exc}")
+        for name, positive in (
+            ("AI_REQUEST_TTL_MINUTES", self.ai_request_ttl_minutes),
+            ("AI_MAX_ACTIVE_REQUESTS_PER_USER", self.ai_max_active_requests_per_user),
+            ("AI_MAX_ACTIVE_REQUESTS_PER_ROOM", self.ai_max_active_requests_per_room),
+            ("AI_REQUEST_MAX_CHAT_CONTEXT", self.ai_request_max_chat_context),
+            ("AI_REQUEST_MAX_SOURCES", self.ai_request_max_sources),
+            ("AI_REQUEST_LEASE_SECONDS", self.ai_request_lease_seconds),
+            ("AI_REQUEST_MAX_ATTEMPTS", self.ai_request_max_attempts),
+            ("AI_RESULT_RETENTION_DAYS", self.ai_result_retention_days),
+            ("AI_SUMMARIZE_SECTION_TOKENS", self.ai_summarize_section_tokens),
+            ("AI_SUMMARIZE_SOURCE_TOKENS", self.ai_summarize_source_tokens),
+        ):
+            if positive < 1:
+                problems.append(f"{name} must be at least 1.")
+        if self.ai_request_max_attempts > 10:
+            problems.append("AI_REQUEST_MAX_ATTEMPTS must be at most 10.")
+        if self.ai_request_max_sources > 10:
+            problems.append("AI_REQUEST_MAX_SOURCES must be at most 10.")
+        if self.ai_request_max_chat_context > 20:
+            problems.append("AI_REQUEST_MAX_CHAT_CONTEXT must be at most 20.")
+        if self.ai_collab_timeout_seconds <= 0 or self.ai_mermaid_check_timeout_seconds <= 0:
+            problems.append(
+                "AI_COLLAB_TIMEOUT_SECONDS and AI_MERMAID_CHECK_TIMEOUT_SECONDS must be positive."
+            )
+        for name, positive in (
+            ("AI_OCR_DPI", self.ai_ocr_dpi),
+            ("AI_OCR_TIMEOUT_SECONDS", self.ai_ocr_timeout_seconds),
+            ("AI_OCR_MAX_PAGES_PER_SOURCE", self.ai_ocr_max_pages_per_source),
+            ("AI_CHUNK_TARGET_TOKENS", self.ai_chunk_target_tokens),
+            ("AI_CHUNK_MAX_TOKENS", self.ai_chunk_max_tokens),
+            ("AI_MAX_CHUNKS_PER_SOURCE", self.ai_max_chunks_per_source),
+            ("AI_MAX_EXTRACTED_CHARS", self.ai_max_extracted_chars),
+            ("AI_EXTRACT_TIMEOUT_SECONDS", self.ai_extract_timeout_seconds),
+            ("AI_EXTRACT_MEMORY_MB", self.ai_extract_memory_mb),
+            ("AI_ANALYSIS_MAX_PROVIDER_CALLS", self.ai_analysis_max_provider_calls),
+            ("AI_ANALYSIS_LEASE_SECONDS", self.ai_analysis_lease_seconds),
+            ("AI_ANALYSIS_MAX_ATTEMPTS", self.ai_analysis_max_attempts),
+            ("AI_WORKER_CONCURRENCY", self.ai_worker_concurrency),
+            ("AI_RETRIEVAL_LEXICAL_K", self.ai_retrieval_lexical_k),
+            ("AI_RETRIEVAL_VECTOR_K", self.ai_retrieval_vector_k),
+            ("AI_RETRIEVAL_RRF_K", self.ai_retrieval_rrf_k),
+            ("AI_RETRIEVAL_EVIDENCE_TOKENS", self.ai_retrieval_evidence_tokens),
+        ):
+            if positive < 1:
+                problems.append(f"{name} must be at least 1.")
+        if not 0 <= self.ai_ocr_min_confidence <= 100:
+            problems.append("AI_OCR_MIN_CONFIDENCE must be between 0 and 100.")
+        if not 0 < self.ai_unreadable_fail_share <= 1:
+            problems.append("AI_UNREADABLE_FAIL_SHARE must be greater than 0 and at most 1.")
+        if not 0 < self.ai_ocr_max_implausible_share <= 1:
+            problems.append("AI_OCR_MAX_IMPLAUSIBLE_SHARE must be greater than 0 and at most 1.")
+        if not 0 < self.ai_retrieval_max_distance <= 2:
+            problems.append("AI_RETRIEVAL_MAX_DISTANCE must be greater than 0 and at most 2.")
+        if self.ai_superseded_generation_grace_hours < 0:
+            problems.append("AI_SUPERSEDED_GENERATION_GRACE_HOURS must not be negative.")
+        if not 0 <= self.ai_retrieval_min_source_share <= 0.5:
+            problems.append("AI_RETRIEVAL_MIN_SOURCE_SHARE must be between 0 and 0.5.")
+        if self.ai_chunk_max_tokens < self.ai_chunk_target_tokens:
+            problems.append("AI_CHUNK_MAX_TOKENS must not be below AI_CHUNK_TARGET_TOKENS.")
+        if (
+            self.ai_chunk_overlap_tokens < 0
+            or self.ai_chunk_overlap_tokens >= self.ai_chunk_target_tokens
+        ):
+            problems.append("AI_CHUNK_OVERLAP_TOKENS must be at least 0 and below the target.")
+        if self.ai_vision_fallback_max_pages < 0 or self.ai_max_figures_per_source < 0:
+            problems.append(
+                "AI_VISION_FALLBACK_MAX_PAGES and AI_MAX_FIGURES_PER_SOURCE must not be negative."
+            )
         if not self.ai_enabled:
             return problems
 
@@ -749,6 +881,11 @@ class Settings(BaseSettings):
         ):
             if number < 1:
                 problems.append(f"{name} must be set (a positive number) when AI_ENABLED=true.")
+        if (
+            self.ai_embed_max_input_tokens
+            and self.ai_chunk_max_tokens > self.ai_embed_max_input_tokens
+        ):
+            problems.append("AI_CHUNK_MAX_TOKENS must not exceed AI_EMBED_MAX_INPUT_TOKENS.")
         if (
             self.ai_llm_context_tokens
             and self.ai_max_input_tokens + self.ai_max_output_tokens > self.ai_llm_context_tokens
@@ -901,6 +1038,7 @@ class _AiCleanupSettings(BaseSettings):
     )
     database_url: SecretStr
     storage_path: str = "./data/storage"
+    ai_superseded_generation_grace_hours: int = 24
 
 
 def load_ai_cleanup_settings() -> _AiCleanupSettings:

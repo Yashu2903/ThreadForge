@@ -32,7 +32,9 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.add_column(
         "documents",
-        sa.Column("collab_state", sa.String(16), server_default=sa.text("'legacy'"), nullable=False),
+        sa.Column(
+            "collab_state", sa.String(16), server_default=sa.text("'legacy'"), nullable=False
+        ),
     )
     op.create_check_constraint(
         op.f("ck_documents_collab_state_valid"),

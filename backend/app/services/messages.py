@@ -48,6 +48,7 @@ from app.errors import (
     invalid_cursor,
     message_deleted,
     message_id_reused,
+    message_locked,
     message_not_author,
     message_not_found,
     message_version_conflict,
@@ -84,6 +85,8 @@ class MessageView:
     deleted_by: uuid.UUID | None
     version: int
     is_deleted: bool
+    kind: str = "user"  # user | ai_request | ai_answer
+    ai_request_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -152,6 +155,8 @@ def _message_columns():
         _MESSAGES.c.deleted_at,
         _MESSAGES.c.deleted_by,
         _MESSAGES.c.version,
+        _MESSAGES.c.kind,
+        _MESSAGES.c.ai_request_id,
     ]
 
 
@@ -239,6 +244,62 @@ async def _consume_write_capacity(
         raise rate_limited(max(1, math.ceil(seconds_left)))
 
 
+# ---- shared insert (also used by the AI request and reply paths) -----------------------------------
+
+
+async def insert_message_row(
+    db: AsyncSession,
+    locked,
+    *,
+    room_id: uuid.UUID,
+    author_id: uuid.UUID,
+    client_message_id: uuid.UUID,
+    body: str,
+    fingerprint: bytes,
+    kind: str = "user",
+    ai_request_id: uuid.UUID | None = None,
+    actor_id: uuid.UUID | None = None,
+) -> uuid.UUID:
+    """INSERT one message and record its message_created event, inside the caller's transaction (the
+    room lock must be held; `locked` proves it). `kind` and `ai_request_id` are immutable afterwards
+    (a database trigger enforces it). `actor_id` is who the event is attributed to (the author, except
+    for AI replies, which are attributed to the person who asked)."""
+    inserted = (
+        await db.execute(
+            insert(_MESSAGES)
+            .values(
+                room_id=room_id,
+                author_id=author_id,
+                client_message_id=client_message_id,
+                body=body,
+                initial_request_fingerprint=fingerprint,
+                created_at=func.clock_timestamp(),
+                kind=kind,
+                ai_request_id=ai_request_id,
+            )
+            .returning(_MESSAGES.c.id, _MESSAGES.c.version)
+        )
+    ).one()
+    await record_room_event(
+        db,
+        locked,
+        event_type="message_created",
+        resource_type="message",
+        resource_id=inserted.id,
+        resource_version=inserted.version,
+        actor_id=actor_id or author_id,
+        payload={},
+    )
+    return inserted.id
+
+
+async def consume_write_capacity(
+    db: AsyncSession, settings: Settings, room_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    """The human write bucket (an @AI message is a message: it counts)."""
+    await _consume_write_capacity(db, settings, room_id, user_id)
+
+
 # ---- send ------------------------------------------------------------------------------------
 
 
@@ -288,33 +349,14 @@ async def send_message(
                     message_id, created = existing.id, False
                 else:
                     await _consume_write_capacity(db, settings, room_id, actor_id)
-                    inserted = (
-                        await db.execute(
-                            insert(_MESSAGES)
-                            .values(
-                                room_id=room_id,
-                                author_id=actor_id,
-                                client_message_id=client_message_id,
-                                body=body,
-                                initial_request_fingerprint=fingerprint,
-                                # SQL clock_timestamp(), read AFTER the room lock is held (never
-                                # now(): that is the transaction's START time).
-                                created_at=func.clock_timestamp(),
-                            )
-                            .returning(_MESSAGES.c.id, _MESSAGES.c.version)
-                        )
-                    ).one()
-                    message_id = inserted.id
-                    # the message, its room event and its outbox row commit TOGETHER
-                    await record_room_event(
+                    message_id = await insert_message_row(
                         db,
                         locked,
-                        event_type="message_created",
-                        resource_type="message",
-                        resource_id=message_id,
-                        resource_version=inserted.version,
-                        actor_id=actor_id,
-                        payload={},
+                        room_id=room_id,
+                        author_id=actor_id,
+                        client_message_id=client_message_id,
+                        body=body,
+                        fingerprint=fingerprint,
                     )
                     created = True
             break  # committed
@@ -433,6 +475,8 @@ async def _lock_message(db: AsyncSession, room_id: uuid.UUID, message_id: uuid.U
                 _MESSAGES.c.body,
                 _MESSAGES.c.version,
                 _MESSAGES.c.deleted_at,
+                _MESSAGES.c.kind,
+                _MESSAGES.c.ai_request_id,
             )
             .where(_MESSAGES.c.id == message_id, _MESSAGES.c.room_id == room_id)
             .with_for_update()
@@ -479,6 +523,8 @@ async def edit_message(
             raise message_not_author()
         if message.deleted_at is not None:
             raise message_deleted()
+        if message.kind != "user":
+            raise message_locked()  # AI requests and answers are never edited, and an edit never reruns AI
         if message.version != expected_version:
             raise message_version_conflict(message.version)
         if body != message.body:
@@ -563,6 +609,12 @@ async def delete_message(
                     .returning(_MESSAGES.c.version)
                 )
             ).scalar_one()
+            if message.kind != "user" and message.ai_request_id is not None:
+                from app.services import ai_requests  # late import: that module imports this one
+
+                await ai_requests.on_message_deleted(
+                    db, locked, message.kind, message.ai_request_id, actor_id
+                )
             await record_room_event(
                 db,
                 locked,
@@ -593,3 +645,67 @@ async def chat_chars(db: AsyncSession, room_id: uuid.UUID, ids: list[uuid.UUID])
         )
     ).scalar_one()
     return int(total)
+
+
+async def live_ids(
+    db: AsyncSession, room_id: uuid.UUID, ids: list[uuid.UUID], *, exclude_kind: str | None = None
+) -> list[uuid.UUID]:
+    """Which of these ids are LIVE (not deleted) messages of THIS room, optionally not of one kind.
+    Read-only; the AI request path uses it to validate explicitly chosen chat context."""
+    if not ids:
+        return []
+    query = select(_MESSAGES.c.id).where(
+        _MESSAGES.c.room_id == room_id,
+        _MESSAGES.c.id.in_(ids),
+        _MESSAGES.c.deleted_at.is_(None),
+    )
+    if exclude_kind is not None:
+        query = query.where(_MESSAGES.c.kind != exclude_kind)
+    return list((await db.execute(query)).scalars().all())
+
+
+async def is_deleted(db: AsyncSession, message_id: uuid.UUID) -> bool:
+    return (
+        await db.execute(select(_MESSAGES.c.deleted_at).where(_MESSAGES.c.id == message_id))
+    ).scalar_one() is not None
+
+
+@dataclass(frozen=True)
+class ChatCopy:
+    id: uuid.UUID
+    body: str | None
+    created_at: datetime
+    author_name: str | None
+    deleted: bool
+    kind: str
+
+
+async def chat_copies(db: AsyncSession, room_id: uuid.UUID, ids: list[str]) -> list[ChatCopy]:
+    """Exact copies of the named messages of THIS room, oldest first (AI answers excluded: earlier AI
+    output is never context). Deleted ones come back flagged, with no body."""
+    if not ids:
+        return []
+    uuids = [uuid.UUID(i) for i in ids]
+    rows = (
+        await db.execute(
+            select(
+                _MESSAGES.c.id,
+                _MESSAGES.c.body,
+                _MESSAGES.c.created_at,
+                _MESSAGES.c.deleted_at,
+                _MESSAGES.c.kind,
+                _USERS.c.display_name,
+            )
+            .select_from(_MESSAGES.outerjoin(_USERS, _USERS.c.id == _MESSAGES.c.author_id))
+            .where(
+                _MESSAGES.c.room_id == room_id,
+                _MESSAGES.c.id.in_(uuids),
+                _MESSAGES.c.kind != "ai_answer",
+            )
+            .order_by(_MESSAGES.c.created_at, _MESSAGES.c.id)
+        )
+    ).all()
+    return [
+        ChatCopy(r.id, r.body, r.created_at, r.display_name, r.deleted_at is not None, r.kind)
+        for r in rows
+    ]

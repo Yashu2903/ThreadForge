@@ -4,9 +4,12 @@ an actor, a role, a key source or a price."""
 from __future__ import annotations
 
 import uuid
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# JSON carries ids as strings: a strict model still has to accept them (also inside lists)
+JsonUuid = Annotated[uuid.UUID, Field(strict=False)]
 
 
 class _Strict(BaseModel):
@@ -36,4 +39,5 @@ class EstimateRequest(_Strict):
     document_scope: Literal["none", "whole", "blocks"] = "none"
     selected_chars: int = Field(default=0, ge=0, le=1_000_000)
     include_chat_context: bool = False
-    chat_message_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20, strict=False)
+    chat_message_ids: list[JsonUuid] = Field(default_factory=list, max_length=20)
+    source_version_ids: list[JsonUuid] = Field(default_factory=list, max_length=10)

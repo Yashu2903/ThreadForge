@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { type PMJson, blockHash } from "@threadforge/editor-schema";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Api } from "./api";
 import { CollabSession, collabUrl } from "./collab/session";
@@ -16,6 +17,37 @@ export interface LiveHandle {
   unsynced: () => number;
   /** the document text, to copy out before it is lost */
   text: () => string;
+  /** the top-level blocks the selection touches, with the hash the server will check (or null) */
+  selection: () => Promise<BlockSelection | null>;
+}
+
+export interface BlockSelection {
+  ids: string[];
+  /** sha256 over "id:blockHash" lines of the selected blocks in document order (see capture.py) */
+  hash: string;
+  chars: number;
+}
+
+/** The selected top-level blocks and their selection hash. The block hashes are the shared package's
+ *  `blockHash`, the same function the collaboration service uses, so both sides agree exactly. */
+export async function readBlockSelection(editor: Editor | null): Promise<BlockSelection | null> {
+  if (!editor) return null;
+  const { from, to, empty } = editor.state.selection;
+  if (empty) return null;
+  const picked: { id: string; json: PMJson; chars: number }[] = [];
+  editor.state.doc.forEach((node, offset) => {
+    const start = offset;
+    const end = offset + node.nodeSize;
+    const id = node.attrs?.id;
+    if (end > from && start < to && typeof id === "string") picked.push({ id, json: node.toJSON() as PMJson, chars: node.textContent.length });
+  });
+  if (picked.length === 0) return null;
+  const lines: string[] = [];
+  for (const b of picked) lines.push(`${b.id}:${await blockHash(b.json)}`);
+  const bytes = new TextEncoder().encode(lines.join("\n"));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hash = [...new Uint8Array(digest)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  return { ids: picked.map((b) => b.id), hash, chars: picked.reduce((n, b) => n + b.chars, 0) };
 }
 
 /**
@@ -57,7 +89,12 @@ export function DocumentEditor(props: {
       canEdit: doc.can_edit && props.roleCanEdit && !props.mobile,
     });
     setSession(created);
-    props.onLive({ docId: doc.id, unsynced: () => created.unsyncedChanges, text: () => editorRef.current?.getText({ blockSeparator: "\n" }) ?? "" });
+    props.onLive({
+      docId: doc.id,
+      unsynced: () => created.unsyncedChanges,
+      text: () => editorRef.current?.getText({ blockSeparator: "\n" }) ?? "",
+      selection: () => readBlockSelection(editorRef.current),
+    });
     return () => {
       props.onLive(null);
       props.onAtRisk(0);
