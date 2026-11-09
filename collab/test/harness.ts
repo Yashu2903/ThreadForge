@@ -54,13 +54,15 @@ export interface Client {
   ready: Promise<void>;
   closes: { code: number; reason: string }[];
   denied: string[];
+  /** stateless messages from the server (e.g. {"type":"read_only"}) */
+  stateless: string[];
 }
 
 export function connect(
   server: CollabServer,
   user: Pick<TestUser, "cookie"> | null,
   docId: string,
-  opts: { origin?: string | null; name?: string; path?: string } = {},
+  opts: { origin?: string | null; name?: string; path?: string; headers?: Record<string, string> } = {},
 ): Client {
   const origin = opts.origin === undefined ? ORIGIN : opts.origin;
   class AuthedSocket extends WebSocket {
@@ -68,12 +70,14 @@ export function connect(
       const headers: Record<string, string> = {};
       if (user) headers.Cookie = user.cookie;
       if (origin) headers.Origin = origin;
+      Object.assign(headers, opts.headers ?? {});
       super(url, protocols, { headers });
     }
   }
   const ydoc = new Y.Doc();
   const closes: Client["closes"] = [];
   const denied: string[] = [];
+  const stateless: string[] = [];
   let resolve!: () => void;
   let reject!: (e: Error) => void;
   const ready = new Promise<void>((res, rej) => {
@@ -90,6 +94,7 @@ export function connect(
     WebSocketPolyfill: AuthedSocket as never,
     maxAttempts: 1,
     onSynced: () => resolve(),
+    onStateless: ({ payload }: { payload: string }) => stateless.push(payload),
     onAuthenticationFailed: ({ reason }: { reason: string }) => {
       denied.push(reason);
       reject(new Error(`denied:${reason}`));
@@ -98,7 +103,7 @@ export function connect(
   };
   const provider = new HocuspocusProvider(config);
   providers.push(provider);
-  return { provider, ydoc, ready, closes, denied };
+  return { provider, ydoc, ready, closes, denied, stateless };
 }
 
 export async function until<T>(fn: () => T | Promise<T>, what = "condition", timeoutMs = 8_000): Promise<NonNullable<T>> {
@@ -142,6 +147,8 @@ export function appendText(ydoc: Y.Doc, text: string): void {
 export class FaultyApi extends InternalApi {
   failPuts = 0;
   failGetState = 0;
+  /** make every access check fail (an unreachable API or database) */
+  failAccess = false;
   constructor() {
     super(API_URL, INTERNAL_SECRET, 5_000);
   }
@@ -151,6 +158,10 @@ export class FaultyApi extends InternalApi {
       throw new ApiError(0, "unreachable");
     }
     return super.putState(...args);
+  }
+  override async checkAccess(...args: Parameters<InternalApi["checkAccess"]>) {
+    if (this.failAccess) throw new ApiError(0, "unreachable");
+    return super.checkAccess(...args);
   }
   override async getState(...args: Parameters<InternalApi["getState"]>) {
     if (this.failGetState > 0) {

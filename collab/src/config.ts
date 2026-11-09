@@ -29,6 +29,21 @@ export interface CollabConfig {
   /** after a store fails for good, try again this much later (the document stays in memory) */
   storeRecoveryDelayMs: number;
   apiTimeoutMs: number;
+  /** how often every open connection's access is re-checked (always runs; Redis only speeds it up) */
+  accessCheckMs: number;
+  /** keep serving this long while the API/database cannot answer, then close with 1013 */
+  accessGraceMs: number;
+  /** redis://... for the room hints; empty = timer only */
+  redisUrl: string;
+  /** must equal the API's REDIS_CHANNEL_PREFIX */
+  redisPrefix: string;
+  /** at most this many messages per second on one connection, then close with 4430 */
+  messagesPerSecond: number;
+  /** at most this many connection attempts per IP per minute, then a ban for banMinutes */
+  connectsPerMinute: number;
+  banMinutes: number;
+  /** believe X-Real-IP / X-Forwarded-For (only behind a proxy that sets them); otherwise the socket address is used */
+  trustProxyHeaders: boolean;
   limits: Limits;
 }
 
@@ -50,6 +65,14 @@ export const DEFAULTS: Omit<CollabConfig, "apiBaseUrl" | "internalSecret" | "all
   storeRetryDelayMs: 500,
   storeRecoveryDelayMs: 5_000,
   apiTimeoutMs: 10_000,
+  accessCheckMs: 15_000,
+  accessGraceMs: 30_000,
+  redisUrl: "",
+  redisPrefix: "threadforge",
+  messagesPerSecond: 100,
+  connectsPerMinute: 60,
+  banMinutes: 5,
+  trustProxyHeaders: false,
   limits: DEFAULT_LIMITS,
 };
 
@@ -75,6 +98,11 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): CollabConfi
   if (origins.some((o) => o === "*" || !/^https?:\/\/[^/]+$/.test(o))) {
     problems.push("COLLAB_ALLOWED_ORIGINS entries must be exact origins such as https://app.example.com (no wildcard, no path).");
   }
+  const accessCheckMs = int(env, "COLLAB_ACCESS_CHECK_MS", DEFAULTS.accessCheckMs);
+  const accessGraceMs = int(env, "COLLAB_ACCESS_GRACE_MS", DEFAULTS.accessGraceMs);
+  if (accessCheckMs < 1000) problems.push("COLLAB_ACCESS_CHECK_MS must be at least 1000.");
+  if (accessGraceMs < accessCheckMs) problems.push("COLLAB_ACCESS_GRACE_MS must not be smaller than COLLAB_ACCESS_CHECK_MS.");
+  if (int(env, "COLLAB_MESSAGES_PER_SECOND", DEFAULTS.messagesPerSecond) < 1) problems.push("COLLAB_MESSAGES_PER_SECOND must be at least 1.");
   if (problems.length > 0) throw new Error("Invalid configuration:\n- " + problems.join("\n- "));
   return {
     port: int(env, "COLLAB_PORT", DEFAULTS.port),
@@ -97,6 +125,14 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): CollabConfi
     storeRetryDelayMs: int(env, "COLLAB_STORE_RETRY_DELAY_MS", DEFAULTS.storeRetryDelayMs),
     storeRecoveryDelayMs: int(env, "COLLAB_STORE_RECOVERY_DELAY_MS", DEFAULTS.storeRecoveryDelayMs),
     apiTimeoutMs: int(env, "COLLAB_API_TIMEOUT_MS", DEFAULTS.apiTimeoutMs),
+    accessCheckMs: int(env, "COLLAB_ACCESS_CHECK_MS", DEFAULTS.accessCheckMs),
+    accessGraceMs: int(env, "COLLAB_ACCESS_GRACE_MS", DEFAULTS.accessGraceMs),
+    redisUrl: env.COLLAB_REDIS_URL ?? env.REDIS_URL ?? DEFAULTS.redisUrl,
+    redisPrefix: env.COLLAB_REDIS_PREFIX ?? env.REDIS_CHANNEL_PREFIX ?? DEFAULTS.redisPrefix,
+    messagesPerSecond: int(env, "COLLAB_MESSAGES_PER_SECOND", DEFAULTS.messagesPerSecond),
+    connectsPerMinute: int(env, "COLLAB_CONNECTS_PER_MINUTE", DEFAULTS.connectsPerMinute),
+    banMinutes: int(env, "COLLAB_BAN_MINUTES", DEFAULTS.banMinutes),
+    trustProxyHeaders: (env.COLLAB_TRUST_PROXY_HEADERS ?? "false").toLowerCase() === "true",
     limits: DEFAULT_LIMITS,
   };
 }

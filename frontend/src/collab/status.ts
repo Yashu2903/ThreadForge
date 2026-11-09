@@ -32,6 +32,9 @@ export const CLOSE = {
 export const TERMINAL_CODES: readonly number[] = [CLOSE.unauthorized, CLOSE.forbidden];
 
 /** Denial reasons from the collaboration service after which retrying cannot help. */
+/** Temporary denials and how long to wait before asking again. */
+export const RETRY_DELAY_MS: Record<string, number> = { throttled: 30_000, too_many_connections: 5_000, unavailable: 3_000 };
+
 export const TERMINAL_DENIALS: readonly string[] = ["session_invalid", "forbidden", "origin", "bad_document", "needs_repair"];
 
 export type SyncKind = "connecting" | "synced" | "syncing" | "offline" | "read-only" | "access-lost";
@@ -71,9 +74,12 @@ export function deriveStatus(raw: RawState): SyncStatus {
     const label = raw.unsynced > 0 ? `Offline (${raw.unsynced} unsynced ${raw.unsynced === 1 ? "change" : "changes"})` : "Offline";
     return { kind: "offline", label, atRisk: raw.unsynced, editable: !readOnly };
   }
-  if (!raw.synced || raw.unsynced > 0) {
+  if (!raw.synced) {
     return { kind: "syncing", label: "Syncing…", atRisk: raw.unsynced, editable: !readOnly };
   }
-  if (readOnly) return { kind: "read-only", label: "Read-only", atRisk: 0, editable: false };
+  // A read-only connection never gets acknowledgements for edits made before it was downgraded, so
+  // "unsynced" would stay above zero forever: say Read-only, and keep the count so the person can copy.
+  if (readOnly) return { kind: "read-only", label: "Read-only", atRisk: raw.unsynced, editable: false };
+  if (raw.unsynced > 0) return { kind: "syncing", label: "Syncing…", atRisk: raw.unsynced, editable: true };
   return { kind: "synced", label: "Synced", atRisk: 0, editable: true };
 }

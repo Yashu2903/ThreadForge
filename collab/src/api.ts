@@ -32,6 +32,14 @@ export interface Access {
   document_id: string;
   collab_state: CollabState;
 }
+export interface AccessRoomQuery {
+  room_id: string;
+  connections: { session_id: string; document_id: string }[];
+}
+export interface AccessRoomAnswer {
+  room_id: string;
+  results: { status: "ok" | "session_invalid" | "not_member" | "document_gone"; can_edit: boolean }[];
+}
 export interface LeaseInfo {
   token: number;
   expires_at: string;
@@ -120,6 +128,12 @@ export class InternalApi {
   async authorize(cookieHeader: string | null, documentId: string): Promise<Access> {
     const r = await this.call("POST", "/authorize", { json: { cookie_header: cookieHeader, document_id: documentId } });
     return (await r.json()) as Access;
+  }
+
+  /** One question for every open connection of the given rooms (see services/collab.check_access_batch). */
+  async checkAccess(rooms: AccessRoomQuery[]): Promise<{ rooms: AccessRoomAnswer[] }> {
+    const r = await this.call("POST", "/access/check", { json: { rooms } });
+    return (await r.json()) as { rooms: AccessRoomAnswer[] };
   }
 
   async getState(documentId: string): Promise<StoredState> {

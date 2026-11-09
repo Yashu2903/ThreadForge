@@ -42,7 +42,7 @@ from app.models import (
     RoomAsset,
 )
 from app.services.documents import sync_asset_refs
-from app.services.permissions import decide_write
+from app.services.permissions import EDIT_ROLES, decide_write
 from app.services.sessions import load_session
 
 log = logging.getLogger(f"{APP_LOGGER}.collab")
@@ -658,3 +658,73 @@ async def restore_document(
             update(_DOCS).where(_DOCS.c.id == document_id).values(collab_state="legacy")
         )
     return (bytes(old.state), old.update_counter) if old else (None, -1)
+
+
+# ---- access over time -------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ConnectionAccess:
+    status: str  # ok | session_invalid | not_member | document_gone
+    can_edit: bool
+
+
+async def check_access_batch(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    room_id: uuid.UUID,
+    connections: list[tuple[uuid.UUID, uuid.UUID]],
+) -> list[ConnectionAccess]:
+    """Is each open document connection of ONE room still allowed? `connections` is a list of
+    (session_id, document_id); the answer is in the same order.
+
+    Two statements for the whole room, however many connections it has:
+      1. sessions LEFT JOIN the room's active memberships: is the session valid (not revoked, not
+         expired, user active) and what is the user's role in this room now?
+      2. which of the documents still belong to this room.
+    A session id that no longer exists is `session_invalid`. Read-only; the database clock decides
+    expiry. This is the SAME rule set as authorize_document (decide_write's role_ok), applied to
+    connections that are already open.
+    """
+    if not connections:
+        return []
+    session_ids = list({sid for sid, _ in connections})
+    document_ids = list({did for _, did in connections})
+    async with sessionmaker() as db:
+        rows = (
+            await db.execute(
+                text(
+                    "SELECT s.id AS session_id,"
+                    " (s.revoked_at IS NULL AND s.expires_at > now() AND u.state = 'active')"
+                    "   AS session_ok, m.role AS role"
+                    " FROM sessions s JOIN users u ON u.id = s.user_id"
+                    " LEFT JOIN memberships m ON m.room_id = :room AND m.user_id = s.user_id"
+                    "   AND m.state = 'active'"
+                    " WHERE s.id = ANY(CAST(:sids AS uuid[]))"
+                ),
+                {"room": room_id, "sids": session_ids},
+            )
+        ).all()
+        documents = set(
+            (
+                await db.execute(
+                    select(_DOCS.c.id).where(
+                        _DOCS.c.room_id == room_id, _DOCS.c.id.in_(document_ids)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    by_session = {r.session_id: r for r in rows}
+    out: list[ConnectionAccess] = []
+    for session_id, document_id in connections:
+        row = by_session.get(session_id)
+        if row is None or not row.session_ok:
+            out.append(ConnectionAccess("session_invalid", False))
+        elif row.role is None:
+            out.append(ConnectionAccess("not_member", False))
+        elif document_id not in documents:
+            out.append(ConnectionAccess("document_gone", False))
+        else:
+            out.append(ConnectionAccess("ok", row.role in EDIT_ROLES))
+    return out

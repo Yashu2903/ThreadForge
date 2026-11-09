@@ -25,7 +25,9 @@ async function controlCollab(page: Page) {
   const live = new Set<WebSocketRoute>();
   let offline = false;
   let blockUp = false;
+  let attempts = 0;
   await page.routeWebSocket(/\/collab/, (ws) => {
+    attempts += 1;
     if (offline) return void ws.close({ code: 1006 });
     const server = ws.connectToServer();
     live.add(ws);
@@ -42,6 +44,17 @@ async function controlCollab(page: Page) {
     },
     blockUp(on: boolean) {
       blockUp = on;
+    },
+    /** refuse NEW connections without touching the open ones */
+    refuseNew(on: boolean) {
+      offline = on;
+    },
+    /** the server ends the connection with an application close code (e.g. 4403) */
+    closeWith(code: number) {
+      for (const ws of live) ws.close({ code, reason: "test" });
+    },
+    get attempts() {
+      return attempts;
     },
   };
 }
@@ -291,5 +304,54 @@ test.describe("live collaborative editing", () => {
     // nothing at risk: navigating away needs no confirmation
     await b.page.getByRole("button", { name: "Shared plan" }).click();
     await expect(b.page.getByRole("heading", { name: "Shared plan" })).toBeVisible();
+  });
+
+  test("a terminal close (4403) keeps the text, says Access lost and does not reconnect", async ({ browser }) => {
+    const { b } = await setup(browser);
+    const net = await controlCollab(b.page);
+    await b.page.reload();
+    await expect(status(b.page)).toHaveText("Synced");
+    await surface(b.page).click();
+    await b.page.keyboard.type("keep this text");
+    await expect(status(b.page)).toHaveText("Synced");
+    net.refuseNew(true); // anything that tries again is refused, and counted
+    const before = net.attempts;
+    net.closeWith(4403);
+    await expect(status(b.page)).toHaveText("Access lost");
+    await expect(b.page.getByTestId("access-lost")).toContainText("You no longer have access to this document");
+    await expect(surface(b.page)).toContainText("keep this text");
+    await expect(surface(b.page)).toHaveAttribute("contenteditable", "false");
+    await b.page.waitForTimeout(6_000);
+    expect(net.attempts).toBe(before); // terminal: no reconnect attempts at all
+  });
+
+  test("a temporary close (1013) reconnects by itself", async ({ browser }) => {
+    const { a, b } = await setup(browser);
+    const net = await controlCollab(b.page);
+    await b.page.reload();
+    await expect(status(b.page)).toHaveText("Synced");
+    const before = net.attempts;
+    net.closeWith(1013);
+    await expect.poll(() => net.attempts, { timeout: 30_000 }).toBeGreaterThan(before);
+    await expect(status(b.page)).toHaveText("Synced", { timeout: 30_000 });
+    await surface(a.page).click();
+    await a.page.keyboard.type("after the retry");
+    await expect.poll(() => textOf(b.page)).toContain("after the retry");
+  });
+
+  test("a demoted editor is locked by the server while the page is open, and told", async ({ browser }) => {
+    const { a, b, roomId, asOwner } = await setup(browser);
+    const editorId = (await asOwner.get<{ items: { user_id: string; display_name: string }[] }>(`/rooms/${roomId}/members`)).items.find((m) => m.display_name === "Eddie")!.user_id;
+    const changed = await asOwner.send("PATCH", `/rooms/${roomId}/members/${editorId}`, { role: "viewer" });
+    expect(changed.status).toBe(200);
+    await expect(b.page.getByTestId("demoted")).toBeVisible({ timeout: 20_000 });
+    await expect(status(b.page)).toHaveText("Read-only");
+    await expect(surface(b.page)).toHaveAttribute("contenteditable", "false");
+    // the owner keeps editing and the demoted user still sees it live
+    await surface(a.page).click();
+    await a.page.keyboard.type("owner continues");
+    await expect.poll(() => textOf(b.page)).toContain("owner continues");
+    await b.page.getByTestId("reload-doc").click();
+    await expect(surface(b.page)).toContainText("owner continues");
   });
 });

@@ -57,6 +57,9 @@ services:
       COLLAB_API_BASE_URL: ${COLLAB_API_BASE_URL:-http://host.docker.internal:8000}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
       COLLAB_ALLOWED_ORIGINS: ${COLLAB_ALLOWED_ORIGINS:-http://localhost:5173}
+      # room hints (optional; the periodic access check works without them)
+      COLLAB_REDIS_URL: ${COLLAB_REDIS_URL:-}
+      COLLAB_REDIS_PREFIX: ${REDIS_CHANNEL_PREFIX:-threadforge}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     expose:

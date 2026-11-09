@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { colorFor, displayNameFor, renderCaret } from "../src/collab/identity";
-import { CLOSE, type RawState, TERMINAL_CODES, TERMINAL_DENIALS, deriveStatus } from "../src/collab/status";
+import { CLOSE, RETRY_DELAY_MS, type RawState, TERMINAL_CODES, TERMINAL_DENIALS, deriveStatus } from "../src/collab/status";
 
 const base: RawState = { connection: "connected", synced: true, unsynced: 0, scope: "read-write", canEdit: true, accessLost: false };
 const status = (over: Partial<RawState>) => deriveStatus({ ...base, ...over });
@@ -26,6 +26,10 @@ describe("sync status wording", () => {
     expect(status({ canEdit: false })).toMatchObject({ kind: "read-only", label: "Read-only", editable: false });
     expect(status({ scope: "readonly" })).toMatchObject({ kind: "read-only", editable: false });
   });
+  it("a demoted connection says Read-only (not Syncing) and keeps the count of rejected changes", () => {
+    expect(status({ scope: "readonly", unsynced: 2 })).toMatchObject({ kind: "read-only", editable: false, atRisk: 2 });
+    expect(status({ scope: "readonly", synced: false }).kind).toBe("syncing");
+  });
   it("Access lost wins over everything and keeps the count of what was never received", () => {
     expect(status({ accessLost: true, unsynced: 2 })).toMatchObject({ kind: "access-lost", label: "Access lost", editable: false, atRisk: 2 });
     expect(status({ accessLost: true, connection: "disconnected" }).kind).toBe("access-lost");
@@ -36,7 +40,8 @@ describe("sync status wording", () => {
   });
   it("a denial reason is terminal unless the service says it is temporary", () => {
     for (const reason of ["session_invalid", "forbidden", "needs_repair"]) expect(TERMINAL_DENIALS).toContain(reason);
-    for (const reason of ["unavailable", "too_many_connections"]) expect(TERMINAL_DENIALS).not.toContain(reason);
+    for (const reason of ["unavailable", "too_many_connections", "throttled"]) expect(TERMINAL_DENIALS).not.toContain(reason);
+    expect(RETRY_DELAY_MS.throttled).toBeGreaterThan(RETRY_DELAY_MS.unavailable!); // a throttled client waits longer
   });
 });
 

@@ -47,4 +47,8 @@ export const collabEnv: Record<string, string> = {
   INTERNAL_API_SECRET: INTERNAL_SECRET,
   COLLAB_ALLOWED_ORIGINS: WEB_ORIGIN,
   COLLAB_LOG_LEVEL: "warn",
+  // room hints (the dispatcher publishes them) make access changes take effect in about a second
+  COLLAB_REDIS_URL: "redis://127.0.0.1:6390/14",
+  COLLAB_REDIS_PREFIX: prefix,
+  COLLAB_ACCESS_CHECK_MS: "3000",
 };

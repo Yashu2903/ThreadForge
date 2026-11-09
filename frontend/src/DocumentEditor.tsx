@@ -46,6 +46,7 @@ export function DocumentEditor(props: {
   const [linkOpen, setLinkOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [generation, setGeneration] = useState(0); // a new generation = a fresh connection and Yjs document
   const editorRef = useRef<Editor | null>(null);
   editorRef.current = editor;
 
@@ -66,7 +67,7 @@ export function DocumentEditor(props: {
     };
     // one session per document of this room
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, roomId, doc.id]);
+  }, [api, roomId, doc.id, generation]);
 
   const idle = useCallback(() => () => undefined, []);
   const snap = useSyncExternalStore(session ? session.subscribe : idle, () => session?.getSnapshot() ?? null);
@@ -129,6 +130,25 @@ export function DocumentEditor(props: {
         )}
       </div>
 
+      {snap?.demoted && snap.kind !== "access-lost" && (
+        <div className="conflict" role="alert" data-testid="demoted">
+          <strong>You can no longer edit this document.</strong>
+          <p>
+            Your role in this room changed to viewer. The document keeps updating live.
+            {atRisk > 0 ? " Changes you made just before this were not accepted; copy them if you need them." : ""}
+          </p>
+          <div className="actions">
+            {atRisk > 0 && (
+              <button type="button" onClick={() => void copyMyText()} data-testid="copy-text">
+                Copy my text
+              </button>
+            )}
+            <button type="button" onClick={() => setGeneration((n) => n + 1)} data-testid="reload-doc">
+              Reload the document from the server
+            </button>
+          </div>
+        </div>
+      )}
       {snap?.kind === "access-lost" && (
         <div className="conflict" role="alert" data-testid="access-lost">
           <strong>

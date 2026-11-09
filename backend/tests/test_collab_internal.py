@@ -673,3 +673,99 @@ async def test_the_restore_command_backs_up_first_then_reseeds_from_the_snapshot
     assert await scalar(sessionmaker, "SELECT collab_state FROM documents") == "legacy"
     await acquire(internal, "holder-two-bbbb")
     assert (await internal.get(f"{base}/seed")).json()["content"] == good
+
+
+# ---- access over time (checkpoint 4) ---------------------------------------------------------------------
+
+
+async def check_access(internal, *rooms: tuple[str, list[tuple[object, str]]]):
+    body = {
+        "rooms": [
+            {
+                "room_id": room,
+                "connections": [{"session_id": str(s), "document_id": d} for s, d in conns],
+            }
+            for room, conns in rooms
+        ]
+    }
+    response = await internal.post("/internal/collab/access/check", json=body)
+    assert response.status_code == 200, response.text
+    return [
+        [(r["status"], r["can_edit"]) for r in room["results"]] for room in response.json()["rooms"]
+    ]
+
+
+async def test_access_check_reports_each_connection_in_order(
+    internal, sessionmaker, alice, bob, carol, make_actor
+):
+    dave = await make_actor("Dave")
+    room_id, doc = await room_with_doc(alice, sessionmaker, (bob, "editor"), (carol, "viewer"))
+    conns = [(a.session_id, doc["id"]) for a in (alice, bob, carol, dave)]
+    [result] = await check_access(internal, (room_id, conns))
+    assert result == [("ok", True), ("ok", True), ("ok", False), ("not_member", False)]
+    assert await check_access(internal, (room_id, [])) == [[]]
+
+
+async def test_access_check_notices_every_kind_of_change(internal, sessionmaker, alice, bob, carol):
+    room_id, doc = await room_with_doc(alice, sessionmaker, (bob, "editor"), (carol, "editor"))
+    conns = [(a.session_id, doc["id"]) for a in (alice, bob, carol)]
+    # role downgrade: still allowed to read, no longer to write
+    await add_member(sessionmaker, room_id, bob.id, "viewer")
+    # removal
+    await add_member(sessionmaker, room_id, carol.id, "editor", state="removed")
+    [result] = await check_access(internal, (room_id, conns))
+    assert result == [("ok", True), ("ok", False), ("not_member", False)]
+    # revoked session, expired session, disabled user, unknown session id
+    await execute(
+        sessionmaker, "UPDATE sessions SET revoked_at = now() WHERE id = :s", s=alice.session_id
+    )
+    await execute(
+        sessionmaker,
+        "UPDATE sessions SET created_at = now() - interval '2 days',"
+        " expires_at = now() - interval '1 second' WHERE id = :s",
+        s=bob.session_id,
+    )
+    [result] = await check_access(internal, (room_id, conns))
+    assert [r[0] for r in result] == ["session_invalid", "session_invalid", "not_member"]
+    await add_member(sessionmaker, room_id, carol.id, "editor")
+    await execute(sessionmaker, "UPDATE users SET state = 'disabled' WHERE id = :u", u=carol.id)
+    [result] = await check_access(internal, (room_id, conns))
+    assert result[2] == ("session_invalid", False)
+    [unknown] = await check_access(internal, (room_id, [(uuid.uuid4(), doc["id"])]))
+    assert unknown == [("session_invalid", False)]
+
+
+async def test_access_check_refuses_a_document_of_another_room(internal, sessionmaker, alice, bob):
+    room_a, doc_a = await room_with_doc(alice, sessionmaker)
+    room_b, doc_b = await room_with_doc(bob, sessionmaker)
+    [result] = await check_access(internal, (room_a, [(alice.session_id, doc_b["id"])]))
+    assert result == [("document_gone", False)]
+
+
+async def test_access_check_batches_many_connections_and_rooms_in_few_queries(
+    internal, sessionmaker, alice, bob, engine
+):
+    from sqlalchemy import event
+
+    room_a, doc_a = await room_with_doc(alice, sessionmaker)
+    room_b, doc_b = await room_with_doc(bob, sessionmaker)
+    statements: list[str] = []
+    event.listen(engine.sync_engine, "before_cursor_execute", lambda *a: statements.append(a[2]))
+    results = await check_access(
+        internal,
+        (room_a, [(alice.session_id, doc_a["id"])] * 50),
+        (room_b, [(bob.session_id, doc_b["id"])] * 50),
+    )
+    assert [len(r) for r in results] == [50, 50] and all(
+        x == ("ok", True) for r in results for x in r
+    )
+    queries = [s for s in statements if "sessions" in s or "documents" in s]
+    assert len(queries) == 4  # two statements per room, however many connections it has
+
+
+async def test_access_check_needs_the_secret_and_a_valid_body(engine, google, settings, internal):
+    async with make_client(settings, engine, google) as anonymous:
+        response = await anonymous.post("/internal/collab/access/check", json={"rooms": []})
+        assert response.status_code == 401
+    for bad in ({}, {"rooms": [{"room_id": "x", "connections": []}]}, {"rooms": [], "extra": 1}):
+        assert (await internal.post("/internal/collab/access/check", json=bad)).status_code == 422

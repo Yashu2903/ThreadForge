@@ -127,6 +127,34 @@ class SnapshotOut(BaseModel):
     snapshot_id: uuid.UUID | None
 
 
+class AccessConnectionIn(_Body):
+    session_id: uuid.UUID
+    document_id: uuid.UUID
+
+
+class AccessRoomIn(_Body):
+    room_id: uuid.UUID
+    connections: list[AccessConnectionIn] = Field(max_length=2000)
+
+
+class AccessCheckIn(_Body):
+    rooms: list[AccessRoomIn] = Field(max_length=200)
+
+
+class AccessResultOut(BaseModel):
+    status: str
+    can_edit: bool
+
+
+class AccessRoomOut(BaseModel):
+    room_id: uuid.UUID
+    results: list[AccessResultOut]
+
+
+class AccessCheckOut(BaseModel):
+    rooms: list[AccessRoomOut]
+
+
 class AssetCheckIn(_Body):
     room_id: uuid.UUID
     asset_ids: list[uuid.UUID] = Field(max_length=500)
@@ -254,3 +282,22 @@ async def assets_check(request: Request, body: AssetCheckIn) -> AssetCheckOut:
         request.app.state.sessionmaker, body.room_id, body.asset_ids
     )
     return AssetCheckOut(missing=missing)
+
+
+@router.post("/access/check", response_model=AccessCheckOut)
+async def access_check(request: Request, body: AccessCheckIn) -> AccessCheckOut:
+    """Batched re-check of OPEN connections, one pair of queries per room (see
+    services/collab.check_access_batch). Read-only: no lease needed, nothing is written."""
+    sessionmaker = request.app.state.sessionmaker
+    rooms: list[AccessRoomOut] = []
+    for room in body.rooms:
+        answers = await collab.check_access_batch(
+            sessionmaker, room.room_id, [(c.session_id, c.document_id) for c in room.connections]
+        )
+        rooms.append(
+            AccessRoomOut(
+                room_id=room.room_id,
+                results=[AccessResultOut(status=a.status, can_edit=a.can_edit) for a in answers],
+            )
+        )
+    return AccessCheckOut(rooms=rooms)

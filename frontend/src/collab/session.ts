@@ -14,7 +14,7 @@
  */
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import * as Y from "yjs";
-import { type RawState, type SyncStatus, TERMINAL_CODES, TERMINAL_DENIALS, deriveStatus } from "./status";
+import { RETRY_DELAY_MS, type RawState, type SyncStatus, TERMINAL_CODES, TERMINAL_DENIALS, deriveStatus } from "./status";
 
 export interface CollabOptions {
   /** ws:// or wss:// URL of the collaboration endpoint, e.g. wss://app.example.com/collab */
@@ -31,6 +31,8 @@ export interface CollabSnapshot extends SyncStatus {
   lastCloseCode: number | null;
   /** why the server ended our access (session_invalid, forbidden, needs_repair, ...), if it did */
   denial: string | null;
+  /** the server turned this connection read-only while it was open (our role was lowered) */
+  demoted: boolean;
   /** a stable value that changes whenever the snapshot does (React compares it) */
   version: number;
 }
@@ -47,6 +49,7 @@ export class CollabSession {
   private listeners = new Set<() => void>();
   private lastCloseCode: number | null = null;
   private denial: string | null = null;
+  private demoted = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
   private version = 0;
@@ -76,6 +79,17 @@ export class CollabSession {
       onSynced: ({ state }: { state: boolean }) => {
         this.lastSynced = state;
         this.patch({ synced: state });
+      },
+      // The server tells us when it makes THIS connection read-only at runtime (our role was lowered)
+      onStateless: ({ payload }: { payload: string }) => {
+        try {
+          if ((JSON.parse(payload) as { type?: unknown }).type === "read_only") {
+            this.demoted = true;
+            this.patch({ scope: "readonly" });
+          }
+        } catch {
+          /* not for us */
+        }
       },
       onUnsyncedChanges: ({ number }: { number: number }) => this.patch({ unsynced: number }),
       onClose: ({ event }: { event: { code: number } }) => {
@@ -128,7 +142,7 @@ export class CollabSession {
       if (this.destroyed || this.raw.accessLost) return;
       this.provider.disconnect();
       void this.provider.connect();
-    }, 3000 + Math.random() * 2000);
+    }, (RETRY_DELAY_MS[reason] ?? 3000) + Math.random() * 2000);
   }
 
   /** Stop reconnecting after the server ended our access. Local text is kept. */
@@ -152,13 +166,13 @@ export class CollabSession {
   }
 
   private compute(): CollabSnapshot {
-    return { ...deriveStatus(this.raw), lastCloseCode: this.lastCloseCode, denial: this.denial, version: this.version };
+    return { ...deriveStatus(this.raw), lastCloseCode: this.lastCloseCode, denial: this.denial, demoted: this.demoted, version: this.version };
   }
 
   private publish(): void {
     const next = this.compute();
     const prev = this.snapshot;
-    if (prev.kind === next.kind && prev.label === next.label && prev.atRisk === next.atRisk && prev.editable === next.editable && prev.lastCloseCode === next.lastCloseCode && prev.denial === next.denial) {
+    if (prev.kind === next.kind && prev.label === next.label && prev.atRisk === next.atRisk && prev.editable === next.editable && prev.lastCloseCode === next.lastCloseCode && prev.denial === next.denial && prev.demoted === next.demoted) {
       return;
     }
     this.version += 1;

@@ -246,9 +246,8 @@ Authentication failures are Hocuspocus `permission-denied` messages with a `reas
 open until the unauthenticated timeout): `bad_document`, `origin`, `session_invalid` (401),
 `forbidden` (403: not a member / no such document), `needs_repair`, `too_many_connections`,
 `unavailable` (internal API or database down). WebSocket close codes used: **1001** server restarting,
-**1009** message larger than `COLLAB_MAX_MESSAGE_BYTES` (enforced by `ws` before parsing), **4429** over the
-per-user cap after authentication raced. Runtime access revocation codes (**4401**, **4403**, **4408**,
-**1013**) and the rate-limit code arrive in checkpoint 4.
+**1009** message larger than `COLLAB_MAX_MESSAGE_BYTES` (enforced by `ws` before parsing), and the codes in the
+table in section 6.2 (runtime access, rate limit, per-user cap).
 
 ### 4.8 Settings
 
@@ -263,6 +262,10 @@ per-user cap after authentication raced. Runtime access revocation codes (**4401
 | service | `COLLAB_MAX_MESSAGE_BYTES`, `COLLAB_MAX_STATE_BYTES` | 1 MiB, 8 MiB |
 | service | `COLLAB_MAX_CONNECTIONS_PER_USER`, `COLLAB_MAX_CONNECTIONS_TOTAL` | 10, 500 |
 | service | `COLLAB_STORE_RETRIES`, `COLLAB_STORE_RETRY_DELAY_MS`, `COLLAB_STORE_RECOVERY_DELAY_MS` | 3, 500, 5000 |
+| service | `COLLAB_ACCESS_CHECK_MS`, `COLLAB_ACCESS_GRACE_MS` | 15000, 30000 |
+| service | `COLLAB_REDIS_URL` (or `REDIS_URL`), `COLLAB_REDIS_PREFIX` (or `REDIS_CHANNEL_PREFIX`) | empty (timer only), `threadforge` |
+| service | `COLLAB_MESSAGES_PER_SECOND` | 100 |
+| service | `COLLAB_CONNECTS_PER_MINUTE`, `COLLAB_BAN_MINUTES`, `COLLAB_TRUST_PROXY_HEADERS` | 60, 5, false |
 | service | `COLLAB_LOG_LEVEL` | info |
 
 ### 4.9 Verified against the Hocuspocus 4.8.0 source (not memory)
@@ -278,10 +281,9 @@ underlying socket; `HocuspocusProvider` exposes `unsyncedChanges`, `authorizedSc
 
 ### 4.10 Known limits (cp 2)
 
-* Awareness (cursors, names) is client-asserted and cosmetic; checkpoint 3 resolves names from the member list.
+* Awareness (cursors, names) is client-asserted and cosmetic; the editor resolves names from the member list (section 5.6).
 * A denied connection keeps its socket until the unauthenticated timeout (60 s); it still counts toward the per-process cap meanwhile.
 * The strict per-user cap is enforced after the connection exists (authentication can race); the excess connection is closed with 4429.
-* Until checkpoint 4 there is no message-rate limit, no connection throttle and no live re-check of access after connecting.
 * A document at the 8 MiB state limit becomes read-only for everyone; its last oversized edit is not stored.
 
 ## 5. The browser editor (cp 3)
@@ -401,7 +403,91 @@ change. A deployment that adds one needs `connect-src 'self'` plus the same-orig
 * Access enforcement over time (revoking a socket while it is open) is checkpoint 4. Until then a removed member
   loses the room screen at once (the Part 5 event), which unmounts the editor and closes the socket.
 
-## 6. Later sections
+## 6. Access over time and limits (cp 4)
 
-Live access enforcement and limits (cp 4), import/migration commands and cleanup (cp 5) and the AI hooks (cp 6)
-are written with the checkpoints that build them.
+### 6.1 Why a check is needed
+
+A WebSocket is authenticated once, when it opens. Without a re-check a removed member, a signed-out user or a
+demoted editor would keep a working socket for as long as the tab stays open. `collab/src/access.ts`
+(`AccessMonitor`) closes that gap.
+
+```
+every COLLAB_ACCESS_CHECK_MS (15 s)  ┐
+Redis hint {prefix}:room:{room_id}   ├──► check the affected rooms ──► POST /internal/collab/access/check
+ (at most 1 per room per second)     ┘            one request, two SQL statements PER ROOM
+                                                        │
+        session_invalid ─► close 4401     not_member / document_gone ─► close 4403
+        ok, role now viewer ─► connection.readOnly = true + stateless {"type":"read_only"}
+        API/DB failing ─► serve for COLLAB_ACCESS_GRACE_MS (30 s), then close 1013
+```
+
+* **Batching.** Connections are grouped by room; the API answers for all of a room's connections with one
+  statement over `sessions` LEFT JOIN the room's active `memberships` and one over `documents`
+  (`services/collab.check_access_batch`). 100 connections cost the same two statements as 1 (tested).
+* **Redis is only a hint.** The outbox dispatcher already publishes a hint to `{prefix}:room:{room_id}` for every
+  committed room event (member removed, role changed...). The service subscribes (explicit SUBSCRIBE per room it
+  has connections in, UNSUBSCRIBE when the last one leaves), so a removal takes effect in about a second instead
+  of up to 15 s. If Redis is down or unconfigured the timer alone keeps enforcing access (tested: the service
+  logs once per 30 s and carries on).
+* **Downgrade without a disconnect.** Hocuspocus drops the updates of a read-only connection, and `Connection.readOnly`
+  is mutable (verified in the 4.8.0 source), so a demoted editor's connection is switched to read-only in place;
+  the service also sends a stateless message `{"type":"read_only"}` so the browser locks its editor, shows the
+  "You can no longer edit this document" notice and offers to reload the document from the server. Edits made in
+  the moments before the notice were dropped by the server; the notice says so and offers Copy. There is no
+  runtime UPGRADE: a promoted viewer reloads the page.
+* **API or database down.** Checks that fail are tolerated for `COLLAB_ACCESS_GRACE_MS` (a blip must not
+  disconnect everyone); beyond that every affected connection is closed with **1013** because access can no longer
+  be verified. New connections are refused with the temporary denial `unavailable` in the same situation.
+
+### 6.2 Close codes and what the browser does
+
+| Code / denial | Meaning | Browser |
+|---|---|---|
+| **4401** `session_invalid` | session revoked/expired or user disabled | terminal: "Access lost", **keeps the local text**, no reconnect |
+| **4403** `not_a_member` | removed from the room, or the document left it | terminal, same |
+| denial `needs_repair` | the document failed validation | terminal; message says it needs repair |
+| **1013** | service or its API unavailable | temporary: the provider reconnects with backoff, same `Y.Doc`, local edits are sent afterwards |
+| **1001** | server restarting | temporary, same |
+| **4408** | timeout | temporary, same |
+| **4429** | too many connections for this user | temporary, same |
+| **4430** | more than `COLLAB_MESSAGES_PER_SECOND` (100) messages in a second on one connection | temporary, same (the backoff keeps a runaway client from hammering) |
+| denial `throttled` | too many connection attempts from one IP | temporary; waits about 30 s |
+| denials `unavailable`, `too_many_connections` | | temporary; retried after 3-5 s |
+
+### 6.3 Limits
+
+* **Message rate.** `beforeHandleMessage` (verified to exist in 4.8.0: a throw there makes Hocuspocus drop the
+  message) counts messages per connection per second; the 101st closes the socket with 4430 and the others are
+  untouched. Normal typing is about 10-20 messages per second (tested at 20/s: no close).
+* **Connection throttle.** The official `@hocuspocus/extension-throttle` (MIT) limits connection attempts per IP
+  (`COLLAB_CONNECTS_PER_MINUTE`, then a ban for `COLLAB_BAN_MINUTES`). It keys on `X-Real-IP` / `X-Forwarded-For`,
+  which any client can send, so unless `COLLAB_TRUST_PROXY_HEADERS=true` (only behind a proxy that sets them)
+  the service overwrites them with the TCP peer address before the throttle sees them (tested: rotating the
+  headers does not dodge the ban). Its refusal is converted to the temporary denial `throttled` (the extension's
+  own refusal would look like a final `forbidden` to the browser).
+* Existing limits: message size (1 MiB, 1009), state size (8 MiB, read-only), connections per user (10) and total (500).
+
+### 6.4 Tests (cp 4)
+
+* Service (`collab/test/access.test.ts`, real FastAPI + PostgreSQL + Redis + WebSocket clients, shortened timers):
+  removal 4403, revoked session 4401, disabled user 4401, runtime downgrade (socket open, edits dropped, notice,
+  nothing sneaky stored, still receives live edits), Redis hint within about a second with the timer idle,
+  hint coalescing (40 hints -> at most 3 checks), Redis unreachable (timer still enforces), API failure tolerated
+  then 1013, API recovering inside the grace period (nobody disconnected), message-rate 4430 (only the offender),
+  ordinary typing, throttle, header spoofing, trusted-proxy mode.
+* Backend (`test_collab_internal.py`): the access endpoint (order, every change kind, document of another room,
+  statement count, secret and body validation).
+* Browser (Playwright): terminal close keeps the text and never reconnects; 1013 reconnects and the text flows
+  again; a demoted editor is locked while the page is open and told, the owner keeps editing and the demoted
+  user still sees it live.
+
+### 6.5 Known limits (cp 4)
+
+* A check happens within about a second with Redis, up to 15 s without it: a removed member can read for that long.
+* The edits of a demoted editor typed between the demotion and the server's notice are dropped (told, not hidden).
+* Rate limits are per connection/IP in one process; there is one service instance (the fenced lease), so that is global.
+
+## 7. Later sections
+
+Import/migration commands, snapshot-driven asset references and cleanup (cp 5) and the AI hooks (cp 6) are
+written with the checkpoints that build them.

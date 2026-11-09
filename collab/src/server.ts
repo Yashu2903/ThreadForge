@@ -19,11 +19,15 @@ import {
   type Connection,
   type Document as HocuspocusDocument,
   type Hocuspocus,
+  type beforeHandleMessagePayload,
   type onAuthenticatePayload,
+  type onConnectPayload,
   type onLoadDocumentPayload,
   type onStoreDocumentPayload,
 } from "@hocuspocus/server";
+import { Throttle } from "@hocuspocus/extension-throttle";
 import * as Y from "yjs";
+import { AccessMonitor } from "./access.js";
 import { ApiError, InternalApi, type Access } from "./api.js";
 import type { CollabConfig } from "./config.js";
 import { SeedError, buildSeed, documentIdOf, validatedSnapshot, validatedSnapshotOfState } from "./documents.js";
@@ -37,6 +41,8 @@ export const CLOSE = {
   NOT_A_MEMBER: 4403,
   ACCESS_CHANGED: 4408,
   TOO_MANY_CONNECTIONS: 4429,
+  /** more than COLLAB_MESSAGES_PER_SECOND messages in one second on one connection */
+  RATE_LIMITED: 4430,
   UNAVAILABLE: 1013,
 } as const;
 
@@ -91,6 +97,9 @@ export class CollabServer {
   readonly lease: LeaseKeeper;
   readonly server: Server<Ctx>;
   private readonly live = new Map<string, LiveDoc>();
+  readonly access: AccessMonitor;
+  private readonly throttle: Throttle;
+  private readonly rateWindows = new WeakMap<object, { second: number; count: number }>();
   private openSockets = 0;
   private shuttingDown = false;
   private started = false;
@@ -106,6 +115,26 @@ export class CollabServer {
       graceMs: config.leaseGraceMs,
       onLost: () => (deps.onLeaseLost ?? (() => process.exit(1)))(),
     });
+    this.throttle = new Throttle({
+      throttle: config.connectsPerMinute,
+      consideredSeconds: 60,
+      banTime: config.banMinutes,
+    });
+    this.access = new AccessMonitor(
+      this.api,
+      {
+        connections: () => this.allConnections(),
+        close: (connection, code, reason) => this.closeConnection(connection, code, reason),
+        downgrade: (connection) => this.downgrade(connection),
+      },
+      this.log,
+      {
+        accessCheckMs: config.accessCheckMs,
+        accessGraceMs: config.accessGraceMs,
+        redisUrl: config.redisUrl,
+        redisPrefix: config.redisPrefix,
+      },
+    );
     this.server = new Server<Ctx>({
       port: config.port,
       address: config.address,
@@ -118,7 +147,12 @@ export class CollabServer {
       websocketOptions: { maxPayload: config.maxMessageBytes },
       onUpgrade: (data) => this.onUpgrade(data.request, data.socket),
       onRequest: (data) => this.onRequest(data.request, data.response),
+      onConnect: (data) => this.onConnect(data),
       onAuthenticate: (data) => this.onAuthenticate(data),
+      beforeHandleMessage: (data) => this.beforeHandleMessage(data),
+      onDisconnect: async () => {
+        setTimeout(() => void this.access.syncSubscriptions(), 0);
+      },
       onLoadDocument: (data) => this.onLoadDocument(data),
       afterLoadDocument: (data) => this.afterLoadDocument(data),
       connected: (data) => this.connected(data.connection),
@@ -142,6 +176,7 @@ export class CollabServer {
   async start(): Promise<void> {
     await this.lease.acquire();
     await this.server.listen();
+    this.access.start();
     this.started = true;
     this.log.info("collaboration service listening", { port: this.port });
   }
@@ -163,8 +198,10 @@ export class CollabServer {
         }
       }
     }
+    await this.access.stop();
     this.hocuspocus.flushPendingStores();
     await this.server.destroy();
+    await this.throttle.onDestroy();
     for (const live of this.live.values()) this.clearTimers(live);
     await this.lease.release();
     this.started = false;
@@ -208,6 +245,12 @@ export class CollabServer {
     if (this.shuttingDown) return this.refuseUpgrade(socket, 503, "Service Unavailable");
     if (!this.originAllowed(request.headers.origin)) return this.refuseUpgrade(socket, 403, "Forbidden");
     if (this.openSockets >= this.config.maxConnectionsTotal) return this.refuseUpgrade(socket, 503, "Service Unavailable");
+    if (!this.config.trustProxyHeaders) {
+      // The throttle keys on X-Real-IP / X-Forwarded-For, which any client can send. Without a trusted
+      // proxy in front, replace them with the address of the TCP connection itself.
+      request.headers["x-real-ip"] = request.socket.remoteAddress ?? "";
+      delete request.headers["x-forwarded-for"];
+    }
     this.openSockets += 1;
     socket.once("close", () => {
       this.openSockets -= 1;
@@ -224,6 +267,51 @@ export class CollabServer {
       }
     }
     return total;
+  }
+
+  /** Connection-attempt throttle (per IP). A refusal is a TEMPORARY denial: the client waits and retries. */
+  private async onConnect(data: onConnectPayload<Ctx>): Promise<void> {
+    try {
+      await this.throttle.onConnect(data);
+    } catch {
+      throw new Reject("throttled");
+    }
+  }
+
+  /** At most `messagesPerSecond` messages per connection per second; beyond that the socket is closed (4430). */
+  private async beforeHandleMessage(data: beforeHandleMessagePayload<Ctx>): Promise<void> {
+    const key = data.connection.webSocket as object;
+    const second = Math.floor(Date.now() / 1000);
+    let window = this.rateWindows.get(key);
+    if (!window || window.second !== second) {
+      window = { second, count: 0 };
+      this.rateWindows.set(key, window);
+    }
+    window.count += 1;
+    if (window.count > this.config.messagesPerSecond) {
+      this.log.warn("message rate limit exceeded", { document: data.documentName });
+      this.closeConnection(data.connection, CLOSE.RATE_LIMITED, "rate_limited");
+      throw new Reject("rate_limited");
+    }
+  }
+
+  /** Every open document connection (used by the access monitor). */
+  private allConnections(): Connection<Ctx>[] {
+    const out: Connection<Ctx>[] = [];
+    for (const document of this.hocuspocus.documents.values()) out.push(...document.getConnections());
+    return out;
+  }
+
+  /** The person is still in the room but no longer allowed to write: lock this connection NOW. */
+  private downgrade(connection: Connection<Ctx>): void {
+    connection.readOnly = true; // Hocuspocus drops a read-only connection's document updates itself
+    connection.context.canEdit = false;
+    connection.context.role = "viewer";
+    try {
+      connection.sendStateless(JSON.stringify({ type: "read_only" }));
+    } catch {
+      /* the socket is closing */
+    }
   }
 
   private async onAuthenticate(data: onAuthenticatePayload<Ctx>): Promise<Ctx> {
@@ -265,6 +353,7 @@ export class CollabServer {
 
   /** After the connection exists: the strict per-user cap (authentication races can overshoot). */
   private async connected(connection: Connection<Ctx>): Promise<void> {
+    void this.access.syncSubscriptions();
     const ctx = connection.context;
     if (this.connectionsOfUser(ctx.userId) > this.config.maxConnectionsPerUser) {
       this.closeConnection(connection, CLOSE.TOO_MANY_CONNECTIONS, "too_many_connections");

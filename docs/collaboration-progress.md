@@ -112,3 +112,31 @@ ruff check and format clean; `tsc --noEmit` clean. Not re-run at this checkpoint
 **Not verified / limits**: see `docs/collaboration.md` 5.10. No CSP exists in the repository to change (documented
 what a deployment needs). Screen-reader behaviour was reasoned from ARIA roles, not tested with a screen reader.
 Access enforcement while the socket is open (revoking a member's document socket) is checkpoint 4.
+
+## Checkpoint 4: access over time, limits, close codes
+
+**Done**
+* `POST /internal/collab/access/check` (secret-protected, read-only): one pair of SQL statements per room for all of
+  its open connections; reports `ok` (+ `can_edit`), `session_invalid`, `not_member`, `document_gone`.
+* `collab/src/access.ts` (`AccessMonitor`): periodic check (15 s) for all rooms, Redis room hints
+  (`{prefix}:room:{room_id}`, explicit subscribe/unsubscribe per room, at most one check per room per second,
+  Redis loss never stops the timer), 4401 / 4403 closes, runtime downgrade to read-only (`Connection.readOnly`
+  plus a stateless `read_only` notice), 30 s grace then 1013 when the API/database cannot answer.
+* Limits: 100 messages/s per connection (`beforeHandleMessage`, close 4430), connection-attempt throttle with the
+  official extension (temporary denial `throttled`; client-supplied forwarding headers are overwritten unless
+  `COLLAB_TRUST_PROXY_HEADERS=true`).
+* Browser: 4401/4403 terminal (keeps text, no reconnect), 1001/1013/4408/4429/4430 and temporary denials retry
+  (throttled waits ~30 s), demotion notice with Copy and Reload.
+* Docs: `docs/collaboration.md` sections 6.1-6.5; settings in `.env.example` and `compose.yaml`.
+* `beforeHandleMessage` as a rate-limit point and the mutable `Connection.readOnly` are now VERIFIED (source and tests);
+  both were listed as unverified at checkpoint 1.
+
+**Verified (automated)**
+* collab service vitest 43 passed (28 + 15 new, real FastAPI + PostgreSQL + Redis + WebSocket clients).
+* backend: 6 new access-endpoint tests; collab-internal + CSRF-audit + config 80 passed; ruff clean.
+* browser: 27 passed, 1 skipped (Chromium + Firefox): adds terminal close, temporary close, runtime demotion.
+* frontend vitest 39 passed; `tsc --noEmit` clean.
+
+**Not verified**: behaviour behind a real reverse proxy (the throttle's proxy mode is tested with headers only);
+the Docker image was not rebuilt after adding the `redis` dependency; Redis with a password/TLS (the client
+accepts a `rediss://` URL but only plain local Redis was exercised).
