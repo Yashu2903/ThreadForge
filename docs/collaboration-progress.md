@@ -161,3 +161,16 @@ accepts a `rediss://` URL but only plain local Redis was exercised).
   `vite build` clean.
 
 **Not re-run at this checkpoint**: Playwright (no frontend runtime code changed; run again at checkpoint 6).
+
+## Checkpoint 6: AI-ready hooks, integration, final report
+
+**Done**: `POST /internal/ai/read` and `POST /internal/ai/apply` on the collaboration service (read = exact stored
+counter + content hash + per-block hashes; apply = replace one block by id with a base-hash check, requester check on
+every call, full-document validation, rehearsal on a copy, one synchronous transaction with its own origin, size and
+frequency limits, no content in logs); `POST /internal/collab/can-write`; a store of unchanged bytes is now skipped
+(opening, reading and closing a document no longer move the counter); a browser test that a server-side change appears
+live and a stale hash is refused while a person types. Final report: `docs/collaboration-final-report.md`.
+
+**Final verification**: backend 1359 passed (3 sequential batches), ruff and `alembic check` clean; collab service 64;
+schema package 91; frontend vitest 39, `tsc` and `vite build` clean; `client/` 69; Playwright 29 passed, 1 skipped
+(Chromium and Firefox).

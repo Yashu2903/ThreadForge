@@ -40,6 +40,14 @@ export interface AccessRoomAnswer {
   room_id: string;
   results: { status: "ok" | "session_invalid" | "not_member" | "document_gone"; can_edit: boolean }[];
 }
+export interface WriteDecision {
+  allowed: boolean;
+  reason: string;
+  role_ok: boolean;
+  role: string | null;
+  collab_state: CollabState | null;
+  room_id: string | null;
+}
 export interface LeaseInfo {
   token: number;
   expires_at: string;
@@ -128,6 +136,12 @@ export class InternalApi {
   async authorize(cookieHeader: string | null, documentId: string): Promise<Access> {
     const r = await this.call("POST", "/authorize", { json: { cookie_header: cookieHeader, document_id: documentId } });
     return (await r.json()) as Access;
+  }
+
+  /** May this USER (by id, not by cookie) write to this document now? Same rule as the editor's. */
+  async canWrite(userId: string, documentId: string): Promise<WriteDecision> {
+    const r = await this.call("POST", "/can-write", { json: { user_id: userId, document_id: documentId } });
+    return (await r.json()) as WriteDecision;
   }
 
   /** One question for every open connection of the given rooms (see services/collab.check_access_batch). */

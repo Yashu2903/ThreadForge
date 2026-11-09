@@ -44,6 +44,11 @@ export interface CollabConfig {
   banMinutes: number;
   /** believe X-Real-IP / X-Forwarded-For (only behind a proxy that sets them); otherwise the socket address is used */
   trustProxyHeaders: boolean;
+  /** AI hooks: block replacements per requester / per document per minute, and size caps */
+  aiAppliesPerMinute: number;
+  aiAppliesPerDocumentPerMinute: number;
+  aiMaxBlockBytes: number;
+  aiMaxBodyBytes: number;
   limits: Limits;
 }
 
@@ -73,6 +78,10 @@ export const DEFAULTS: Omit<CollabConfig, "apiBaseUrl" | "internalSecret" | "all
   connectsPerMinute: 60,
   banMinutes: 5,
   trustProxyHeaders: false,
+  aiAppliesPerMinute: 20,
+  aiAppliesPerDocumentPerMinute: 60,
+  aiMaxBlockBytes: 64 * 1024,
+  aiMaxBodyBytes: 256 * 1024,
   limits: DEFAULT_LIMITS,
 };
 
@@ -133,6 +142,10 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): CollabConfi
     connectsPerMinute: int(env, "COLLAB_CONNECTS_PER_MINUTE", DEFAULTS.connectsPerMinute),
     banMinutes: int(env, "COLLAB_BAN_MINUTES", DEFAULTS.banMinutes),
     trustProxyHeaders: (env.COLLAB_TRUST_PROXY_HEADERS ?? "false").toLowerCase() === "true",
+    aiAppliesPerMinute: int(env, "COLLAB_AI_APPLIES_PER_MINUTE", DEFAULTS.aiAppliesPerMinute),
+    aiAppliesPerDocumentPerMinute: int(env, "COLLAB_AI_APPLIES_PER_DOCUMENT_PER_MINUTE", DEFAULTS.aiAppliesPerDocumentPerMinute),
+    aiMaxBlockBytes: int(env, "COLLAB_AI_MAX_BLOCK_BYTES", DEFAULTS.aiMaxBlockBytes),
+    aiMaxBodyBytes: int(env, "COLLAB_AI_MAX_BODY_BYTES", DEFAULTS.aiMaxBodyBytes),
     limits: DEFAULT_LIMITS,
   };
 }

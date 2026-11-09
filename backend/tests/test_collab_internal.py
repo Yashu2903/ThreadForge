@@ -769,3 +769,40 @@ async def test_access_check_needs_the_secret_and_a_valid_body(engine, google, se
         assert response.status_code == 401
     for bad in ({}, {"rooms": [{"room_id": "x", "connections": []}]}, {"rooms": [], "extra": 1}):
         assert (await internal.post("/internal/collab/access/check", json=bad)).status_code == 422
+
+
+# ---- can-write for server-side callers (the AI hooks) -----------------------------------------------------
+
+
+async def test_can_write_uses_the_shared_rule_for_a_user_id(
+    internal, sessionmaker, alice, bob, carol
+):
+    room_id, doc = await room_with_doc(alice, sessionmaker, (bob, "editor"), (carol, "viewer"))
+
+    async def ask(user_id, document_id=doc["id"]):
+        response = await internal.post(
+            "/internal/collab/can-write", json={"user_id": str(user_id), "document_id": document_id}
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    assert (await ask(alice.id))["allowed"] is True
+    assert (await ask(bob.id))["allowed"] is True
+    viewer = await ask(carol.id)
+    assert (viewer["allowed"], viewer["reason"], viewer["role_ok"]) == (
+        False,
+        "insufficient_role",
+        False,
+    )
+    assert (await ask(uuid.uuid4()))["reason"] == "user_inactive"
+    assert (await ask(alice.id, str(uuid.uuid4())))["reason"] == "document_not_found"
+    await execute(
+        sessionmaker,
+        "UPDATE documents SET collab_state = 'needs_repair' WHERE id = :d",
+        d=doc["id"],
+    )
+    broken = await ask(alice.id)
+    assert (broken["allowed"], broken["reason"], broken["role_ok"]) == (False, "needs_repair", True)
+    await add_member(sessionmaker, room_id, bob.id, "editor", state="removed")
+    # membership is judged before the document's state
+    assert (await ask(bob.id))["reason"] == "not_member"

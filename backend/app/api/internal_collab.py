@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.config import Settings
 from app.errors import AppError
 from app.services import collab
+from app.services.permissions import decide_write
 
 SECRET_HEADER = "X-Internal-Secret"  # noqa: S105 (a header NAME, not a secret)
 LEASE_HEADER = "X-Collab-Lease"
@@ -153,6 +154,20 @@ class AccessRoomOut(BaseModel):
 
 class AccessCheckOut(BaseModel):
     rooms: list[AccessRoomOut]
+
+
+class CanWriteIn(_Body):
+    user_id: uuid.UUID
+    document_id: uuid.UUID
+
+
+class CanWriteOut(BaseModel):
+    allowed: bool
+    reason: str
+    role_ok: bool
+    role: str | None
+    collab_state: str | None
+    room_id: uuid.UUID | None
 
 
 class AssetCheckIn(_Body):
@@ -301,3 +316,22 @@ async def access_check(request: Request, body: AccessCheckIn) -> AccessCheckOut:
             )
         )
     return AccessCheckOut(rooms=rooms)
+
+
+@router.post("/can-write", response_model=CanWriteOut)
+async def can_write(request: Request, body: CanWriteIn) -> CanWriteOut:
+    """May this USER (not a cookie) write to this document right now? The same decide_write the
+    browser-facing authorize uses, for server-side callers that act on a person's behalf (the AI
+    hooks): the requester is re-checked on every call, never trusted from an earlier one."""
+    async with request.app.state.sessionmaker() as db:
+        decision = await decide_write(
+            db, request.app.state.settings, body.user_id, body.document_id
+        )
+    return CanWriteOut(
+        allowed=decision.allowed,
+        reason=decision.reason,
+        role_ok=decision.role_ok,
+        role=decision.role,
+        collab_state=decision.collab_state,
+        room_id=decision.room_id,
+    )

@@ -1,4 +1,5 @@
 import { type Page, type WebSocketRoute, expect, test } from "@playwright/test";
+import { COLLAB_URL, INTERNAL_SECRET } from "./env";
 import { AsUser, roomUrl, seed, signedIn } from "./helpers";
 
 /**
@@ -353,5 +354,45 @@ test.describe("live collaborative editing", () => {
     await expect.poll(() => textOf(b.page)).toContain("owner continues");
     await b.page.getByTestId("reload-doc").click();
     await expect(surface(b.page)).toContainText("owner continues");
+  });
+
+  test("a server-side block change (the AI hook) shows up live, merges with typing, and is refused when stale", async ({ browser }) => {
+    const { a, b, roomId, doc, asOwner } = await setup(browser);
+    // the hook acts for a person: here the room owner, found through the members list
+    const members = await asOwner.get<{ items: { user_id: string; display_name: string; role: string }[] }>(`/rooms/${roomId}/members`);
+    const olivia = members.items.find((m) => m.display_name === "Olivia")!.user_id;
+    const hook = async (path: "read" | "apply", body: unknown) => {
+      const res = await fetch(`${COLLAB_URL}/internal/ai/${path}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Internal-Secret": INTERNAL_SECRET }, body: JSON.stringify(body) });
+      return { status: res.status, body: (await res.json()) as any };
+    };
+    await surface(a.page).click();
+    await a.page.keyboard.type("original sentence");
+    await expect(status(a.page)).toHaveText("Synced");
+    const read = await hook("read", { document_id: doc.id, requester_id: olivia });
+    expect(read.status).toBe(200);
+    expect(read.body.blocks[0].text).toBe("original sentence");
+    const block = read.body.blocks[0];
+
+    // Eddie keeps typing in the SAME block while the hook rewrites it: the hook's base hash is now stale
+    await surface(b.page).click();
+    await b.page.keyboard.press("End");
+    await b.page.keyboard.type(" plus Eddie");
+    await expect.poll(() => textOf(a.page)).toContain("plus Eddie");
+    const stale = await hook("apply", { document_id: doc.id, requester_id: olivia, block_id: block.id, base_hash: block.hash, block: { type: "paragraph", content: [{ type: "text", text: "AI rewrite" }] } });
+    expect(stale.status).toBe(409);
+    expect(await textOf(a.page)).toContain("original sentence plus Eddie"); // nothing was overwritten
+
+    // with a fresh read the change lands, live, in both open editors
+    const fresh = (await hook("read", { document_id: doc.id, requester_id: olivia })).body.blocks[0];
+    const ok = await hook("apply", { document_id: doc.id, requester_id: olivia, block_id: fresh.id, base_hash: fresh.hash, block: { type: "paragraph", content: [{ type: "text", text: "AI rewrite" }] } });
+    expect(ok.status).toBe(200);
+    await expect.poll(() => textOf(a.page)).toBe("AI rewrite");
+    await expect.poll(() => textOf(b.page)).toBe("AI rewrite");
+    await expect(status(a.page)).toHaveText("Synced");
+    // typing continues normally after a server-side change
+    await surface(b.page).click();
+    await b.page.keyboard.press("End");
+    await b.page.keyboard.type("!");
+    await expect.poll(() => textOf(a.page)).toBe("AI rewrite!");
   });
 });

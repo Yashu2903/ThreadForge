@@ -12,7 +12,7 @@
  * This process holds NO source of truth: everything durable goes through the internal API under a
  * fenced lease. See docs/collaboration.md for the flows and the failure modes.
  */
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage as HttpRequest, ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import {
@@ -29,6 +29,7 @@ import {
 import { Throttle } from "@hocuspocus/extension-throttle";
 import * as Y from "yjs";
 import { AccessMonitor } from "./access.js";
+import { AiHooks } from "./ai-hooks.js";
 import { ApiError, InternalApi, type Access } from "./api.js";
 import type { CollabConfig } from "./config.js";
 import { SeedError, buildSeed, documentIdOf, validatedSnapshot, validatedSnapshotOfState } from "./documents.js";
@@ -77,6 +78,8 @@ interface LiveDoc {
   lastSnapshotCounter: number;
   snapshotting: boolean;
   snapshotTimer: NodeJS.Timeout | null;
+  /** hash of the newest stored state: an unchanged document is not stored again */
+  lastStoredHash: string | null;
   /** the validated JSON failed the schema: marked needs_repair, raw Yjs still stored */
   invalid: boolean;
   duplicateIdStrikes: number;
@@ -86,6 +89,8 @@ interface LiveDoc {
 }
 
 /** What `POST /internal/migrate` answers for one document. `detail` is a code or a path, never content. */
+export type DirectHandle = Awaited<ReturnType<Hocuspocus<Ctx>["openDirectConnection"]>>;
+
 export interface MigrateResult {
   result: "migrated" | "would_migrate" | "already_migrated" | "skipped_needs_repair" | "invalid" | "failed";
   detail?: string;
@@ -105,6 +110,7 @@ export class CollabServer {
   readonly server: Server<Ctx>;
   private readonly live = new Map<string, LiveDoc>();
   readonly access: AccessMonitor;
+  readonly ai: AiHooks;
   private readonly throttle: Throttle;
   private readonly rateWindows = new WeakMap<object, { second: number; count: number }>();
   private openSockets = 0;
@@ -142,6 +148,7 @@ export class CollabServer {
         redisPrefix: config.redisPrefix,
       },
     );
+    this.ai = new AiHooks(this, this.api, config, this.log);
     this.server = new Server<Ctx>({
       port: config.port,
       address: config.address,
@@ -229,8 +236,8 @@ export class CollabServer {
           connections: this.hocuspocus.getConnectionsCount(),
         }),
       );
-    } else if (path === "/internal/migrate" && request.method === "POST") {
-      await this.onMigrateRequest(request, response);
+    } else if (request.method === "POST" && ["/internal/migrate", "/internal/ai/read", "/internal/ai/apply"].includes(path)) {
+      await this.onInternalRequest(path, request, response);
     } else {
       response.writeHead(404, { "Content-Type": "text/plain" });
       response.end("Not found");
@@ -239,11 +246,13 @@ export class CollabServer {
   }
 
   /**
-   * `POST /internal/migrate {document_id, dry_run}` with the shared secret: seed ONE legacy document into
-   * Yjs now (the operator command migrate_documents_to_collab calls this for each). Not routed by the
-   * reverse proxy, which forwards only the WebSocket path.
+   * The private HTTP routes of the service (secret-protected; the reverse proxy forwards only the
+   * WebSocket path, so they are reachable from the private network only):
+   *   POST /internal/migrate     {document_id, dry_run}                       seed one legacy document
+   *   POST /internal/ai/read     {document_id, requester_id}                  AI hook: read
+   *   POST /internal/ai/apply    {document_id, requester_id, block_id, base_hash, block}   AI hook: change
    */
-  private async onMigrateRequest(request: HttpRequest, response: ServerResponse): Promise<void> {
+  private async onInternalRequest(path: string, request: HttpRequest, response: ServerResponse): Promise<void> {
     const send = (status: number, body: unknown) => {
       response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       response.end(JSON.stringify(body));
@@ -252,19 +261,64 @@ export class CollabServer {
     const expected = Buffer.from(this.config.internalSecret);
     if (given.length !== expected.length || !timingSafeEqual(given, expected)) return send(401, { error: "unauthenticated" });
     if (this.shuttingDown) return send(503, { error: "shutting_down" });
+    const limit = path === "/internal/migrate" ? 4096 : this.config.aiMaxBodyBytes;
     let raw = "";
+    let size = 0;
     for await (const chunk of request) {
+      size += (chunk as Buffer).length;
+      if (size > limit) return send(413, { error: "too_large" });
       raw += chunk;
-      if (raw.length > 4096) return send(413, { error: "too_large" });
     }
-    let body: { document_id?: unknown; dry_run?: unknown };
+    let body: Record<string, unknown>;
     try {
-      body = JSON.parse(raw) as typeof body;
+      const parsed = JSON.parse(raw) as unknown;
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("not an object");
+      body = parsed as Record<string, unknown>;
     } catch {
       return send(422, { error: "invalid_json" });
     }
+    if (path === "/internal/ai/read") {
+      const reply = await this.ai.read(body);
+      return send(reply.status, reply.body);
+    }
+    if (path === "/internal/ai/apply") {
+      const reply = await this.ai.apply(body);
+      return send(reply.status, reply.body);
+    }
     if (typeof body.document_id !== "string" || !/^[0-9a-f-]{36}$/.test(body.document_id)) return send(422, { error: "invalid_document_id" });
     send(200, await this.migrate(body.document_id, body.dry_run === true));
+  }
+
+  /**
+   * Run `fn` against the LIVE document (loading, and if necessary seeding, it first) through an internal
+   * direct connection, so server-side callers see and change exactly what people in browsers see.
+   * `context` becomes the transaction origin of anything `direct.transact` does.
+   */
+  async withDocument<T>(
+    documentId: string,
+    context: Record<string, unknown>,
+    fn: (handle: { document: HocuspocusDocument; name: string; direct: DirectHandle }) => Promise<T>,
+  ): Promise<T> {
+    const name = `doc:${documentId}`;
+    const direct = await this.hocuspocus.openDirectConnection(name, context as never);
+    try {
+      if (!direct.document || !this.live.has(name)) throw new Error("document not loaded");
+      return await fn({ document: direct.document, name, direct });
+    } finally {
+      await direct.disconnect();
+    }
+  }
+
+  /**
+   * Store the live document NOW (unless nothing changed since the last store) and say exactly which
+   * bytes were stored under which counter, so a caller can describe that state precisely.
+   */
+  async storeNow(name: string, document: HocuspocusDocument): Promise<{ counter: number; bytes: Uint8Array }> {
+    const live = this.live.get(name);
+    if (!live) throw new Error("document not loaded");
+    await this.onStoreDocument({ documentName: name, document } as never); // a no-op if nothing changed
+    const bytes = Y.encodeStateAsUpdate(document);
+    return { counter: live.counter, bytes };
   }
 
   /**
@@ -466,6 +520,8 @@ export class CollabServer {
         roomId: stored.roomId,
         counter,
         pendingSnapshot: null,
+        // what was just loaded IS the stored state: opening a document must not make it look changed
+        lastStoredHash: createHash("sha256").update(Y.encodeStateAsUpdate(data.document)).digest("hex"),
         lastSnapshotCounter: -1,
         snapshotting: false,
         snapshotTimer: null,
@@ -566,6 +622,9 @@ export class CollabServer {
     const live = this.live.get(data.documentName);
     if (!live) return;
     const update = Y.encodeStateAsUpdate(data.document);
+    // Nothing changed since the last store (an awareness-only tick, a read, a disconnect): storing again
+    // would only raise the counter, and a reader could no longer say "this counter IS this state".
+    if (live.lastStoredHash === createHash("sha256").update(update).digest("hex")) return;
     if (update.byteLength >= this.config.maxStateBytes) {
       this.freeze(data.documentName, data.document);
       if (update.byteLength > this.config.maxStateBytes) return;
@@ -576,6 +635,7 @@ export class CollabServer {
       try {
         await this.api.putState(live.id, this.lease.token, counter, update);
         live.counter = counter;
+        live.lastStoredHash = createHash("sha256").update(update).digest("hex");
         live.pendingSnapshot = { bytes: update, counter };
         if (live.recoveryTimer) {
           clearTimeout(live.recoveryTimer);

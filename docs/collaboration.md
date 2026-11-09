@@ -124,9 +124,17 @@ Added by the collaboration service (checkpoint 2), all **MIT**:
 | `crossws`, `async-mutex`, `kleur` | 0.4.17, 0.5.0, 4.1.5 | Hocuspocus' own dependencies |
 | `ws`, `pg`, `tsx` (dev only) | 8.22.2, 8.23.1, 4.23.15 | test client sockets, test fixtures, `npm run dev` |
 
-Whole install tree by licence: MIT (236), Apache-2.0 (8), ISC (9), BSD-3-Clause (2), BSD-2-Clause (2),
-MIT-0 (1), 0BSD (1), plus our own three private workspace packages (no licence field; the repository's
-`LICENSE` applies).
+Added by the browser editor (checkpoint 3) and the access/limits work (checkpoint 4), all **MIT**:
+
+| Package | Version | Role |
+|---|---|---|
+| `@tiptap/react`, `@tiptap/extension-collaboration`, `@tiptap/extension-collaboration-caret` | 3.33.0 | the React editor, the Yjs binding, remote carets |
+| `@hocuspocus/provider` | 4.8.0 | the browser's connection to the service |
+| `redis` | 6.3.1 | the collaboration service's subscription to room hints |
+
+Whole install tree by licence (final scan): MIT (253), Apache-2.0 (8), ISC (9), BSD-3-Clause (2), BSD-2-Clause (2),
+MIT-0 (1), 0BSD (1), CC-BY-4.0 (1, flagged below), plus our own three private workspace packages (no licence field; the
+repository's `LICENSE` applies).
 
 **Flagged: not MIT/BSD/Apache-style:** `caniuse-lite` 1.0.30001823 is **CC-BY-4.0** (a data package pulled in by
 browserslist/Vite tooling; it is build-time data, attribution-only and is not shipped in our bundles).
@@ -537,6 +545,70 @@ fixtures stay), and their tests. Kept and deprecated (no drop, expand-only): `do
 `content_version`, `content_hash`, `content_updated_at`, the table `document_write_buckets`, the event type
 `document_content_updated`. The README lists them.
 
-## 8. Later sections
+## 8. AI-ready hooks (cp 6)
 
-The AI hooks, the integration run and the final report (cp 6).
+No AI is built here: no model, no prompt, no provider. These are the two operations a later AI feature needs from
+the collaboration service. They exist and are tested now so the rules are fixed before any caller does.
+Both are private HTTP routes of the collaboration service (`POST /internal/ai/read`, `POST /internal/ai/apply`;
+shared secret; the reverse proxy forwards only `/collab`). Code: `collab/src/ai-hooks.ts`.
+
+### 8.1 Read
+
+`{document_id, requester_id}` returns the document as it is NOW:
+
+```
+{ document_id, yjs_update_counter, content_hash, content (validated Tiptap JSON),
+  blocks: [{ id, type, hash, parent_id, text }, ...] }     every node with an id, in document order
+```
+
+* pending edits are stored first (`storeNow`), so `yjs_update_counter` is the counter of the stored state the
+  answer describes, and it equals `document_yjs_state.update_counter` (tested). A read of an unchanged document does
+  not raise the counter: a store of unchanged bytes is skipped (this also made opening/closing a document free).
+* `hash` is the block's content hash with every `id` ignored (the editor-schema `blockHash`), `content_hash` is the
+  whole document's; a legacy document is seeded first.
+* the requester is checked through `POST /internal/collab/can-write` (the shared `decide_write`): viewers,
+  strangers, removed members and `needs_repair` documents get 403 with a reason, never content.
+
+### 8.2 Apply a change to one block
+
+`{document_id, requester_id, block_id, base_hash, block}` replaces ONE block, found by its stable id (top level or
+nested, e.g. a list item), when and only when:
+
+1. the requester may write to the document **right now** (checked on every call; a role removed a moment ago is refused);
+2. the block's current hash equals `base_hash` ("I based this on version H"): otherwise **409 `block_changed`**
+   with the current hash and no content - nothing is merged blindly;
+3. the whole document with the replacement passes `validateDocument` (else **422 `invalid_change`** with a code
+   and a path); the replacement keeps the target's id and missing ids inside it are generated;
+4. it fits the limits: body <= 256 KiB, block <= 64 KiB (413), per requester and per document per minute (429;
+   every attempt counts, valid or not).
+
+Mechanics: the new block is built by the same y-tiptap code the editor uses, the result is **rehearsed on a copy**
+of the Yjs document and must equal what was validated, then applied in ONE synchronous transaction on the live
+document. The target is compared once more inside that transaction (no `await` can interleave with a collaborator's
+edit there). Only the target block is replaced, so what collaborators type elsewhere is preserved (tested with a
+person typing in another block at the same moment).
+
+**Distinct origin.** The transaction runs through a Hocuspocus direct connection whose context is
+`{source: "ai-hook", requester_id}`, so its Yjs origin is `{source: "local", context: {source: "ai-hook", ...}}`:
+distinguishable from every browser edit (tested by observing `afterTransaction` on the server document).
+
+**Logging.** Ids, sizes, counters and result codes only. A test pushes recognisable strings through read, a
+successful apply and a refused apply and asserts none of them (nor the secret) appears in the log.
+
+### 8.3 Tests (cp 6)
+
+* `collab/test/ai-hooks.test.ts` (12): exact counter/hashes, unstored live edits included, legacy seeding, all
+  refusals (403/404/409/413/422/429/401), merge with a collaborator, origin, per-call requester check, persistence
+  and snapshot, nested block, no content in logs.
+* backend: `can-write` endpoint; browser: a server-side change appears live in two open editors, a stale base hash
+  is refused while a person is typing in the same block, and typing continues normally afterwards.
+
+### 8.4 What is NOT proven
+
+* Two hook calls racing each other, or a hook call racing a collaborator at the exact same instant, are covered by
+  construction (one synchronous transaction with a re-check), not by a stress test.
+* Only one service instance exists (the lease), so the per-minute windows are global; they are in memory and reset on restart.
+
+## 9. Final report
+
+See [docs/collaboration-final-report.md](collaboration-final-report.md).
