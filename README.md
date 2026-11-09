@@ -804,7 +804,11 @@ The old `PUT .../content`, `expected_content_version`, `document_version_conflic
 | `python -m app.commands.migrate_documents_to_collab [--dry-run] [--document ID] [--room ID]` | seed legacy documents into Yjs now (idempotent; per-document results; failures stay `legacy`) |
 | `python -m app.commands.restore_document --document ID --backup-dir DIR` | restore a `needs_repair` document from its last valid snapshot (backs up the raw state first; stop the service first) |
 | `python -m app.commands.cleanup_documents` | expire unused assets (skips rooms with a document being edited or needing repair) |
-| `python -m app.commands.cleanup_ai` | expire abandoned source uploads, delete leftover and orphan source files and stale inspector scratch space |
+| `python -m app.commands.cleanup_ai` | expire abandoned uploads, delete leftover source files, old index generations, manifests past retention and old budget/rate rows |
+| `python -m app.workers.ai_worker` | the AI worker: analysis jobs and `@AI` requests (the only process that calls the providers) |
+| `python -m app.commands.ai_retrieve --room R --user U --version V "query"` | show exactly which passages a query would retrieve (operator tool; one real embedding call) |
+| `cd backend && uv run python scripts/run_suite_in_batches.py --batches 15` | run the backend suite in sequential batches (one process is killed on low-memory hosts) |
+| `cd backend && RUN_EVAL=1 uv run pytest tests/eval -s` | the AI evaluation harness against local provider stand-ins; add `EVAL_PROVIDER=real` for the real providers (docs/ai.md section 13) |
 
 ### Running it
 
@@ -923,7 +927,7 @@ client/             Part 5: TypeScript room client (src/, test/ with vitest, dem
 frontend/           React + Vite app: rooms, chat, the Tiptap collaborative editor (src/collab, src/editor)
 collab/             Node collaboration service (Hocuspocus + Yjs); talks to /internal/collab only
 packages/editor-schema/  the ONE document schema, validator and adapter (browser + service)
-backend/app/ai/     ThreadForge AI: providers, keys, spend ledger, budgets, self-check (docs/ai.md)
+backend/app/ai/     ThreadForge AI: providers, keys, spend ledger, analysis, retrieval, answers (docs/ai.md)
 backend/tests/      pytest suite (fake Google in tests/fake_google.py; real PostgreSQL and Redis)
 compose.yaml        PostgreSQL 16 and Redis 7
 .env.example

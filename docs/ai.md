@@ -6,8 +6,9 @@ This document grows with each checkpoint. **Checkpoint 1** covers providers, key
 (section 9). **Checkpoint 3** adds lazy analysis and retrieval: the analysis queue and
 worker, OCR with a vision fallback, figures, chunking, embeddings, published index generations and hybrid
 retrieval (section 10). **Checkpoint 4** adds `@AI` requests, document capture, strategies, validated cited
-answers, Mermaid diagrams and the chat UI (section 11). The evaluation and the final report come in
-checkpoint 5 and are listed under "Not built yet". Progress log: `docs/ai-progress.md`.
+answers, Mermaid diagrams and the chat UI (section 11). **Checkpoint 5** adds the evaluation harness and
+its results (section 13), the security and regression sweep (section 14) and the final report (section
+15). Progress log: `docs/ai-progress.md`.
 
 ## 1. What exists in the repository (inspection result)
 
@@ -1039,11 +1040,205 @@ New codes: `ai_request_not_found`, `ai_request_id_reused`, `ai_context_required`
 * Caps can leave parts of a large file unanalyzed (chunks, figures, OCR and vision pages). The result of
   every analysis states what was left out (`warnings`, `gaps`); a caller must show it.
 * A shared analysis job is paid for by whoever's request created it.
-* Checkpoint 1 builds no UI for keys, consent, the room switch or usage. The pages arrive with the AI UI
-  (checkpoint 4); until then the controls exist only as API routes (no control without behaviour).
+* A citation is a reference to the passage the answer used, not proof that the passage supports the claim.
+  The server checks that the cited passage exists, that a quoted string really occurs in it, and that no
+  more than 30 % of the claims lack support; it cannot check that the passage means what the answer says.
+* The answer only sees the document as last synced to the collaboration service. Edits still in a browser
+  tab (not yet synced) are invisible to it. The composer disables "Use open document" while the editor
+  reports unsynced changes in *your* tab, and the request card says unsynced edits in anyone's browser
+  are not visible; changes unsynced in someone else's tab cannot be detected.
+* Mermaid diagrams are shown in the chat card only. They cannot be exported (no PNG/SVG download, no
+  insertion into a document); a diagram block is validated and sanitized, not guaranteed to be pretty.
+* Retrieval ranks the right page first about two times in three on look-alike pages in the stub run
+  (section 13); real-embedding behaviour is unmeasured.
+* Costs and tokens in the evaluation are placeholders until the real run is done.
 
-## 13. Not built yet
+## 13. Checkpoint 5: evaluation
 
-The evaluation harness and its results, the security sweep and the final report (checkpoint 5).
-Google Drive as a source depends on a Drive connection that does not exist in the repository (deferred by
-the owner). Phase 2 (anything that writes into a document) is not started.
+The harness lives in `backend/tests/eval/` and is **not part of CI** (it only runs with `RUN_EVAL=1`; the
+normal suite skips it). It sends a gold set of questions through the real upload, analysis, retrieval,
+request and answer code, and writes a report to `backend/tests/eval/results/`.
+
+```
+cd backend
+RUN_EVAL=1 uv run pytest tests/eval -s                              # local provider stand-ins (default)
+RUN_EVAL=1 EVAL_PROVIDER=real uv run pytest tests/eval -s           # the real providers (needs keys in the env)
+```
+
+### What it contains
+
+* `corpus.py`: four small synthetic sources, generated in code (no real content):
+  `depots.pdf` (a text PDF, eight pages, one depot each, with look-alike filler so a question has to find
+  the right page), `march-scan.pdf` (three scanned pages: a picture of printed text with no text layer,
+  read by Tesseract), `handbook.docx` (headings, a table and an embedded architecture diagram) and
+  `release.md` (headings, a list, a table). A standalone image is **not** an accepted source type in
+  phase 1 (pdf, docx, txt, md), so the "diagram image" is the picture inside the Word file.
+* The gold set (13 questions): 7 factual (one across two sources), 1 figure question, 1 summary, 1
+  comparison, 1 document review (with a fake collaboration service holding a small document) and 2
+  "draw a diagram" requests. Each names the phrases the retrieved evidence must contain ("needles"), the
+  sources the answer must cite, and whether a figure citation or a rendered diagram is expected.
+* `metrics.py` (unit-tested in `tests/test_eval_metrics.py`, which is part of the normal suite): recall at
+  k, character accuracy (edit distance on normalized text), percentiles (nearest rank), shares.
+* `test_eval.py`: the runner and the report writer.
+
+### The two modes, and what each number means
+
+| Mode | Providers | What the numbers mean |
+|---|---|---|
+| `stub` (default; what has been run) | the HTTP stand-ins the tests use | Real: files, sandboxed extraction, **real Tesseract**, chunking, PostgreSQL full-text search and pgvector, ranking, validation, publication, server-computed coverage. **Not real**: anything a model decides (citations, diagrams, schema compliance), token counts, cost, network and model latency, and the vector half of retrieval (a bag-of-topics stand-in for embeddings). The report labels every row. |
+| `real` | the configured providers | Every row measures those models. **This mode has never been run** (no credentials were available); it is written to use the same code path without the stub and is therefore unverified until the owner runs it. |
+
+### Results of the stub run (2026-11-09)
+
+13 of 13 gold items published an answer. `backend/tests/eval/results/stub-results.md` holds the full
+report; the rows that mean something:
+
+| Metric | Value | Basis |
+|---|---|---|
+| Requests that published an answer | 100% (13/13) | measured |
+| Retrieval recall@1 / @3 / @5 (mean share of required phrases found) | 65% / 95% / 95% | measured: real chunking, SQL full-text and ranking; vector part is a stand-in |
+| Required phrases found anywhere in the evidence sent to the model | 100% | same |
+| OCR character accuracy, three clean synthetic scans | 92% | measured, real Tesseract |
+| Summaries/comparisons that report full section coverage | 100% | measured (computed by the server) |
+| Citation validity, schema-valid without repair, diagrams that render, figure citations | 92-100% | **stub: not a model measurement** |
+| Tokens, cost per task type | placeholders | **stub: not measured** |
+| Latency p50 / p95 | 0.75 s / 3.3 s | pipeline time only; the 3 s is the Node Mermaid check |
+
+### What the stub run does tell us
+
+* **Retrieval ranks the right page first only about two times in three on look-alike pages.** The
+  full-text half uses `ts_rank_cd`, which does not weigh how rare a word is, so "Berlin" counts no more
+  than "parcels" when every depot page mentions parcels. The correct passage is in the first three for 95%
+  of the phrases and always in the evidence, so answers are not starved, but a model sees the pages in a
+  less helpful order. Whether the real embeddings repair the ranking is exactly what the real run must
+  show; if not, candidates are a rarity-aware lexical score or a reranking pass. Not changed in this
+  phase: the brief fixes `ts_rank_cd`, and the numbers that would justify a change do not exist yet.
+* **Tesseract reads clean synthetic scans at 92%, not 100%.** It is one real number for the ceiling on
+  clean input; real scans are worse. Pages it cannot read go to the vision fallback (section 10).
+* The pipeline itself holds up on mixed sources, a figure, a document review and diagrams; nothing failed
+  to publish, and every request used 2-3 provider calls.
+
+### What it does not tell us
+
+Anything about answer quality of the real models, real cost, real latency, real embedding ranking, real
+OCR on messy scans, or bigger sources (the corpus is tiny: differences of a few points are noise). The
+owner is meant to judge quality from a `real` run; **Phase 2 should not rest on the stub numbers.**
+
+## 14. Checkpoint 5: security and regression sweep
+
+The checklist of the brief and where each item is proven:
+
+| Item | Where |
+|---|---|
+| Keys encrypted, never logged or returned | `test_ai_api.py` (status reveals no secrets; a saved key is validated, encrypted and never returned), `test_ai_core.py` (AES-GCM bound to its context), `test_ai_answers.py` (no content or key in logs) |
+| No content, file names or prompts in logs | `test_analysis_lifecycle.py::test_logs_never_contain_file_names_or_content`, `test_ai_answers.py::test_every_request_is_recorded_in_the_ledger_with_its_id_and_no_content_is_logged` |
+| Permission table on every route | `test_ai_requests_rules.py`, `test_sources_api.py`, `test_ai_api.py`; **new** `test_ai_security_sweep.py`: the AI HTTP surface equals a reviewed list of 31 method+path pairs (a new route fails until reviewed), every route refuses an anonymous caller, and an outsider gets the *same* answer for a real room and a missing one on every room route |
+| Outsiders change nothing | **new** `test_ai_security_sweep.py::test_an_outsiders_attempts_change_nothing` (row counts unchanged after every write route is tried) |
+| Internal routes private | **new**: no `internal` path in the public API's OpenAPI schema, and `/internal/ai/read` is not served by it (it belongs to the collaboration service, which checks the shared secret) |
+| Provider calls only in workers | **new**: an import scan pins who may build provider adapters (the gateway, the key check, the self-check), who may use the metered gateway (the two workers' modules and one operator command) and that no API route module, service or model imports either |
+| All retrieval filters inside the SQL | **new**: every retrieval statement is checked for `room_id` and the pinned generation ids inside the query text; behaviour is in `test_retrieval.py` (five sources, select three then two, exact passages, no fallback, a deleted source never retrievable) |
+| Prompt-injection containment | `test_ai_answers.py::test_instructions_inside_sources_are_data_inside_a_delimited_block`, `test_analysis_lifecycle.py::test_instructions_inside_a_file_are_indexed_as_text_and_trigger_nothing`, `test_analysis_vision.py`, `test_answer_validation.py` (model output is validated; links pass the scheme policy; nothing named by model output is fetched) |
+| Quotas and caps cannot be bypassed by retries or parallel requests | `test_ai_requests_rules.py` (parallel duplicates make one request, caps per user and room, a retry re-checks everything), `test_ai_core.py` (concurrent reservations never overshoot the budget), `test_sources_api.py` (quota counts uploads in flight; parallel intents cannot both take the last slot) |
+| Removed sources unreachable | **new**: every read route of a removed source answers 404/409/410; behaviour of redaction in `test_ai_requests_more.py` |
+| Regressions of chat, events, documents, collaboration | the whole backend suite (1983 passed before checkpoint 5), the room-event audit tests, `client/` 76, collaboration 64, editor-schema 126, frontend 84 |
+
+Findings of the sweep: none that needed a code change. The sweep is a guard, not a penetration test:
+nobody attacked the running system from outside, and the hostile-file and PDFium caveats of section 8
+still stand.
+
+## 15. Final report (phase 1)
+
+### What phase 1 delivers
+
+Bring-your-own-key or server keys with spend controls and a consent notice (checkpoint 1); device
+uploads inspected in a sandbox (2); lazy analysis with local OCR, a vision fallback, figures, chunking,
+embeddings and hybrid retrieval (3); `@AI` requests with pinned sources, validated cited answers, Mermaid
+diagrams, document review and the chat UI (4); the evaluation harness and a security sweep (5). Nothing
+writes into a document: that is phase 2, not started.
+
+### Suggested reading order
+
+1. This file, sections 2 to 4 (spend, keys, permissions), then `docs/ai-progress.md` (what was verified).
+2. `backend/app/ai/calls.py` (every provider call goes through `MeteredCaller`), `ai/keys.py`.
+3. `backend/app/services/sources.py`, `app/sources/` (uploads and the sandbox).
+4. `backend/app/ai/analysis/pipeline.py`, `jobs.py`, `store.py` (analysis and the atomic publish), then
+   `app/ai/retrieval.py`.
+5. `backend/app/services/ai_requests.py` (the request state machine), `app/ai/answer/execute.py`,
+   `strategies.py`, `answer.py` (validation), `mermaid.py`.
+6. `frontend/src/ai/` (`store.ts`, `Cards.tsx`, `Composer.tsx`, `Panels.tsx`, `SafeMermaid.tsx`).
+7. `backend/tests/eval/` and `tests/test_ai_security_sweep.py`.
+
+### API reference
+
+Per-checkpoint tables: sections 4, 9, 10 and 11. The complete list is pinned by
+`test_ai_security_sweep.py` (31 method+path pairs). Error codes added by phases 1-4, all with the
+`{"error": {"code", "message", "request_id"}}` envelope:
+
+| Status | Codes |
+|---|---|
+| 503 | `ai_not_configured`, `ai_disabled`, `ai_unavailable` (with the failing capability) |
+| 403 | `consent_required`, `ai_write_access_required` |
+| 409 | `ai_disabled_for_room`, `ai_anchor_required`, `key_unavailable`, `source_upload_not_open`, `source_upload_id_reused`, `source_unavailable`, `analysis_cap_exceeded`, `ai_request_id_reused`, `ai_request_not_cancellable`, `ai_request_not_retryable` |
+| 404 | `source_not_found`, `source_upload_not_found`, `source_version_not_found`, `ai_request_not_found` |
+| 422 | `key_rejected`, `invalid_source`, `ai_context_required`, `invalid_ai_request` |
+| 429 | `ai_capacity` (plus the budget and rate codes of section 4) |
+
+### Settings
+
+`.env.example`, section "ThreadForge AI" (about 80 settings: `AI_*` and `SOURCE_*`), each validated at
+startup with the setting named in the error. New with checkpoints 3 and 4: the analysis and OCR
+settings, `AI_RETRIEVAL_*`, `AI_REQUEST_*`, `AI_NODE_COMMAND`, `AI_MERMAID_CHECK_SCRIPT`,
+`COLLAB_SERVICE_URL`.
+
+### The privacy notice (served by `GET /ai/consent`, version 1)
+
+* When a file you attach is analyzed for the first time, its text and images are sent to the embedding
+  provider so they can be searched.
+* To answer, the passages retrieved from your files, any images selected for the answer, the document
+  text you include, and any chat messages you include are sent to the generation provider.
+* Scanned pages that local text recognition cannot read are sent to the generation provider's vision
+  model to be transcribed.
+* Requests use either your own API key or the server's key. You will be told which one before you send.
+* Other members of the room can already read the files you attach; AI answers are visible to everyone in
+  the room.
+* Answers can be wrong. A citation shows which passage the answer used, not that the passage proves the
+  claim.
+
+### Values to confirm
+
+Section 7 (models, windows, prices, dimensions; all read from the provider documentation on 2026-11-08).
+Added since: `AI_RETRIEVAL_MAX_DISTANCE` (the cosine-distance cutoff) and `AI_RETRIEVAL_RRF_K` (60) are
+starting values never tuned on real embeddings; the evaluation is where to tune them. The per-request
+caps (`AI_MAX_PROVIDER_CALLS`, `AI_MAX_NEW_ANALYSIS_PAGES`, `AI_REQUEST_MAX_CHAT_CONTEXT`) are
+defaults, not measurements.
+
+### Unverified assumptions (everything below ran only against stand-ins)
+
+1. All items of section 8, unchanged: no real provider call has ever been made by this code.
+2. Whether strict structured output accepts the answer schema's `["string", "null"]` unions and the
+   diagram block shape (section 11).
+3. That `gemini-embedding-2` ranks a figure's description or image next to a question about it, and
+   which `AI_FIGURE_EMBEDDING_MODE` is best: the brief says to evaluate this on the gold set, and that
+   needs the real run.
+4. The vision model's transcriptions and figure descriptions: the only checks are the plausibility
+   heuristic and the cross-check against Tesseract on the same page.
+5. Linux behaviour of the extractor child's resource limits (`extract_child.py`) and of the POSIX sandbox
+   tests: the automated runs were on Windows, where those tests skip. The Docker image
+   (`backend/Dockerfile`, with Node and Tesseract) was written but **not built** in this environment.
+6. Only Chromium ran the browser spec; Firefox and Safari did not.
+7. The `real` evaluation mode (section 13) has never run.
+8. Scale: the largest source tested is a few dozen pages; the exact (non-ANN) vector search is expected
+   to be fine at room scale but was not measured at thousands of chunks.
+
+### Known limits
+
+See section 12 (the list is complete as of phase 1). In short: wrong prices mean lost spend control; OCR
+and figure descriptions can be wrong; citations are references, not proofs; the answer cannot see edits
+that have not synced from a browser; a published answer keeps its text after the source is removed;
+chunk and figure caps can leave parts of a large file unanalyzed (always stated in the result); diagrams
+cannot be exported yet.
+
+## 16. Not built
+
+Google Drive as a source depends on a Drive connection that does not exist in the repository (deferred
+by the owner). Phase 2 (anything that writes into a document) is not started.

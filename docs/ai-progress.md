@@ -149,3 +149,44 @@ that did not happen. They are one commit; the full-suite numbers above are for t
 
 **Next**: checkpoint 5 (evaluation harness and recorded results, security and regression sweep, final
 report in `docs/ai.md`).
+
+## Checkpoint 5: evaluation, security sweep, final report
+
+**Done**
+* `backend/tests/eval/` (not CI; `RUN_EVAL=1`): four synthetic sources (text PDF with eight look-alike
+  pages, a three-page scan, a Word file with a figure, Markdown), a gold set of 13 questions (factual,
+  figure, summary, comparison, document review, diagrams), metric functions (unit-tested in the normal
+  suite: `tests/test_eval_metrics.py`, 10 tests), a runner and a report writer. Two modes: `stub` (run) and
+  `real` (written, **never run**).
+* `tests/test_ai_security_sweep.py` (13 tests): the AI HTTP surface equals a reviewed list of 31
+  method+path pairs; every route refuses anonymous callers; an outsider cannot tell a real room from a
+  missing one on any room route; an outsider's write attempts change no rows; no internal route in the
+  public API; an import scan pins who may build provider adapters or use the metered gateway; every
+  retrieval query filters by room and pinned generations inside the SQL; a removed source is unreachable.
+* `docs/ai.md` sections 13-16 (evaluation and its results, the sweep, the final report with reading
+  order, error codes, privacy notice text, values to confirm, unverified assumptions, limits), README
+  command table.
+* Lint: `E501` is now ignored for migrations and two scripts (long DDL strings), as it already was for the
+  other long-prose modules.
+
+**Verified (automated)**
+* Stub evaluation: 13/13 published; retrieval recall@1/@3/@5 = 65% / 95% / 95%; every required phrase
+  was in the evidence sent to the model (100%); OCR accuracy on clean synthetic scans 92% (real
+  Tesseract); full section coverage on summaries/comparisons 100%. Model-dependent rows (citations,
+  repairs, diagrams, tokens, cost, latency) are **stub values and not measurements of any model**; the
+  report labels each row.
+* New tests: 23 (10 metrics + 13 sweep) pass. No application code changed in this checkpoint, so the full
+  backend run of the previous commit (1983 passed, 3 skipped) was **not repeated**; with the 23 new tests
+  the expected total is 2006, not re-counted.
+* `ruff check`, `ruff format --check` clean.
+
+**Finding (not fixed)**: with look-alike pages, the full-text half ranks the correct page first only
+about two thirds of the time because `ts_rank_cd` ignores word rarity. It is in the first three results
+for 95% and always in the evidence. Whether real embeddings fix this is what the first `real` evaluation
+must show.
+
+**Not verified**: everything in `docs/ai.md` section 15 "Unverified assumptions": above all, no real
+provider has ever been called; the `real` evaluation has not run; the Docker image has not been built;
+only Chromium ran the browser spec; POSIX sandbox limits have not run in an automated Linux run.
+
+**Blocked / deferred**: Google Drive as a source (deferred by the owner). Phase 2 not started.
