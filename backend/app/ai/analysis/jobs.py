@@ -117,7 +117,7 @@ async def enqueue(
     room_id: uuid.UUID,
     version_id: uuid.UUID,
     requested_by: uuid.UUID,
-    anchor_document_id: uuid.UUID,
+    anchor_document_id: uuid.UUID | None,
     key_source_generation: str,
     key_source_embedding: str,
     waiter_id: uuid.UUID,

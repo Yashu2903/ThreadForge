@@ -107,7 +107,7 @@ export interface Options {
   onDocumentSignals?: (signals: DocumentSignals) => Promise<void> | void;
   /**
    * AI phase 1. Same contract as onDocumentSignals: called with the AI part of each batch
-   * (`ai_request_updated`, `source_updated`, `room_ai_settings_changed`) BEFORE the cursor advances,
+   * (`ai_request_updated`, `ai_proposal_updated`, `source_updated`, `room_ai_settings_changed`) BEFORE the cursor advances,
    * and with reset: true after a fresh bootstrap. Events say THAT something changed; the details come
    * from the authorized AI endpoints.
    */
@@ -166,7 +166,7 @@ function emptySignals(): DocumentSignals {
 }
 
 function emptyAiSignals(): AiSignals {
-  return { requests: new Map(), sources: new Map(), aiEnabled: null, reset: false };
+  return { requests: new Map(), sources: new Map(), proposals: new Map(), aiEnabled: null, reset: false };
 }
 
 export class RoomClient {
@@ -626,6 +626,8 @@ export class RoomClient {
     const payload = e.payload as Record<string, unknown>;
     if (e.event_type === "ai_request_updated" && typeof payload.request_id === "string" && typeof payload.state === "string") {
       ai.requests.set(payload.request_id, payload.state);
+    } else if (e.event_type === "ai_proposal_updated" && typeof payload.proposal_id === "string" && typeof payload.state === "string") {
+      ai.proposals.set(payload.proposal_id, payload.state);
     } else if (
       e.event_type === "source_updated" &&
       typeof payload.source_id === "string" &&
@@ -642,7 +644,7 @@ export class RoomClient {
 
   private async deliverAiSignals(gen: number, ai: AiSignals): Promise<void> {
     ai.reset = this.pendingAiReset;
-    const news = ai.requests.size > 0 || ai.sources.size > 0 || ai.aiEnabled !== null || ai.reset;
+    const news = ai.requests.size > 0 || ai.sources.size > 0 || ai.proposals.size > 0 || ai.aiEnabled !== null || ai.reset;
     const handler = this.opts.onAiSignals;
     if (!news || !handler) {
       if (!handler) this.pendingAiReset = false;

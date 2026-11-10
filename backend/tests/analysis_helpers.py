@@ -48,6 +48,9 @@ def embed_text_vector(text: str, dims: int = DIMS) -> list[float]:
 
 
 LABEL_LINE = re.compile(r"^\[([PSDC][0-9]+)\] ?(.*)$")
+SCOPE_LINE = re.compile(r"^\[(B[0-9]+)\] \(([^)]*)\) ?(.*)$")
+RANGE_LINE = re.compile(r"^\[(B[0-9]+)\] start=(\d+) end=(\d+)")
+ANCHOR_LINE = re.compile(r"^after \[(B[0-9]+)\]$")
 
 
 class Prompt:
@@ -61,7 +64,23 @@ class Prompt:
         self.images = [p for p in content if p["type"] == "input_image"]
         self.items: dict[str, str] = {}
         self.headers: dict[str, str] = {}
+        # phase 2: the blocks the person made changeable, their declared ranges and the insertion points
+        self.scope: dict[str, tuple[str, str]] = {}
+        self.ranges: dict[str, tuple[int, int]] = {}
+        self.anchors: list[str] = []
         lines = self.text.split("\n")
+        for line in lines:
+            m = SCOPE_LINE.match(line)
+            if m:
+                self.scope.setdefault(m.group(1), (m.group(2), m.group(3)))
+            m = RANGE_LINE.match(line)
+            if m:
+                self.ranges[m.group(1)] = (int(m.group(2)), int(m.group(3)))
+            m = ANCHOR_LINE.match(line)
+            if m:
+                self.anchors.append(m.group(1))
+            elif line.startswith("start (before the first block)"):
+                self.anchors.append("start")
         for i, line in enumerate(lines):
             m = LABEL_LINE.match(line)
             if m and i + 1 < len(lines):
@@ -114,6 +133,94 @@ def default_answer(prompt: Prompt) -> dict[str, Any]:
     )
 
 
+def run_(text: str, *marks: str) -> dict[str, Any]:
+    return {"text": text, "marks": [{"type": m, "href": None} for m in marks]}
+
+
+def cite(*refs: str, quote: str | None = None) -> list[dict[str, Any]]:
+    return [{"ref": r, "quote": quote if i == 0 else None} for i, r in enumerate(refs)]
+
+
+def new_block(kind: str, **fields: Any) -> dict[str, Any]:
+    """A block in the model's output format (every field present, unused ones null)."""
+    base = {
+        "type": kind,
+        "level": None,
+        "inline": None,
+        "paragraphs": None,
+        "items": None,
+        "rows": None,
+        "header_row": None,
+        "mermaid": None,
+        "citations": [],
+    }
+    base.update(fields)
+    return base
+
+
+def para(text: str, *refs: str) -> dict[str, Any]:
+    return new_block("paragraph", inline=[run_(text)], citations=cite(*refs))
+
+
+def op(kind: str, *, reason: str = "because", refs: tuple[str, ...] = (), **fields: Any) -> dict:
+    base = {
+        "op": kind,
+        "block": None,
+        "start": None,
+        "end": None,
+        "anchor": None,
+        "block_refs": None,
+        "new_inline": None,
+        "blocks": None,
+        "reason": reason,
+        "citations": cite(*refs),
+    }
+    base.update(fields)
+    return base
+
+
+def edit_reply(*ops: dict[str, Any], summary: str = "Proposed changes.") -> dict[str, Any]:
+    return {"summary": summary, "operations": list(ops), "evidence_gaps": []}
+
+
+def draft_reply(title: str, *blocks: dict[str, Any], sources: bool | None = True) -> dict[str, Any]:
+    return {
+        "title": title,
+        "summary": "A draft.",
+        "blocks": list(blocks),
+        "include_sources_section": sources,
+        "evidence_gaps": [],
+    }
+
+
+def default_edit(prompt: Prompt) -> dict[str, Any]:
+    refs = tuple(prompt.labels[:1])
+    for label, (kind, _text) in prompt.scope.items():
+        if kind in ("paragraph", "heading 1", "heading 2", "heading 3"):
+            return edit_reply(
+                op("replace_block_text", block=label, new_inline=[run_("Rewritten.")], refs=refs)
+            )
+    if prompt.anchors:
+        return edit_reply(
+            op(
+                "insert_blocks_after",
+                anchor=prompt.anchors[0],
+                blocks=[para("A new paragraph.", *refs)],
+                refs=refs,
+            )
+        )
+    return edit_reply()
+
+
+def default_draft(prompt: Prompt) -> dict[str, Any]:
+    refs = tuple(prompt.labels[:1])
+    return draft_reply(
+        "Draft from the sources",
+        new_block("heading", level=1, inline=[run_("Summary")]),
+        para("The sources describe the work.", *refs),
+    )
+
+
 class AnalysisStub(Stub):
     """Vision replies and topic-aware embeddings. Counters let tests assert exactly what was called."""
 
@@ -130,6 +237,11 @@ class AnalysisStub(Stub):
         self.answer_fn: Any = (
             None  # callable(prompt: Prompt) -> dict | str, used when the script is empty
         )
+        # phase 2: edit proposals and drafts (same shape as the answer script)
+        self.edit_script: list[Any] = []
+        self.edit_fn: Any = None
+        self.draft_script: list[Any] = []
+        self.draft_fn: Any = None
 
     # ---- OpenAI ----
     def _llm_text(self, body: dict[str, Any]) -> str:
@@ -164,6 +276,20 @@ class AnalysisStub(Stub):
                 value = self.answer_fn(prompt)
             else:
                 value = default_answer(prompt)
+            if callable(value):
+                value = value(prompt)
+            return value if isinstance(value, str) else json.dumps(value)
+        if name in ("document_edit", "document_draft"):
+            prompt = Prompt.of(body)
+            edit = name == "document_edit"
+            script = self.edit_script if edit else self.draft_script
+            fn = self.edit_fn if edit else self.draft_fn
+            if script:
+                value = script.pop(0)
+            elif fn is not None:
+                value = fn(prompt)
+            else:
+                value = default_edit(prompt) if edit else default_draft(prompt)
             if callable(value):
                 value = value(prompt)
             return value if isinstance(value, str) else json.dumps(value)

@@ -65,6 +65,8 @@ async def ai_status(request: Request, user: CurrentUser) -> dict[str, Any]:
         "globally_enabled": status.globally_enabled,
         "key_policy": settings.ai_key_policy,
         "notice_version": NOTICE_VERSION,
+        # phase 2: the composer offers "Propose document edit" / "Draft new document" only when true
+        "proposals_enabled": settings.ai_proposals_enabled,
         "spend_controls": {
             "prices_configured": settings.ai_prices_configured,
             "budgets_enforced": settings.ai_prices_configured

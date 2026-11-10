@@ -804,11 +804,13 @@ The old `PUT .../content`, `expected_content_version`, `document_version_conflic
 | `python -m app.commands.migrate_documents_to_collab [--dry-run] [--document ID] [--room ID]` | seed legacy documents into Yjs now (idempotent; per-document results; failures stay `legacy`) |
 | `python -m app.commands.restore_document --document ID --backup-dir DIR` | restore a `needs_repair` document from its last valid snapshot (backs up the raw state first; stop the service first) |
 | `python -m app.commands.cleanup_documents` | expire unused assets (skips rooms with a document being edited or needing repair) |
-| `python -m app.commands.cleanup_ai` | expire abandoned uploads, delete leftover source files, old index generations, manifests past retention and old budget/rate rows |
+| `python -m app.commands.cleanup_ai` | expire abandoned uploads, delete leftover source files, old index generations, manifests past retention, old budget/rate rows, and resolved AI proposals past `AI_PROPOSAL_RETENTION_DAYS` |
 | `python -m app.workers.ai_worker` | the AI worker: analysis jobs and `@AI` requests (the only process that calls the providers) |
 | `python -m app.commands.ai_retrieve --room R --user U --version V "query"` | show exactly which passages a query would retrieve (operator tool; one real embedding call) |
 | `cd backend && uv run python scripts/run_suite_in_batches.py --batches 15` | run the backend suite in sequential batches (one process is killed on low-memory hosts) |
 | `cd backend && RUN_EVAL=1 uv run pytest tests/eval -s` | the AI evaluation harness against local provider stand-ins; add `EVAL_PROVIDER=real` for the real providers (docs/ai.md section 13) |
+| `cd backend && RUN_EVAL=1 uv run pytest tests/eval/test_proposal_eval.py -s` | the phase 2 **evaluation gate** for edit proposals and drafts (stand-in model by default; `EVAL_PROVIDER=real` measures the configured model and fails below 90 % schema-valid with one repair; docs/ai.md section 18.6) |
+| `npm run build` | builds the shared packages (`editor-schema`, `mermaid-check`, `proposal-check`) and the collaboration service; the worker needs `packages/*/dist` |
 
 ### Running it
 

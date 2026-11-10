@@ -442,6 +442,11 @@ export function applyOperations(doc: PMJson, operations: unknown, options: Apply
       const first = checked.errors[0]!;
       return { ok: false, errors: [{ op: null, code: `candidate_${first.code}`, message: first.message, path: first.path }] };
     }
+    // the preview shows blocks in canonical form (adjacent runs with the same marks merged), like the stored document
+    for (const change of changes) {
+      change.before = change.before.map((n) => canonicalize(n));
+      change.after = change.after.map((n) => canonicalize(n));
+    }
     return { ok: true, doc: checked.doc, changes, insertedChars: counter.chars };
   } catch (error) {
     if (error instanceof Fail) return { ok: false, errors: [{ op: error.op, code: error.code, message: error.message }] };

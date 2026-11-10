@@ -18,6 +18,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api import (
     ai,
+    ai_proposals,
     ai_requests,
     analysis,
     assets,
@@ -102,6 +103,7 @@ def create_app(
     app.include_router(sources.router)
     app.include_router(analysis.router)
     app.include_router(ai_requests.router)
+    app.include_router(ai_proposals.router)
     app.include_router(realtime.router)
 
     # add_middleware puts the newest outermost: proxy headers are resolved first so that the

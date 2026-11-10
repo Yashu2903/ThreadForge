@@ -42,6 +42,7 @@ REVIEWED_ROUTES = {
     ("GET", "/rooms/{room_id}/ai-requests/{request_id}/context"),
     ("GET", "/rooms/{room_id}/ai-requests/{request_id}/result"),
     ("POST", "/rooms/{room_id}/ai-requests/{request_id}/retry"),
+    ("GET", "/rooms/{room_id}/ai-proposals/{proposal_id}"),
     ("GET", "/rooms/{room_id}/ai-settings"),
     ("PUT", "/rooms/{room_id}/ai-settings"),
     ("GET", "/rooms/{room_id}/ai-usage"),
@@ -116,6 +117,7 @@ async def real_ids(world) -> dict[str, str]:
         "version_id": vid,
         "request_id": request_id,
         "upload_id": pending.json()["id"],
+        "proposal_id": str(uuid.uuid4()),
         "n": "1",
         "provider": "openai",
     }
@@ -128,7 +130,16 @@ def missing_ids() -> dict[str, str]:
     }
 
 
-REAL_KEYS = ("room_id", "source_id", "version_id", "request_id", "upload_id", "n", "provider")
+REAL_KEYS = (
+    "room_id",
+    "source_id",
+    "version_id",
+    "request_id",
+    "upload_id",
+    "proposal_id",
+    "n",
+    "provider",
+)
 
 
 async def call(actor, method: str, url: str):
@@ -213,6 +224,7 @@ def test_the_metered_gateway_is_only_used_by_workers_and_operator_commands():
         "app/ai/analysis/pipeline.py",
         "app/ai/answer/execute.py",
         "app/ai/answer/strategies.py",
+        "app/ai/edit/generate.py",
         "app/commands/ai_retrieve.py",
     }
     for path in users:

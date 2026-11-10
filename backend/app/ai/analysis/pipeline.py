@@ -285,6 +285,8 @@ async def _gate(
             role=role,
             room_id=job.room_id,  # type: ignore[attr-defined]
             document_id=job.anchor_document_id,  # type: ignore[attr-defined]
+            # a job queued for a DRAFT has no document: the role, consent and switches are still checked
+            require_anchor=job.anchor_document_id is not None,  # type: ignore[attr-defined]
         )
 
 

@@ -80,6 +80,8 @@ export interface AiSignals {
   requests: Map<string, string>;
   /** source id -> the last announced state (created | ready | failed | removed) */
   sources: Map<string, { versionId: string; state: string }>;
+  /** proposal id -> the last announced state (pending | applying | applied | rejected | conflicted | expired | superseded) */
+  proposals: Map<string, string>;
   /** the owner's room AI switch, if it changed in this batch (the last value wins) */
   aiEnabled: boolean | null;
   /** the room state was replaced by a fresh bootstrap: refetch everything AI-related you hold */

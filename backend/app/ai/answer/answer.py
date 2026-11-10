@@ -163,22 +163,21 @@ def normalize(value: str) -> str:
     return _SPACE.sub(" ", value).strip()
 
 
-def validate_answer(raw: Any, evidence: EvidenceSet) -> ValidatedAnswer:
-    if not isinstance(raw, dict) or not isinstance(raw.get("blocks"), list):
-        raise BadAnswer("no blocks")
-    if not 1 <= len(raw["blocks"]) <= MAX_BLOCKS:
-        raise BadAnswer("wrong number of blocks")
-    gaps_raw = raw.get("evidence_gaps", [])
-    if not isinstance(gaps_raw, list) or len(gaps_raw) > MAX_GAPS:
-        raise BadAnswer("bad evidence_gaps")
-    gaps = [clean_text(g, MAX_GAP_TEXT) for g in gaps_raw if isinstance(g, str) and g.strip()]
+class CitationTable:
+    """Resolves the citations of claims against ONE request's evidence, exactly as phase 1 does for answers
+    and phase 2 does for proposals: labels are mapped server-side, quotes must be in the cited text and are
+    dropped on OCR/vision/figure items, chat is context and never evidence. Builds the numbered citation
+    table and the claim statistics."""
 
-    table: list[dict[str, Any]] = []
-    numbers: dict[str, int] = {}
-    stats = ClaimStats()
+    def __init__(self, evidence: EvidenceSet) -> None:
+        self.evidence = evidence
+        self.table: list[dict[str, Any]] = []
+        self.numbers: dict[str, int] = {}
+        self.stats = ClaimStats()
 
-    def resolve(citations: Any) -> list[int]:
+    def resolve(self, citations: Any) -> list[int]:
         """Validate one claim's citations; returns citation-table numbers."""
+        stats, table, numbers = self.stats, self.table, self.numbers
         if citations is None:
             citations = []
         if not isinstance(citations, list):
@@ -189,7 +188,7 @@ def validate_answer(raw: Any, evidence: EvidenceSet) -> ValidatedAnswer:
                 stats.invalid_citations += 1
                 continue
             label = c["ref"].strip()
-            item = evidence.items.get(label) if _LABEL.match(label) else None
+            item = self.evidence.items.get(label) if _LABEL.match(label) else None
             if item is None or item.kind == "chat":
                 stats.invalid_citations += (
                     1  # unknown label (or chat, which is context, not evidence)
@@ -241,13 +240,30 @@ def validate_answer(raw: Any, evidence: EvidenceSet) -> ValidatedAnswer:
                 out.append(numbers[key])
         return out
 
-    def claim(citations: Any) -> tuple[list[int], bool]:
-        stats.claims += 1
-        nums = resolve(citations)
+    def claim(self, citations: Any) -> tuple[list[int], bool]:
+        """A claim is a statement that needs support: its numbers, and whether it has none."""
+        self.stats.claims += 1
+        nums = self.resolve(citations)
         unsupported = not nums
         if unsupported:
-            stats.unsupported += 1
+            self.stats.unsupported += 1
         return nums, unsupported
+
+
+def validate_answer(raw: Any, evidence: EvidenceSet) -> ValidatedAnswer:
+    if not isinstance(raw, dict) or not isinstance(raw.get("blocks"), list):
+        raise BadAnswer("no blocks")
+    if not 1 <= len(raw["blocks"]) <= MAX_BLOCKS:
+        raise BadAnswer("wrong number of blocks")
+    gaps_raw = raw.get("evidence_gaps", [])
+    if not isinstance(gaps_raw, list) or len(gaps_raw) > MAX_GAPS:
+        raise BadAnswer("bad evidence_gaps")
+    gaps = [clean_text(g, MAX_GAP_TEXT) for g in gaps_raw if isinstance(g, str) and g.strip()]
+
+    citations_table = CitationTable(evidence)
+    stats = citations_table.stats
+    table = citations_table.table
+    claim = citations_table.claim
 
     blocks: list[dict[str, Any]] = []
     diagrams: list[int] = []

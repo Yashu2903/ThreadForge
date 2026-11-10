@@ -14,6 +14,9 @@ const requestEvent = (seq: number, id: string, state: string) =>
   event(seq, "ai_request_updated", id, { resource_type: "ai_request", payload: { request_id: id, state } });
 const sourceEvent = (seq: number, version: string, state: string) =>
   event(seq, "source_updated", S1, { resource_type: "source", payload: { source_id: S1, source_version_id: version, state } });
+const P1 = "d1111111-1111-4111-8111-111111111111";
+const proposalEvent = (seq: number, id: string, state: unknown) =>
+  event(seq, "ai_proposal_updated", id, { resource_type: "ai_proposal", payload: { proposal_id: id, state } });
 const settingsEvent = (seq: number, enabled: boolean) =>
   event(seq, "room_ai_settings_changed", "room-1", { payload: { ai_enabled: enabled } });
 
@@ -51,6 +54,16 @@ describe("AI signals", () => {
     expect(s.aiEnabled).toBeNull();
     expect(s.reset).toBe(false);
     expect(rig.client.state.cursor).toBe(16);
+  });
+
+  it("keeps the last state per proposal, ignores a malformed proposal event, and moves the cursor", async () => {
+    const { rig, calls } = rigWithHandler();
+    await rig.goLive(10);
+    calls.length = 0;
+    await rig.deliver(proposalEvent(11, P1, "pending"), proposalEvent(12, P1, "applying"), proposalEvent(13, P1, "applied"), proposalEvent(14, "d2", 5));
+    expect(calls).toHaveLength(1);
+    expect([...calls[0]!.proposals]).toEqual([[P1, "applied"]]);
+    expect(rig.client.state.cursor).toBe(14);
   });
 
   it("reports the owner's room switch, last value wins", async () => {

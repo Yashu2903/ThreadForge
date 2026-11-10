@@ -113,7 +113,7 @@ class EvalWorld(World):
         return outcomes
 
 
-async def build(make_actor, sessionmaker, tmp_path, redis_prefix) -> EvalWorld:
+async def build(make_actor, sessionmaker, tmp_path, redis_prefix, **extra) -> EvalWorld:
     if MODE == "stub":
         base = await build_world(
             make_actor,
@@ -121,6 +121,7 @@ async def build(make_actor, sessionmaker, tmp_path, redis_prefix) -> EvalWorld:
             tmp_path,
             redis_prefix,
             ai_max_active_requests_per_user=50,
+            **extra,
         )
         return EvalWorld(
             base.owner, base.room_id, base.document, base.sm, base.store, base.cfg, base.stub
@@ -131,6 +132,7 @@ async def build(make_actor, sessionmaker, tmp_path, redis_prefix) -> EvalWorld:
         redis_channel_prefix=redis_prefix,
         storage_path=str(tmp_path / "storage"),
         ai_max_active_requests_per_user=50,
+        **extra,
     )
     owner = await make_actor("Owner", app_settings=cfg)
     room_id, document = await room_with_doc(owner, sessionmaker)

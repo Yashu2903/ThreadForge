@@ -56,6 +56,7 @@ from app.ai.answer.answer import (
     render_plain_text,
     validate_answer,
 )
+from app.ai.edit import execute as edit_execute
 from app.ai.pricing import Prices
 from app.ai.types import TextPart, Usage
 from app.config import Settings
@@ -242,6 +243,7 @@ async def _gate(
             role=role,
             room_id=row.room_id,
             document_id=row.document_id,
+            require_anchor=row.operation != "draft",
         )
 
 
@@ -307,6 +309,26 @@ async def _work(
         mode="request",
     )
     try:
+        if row.operation != "answer":
+            # phase 2: an edit or draft proposal (same gate, pins, lease and cancellation as an answer)
+            try:
+                return await edit_execute.run(
+                    sessionmaker=sessionmaker,
+                    settings=settings,
+                    storage=storage,
+                    row=row,
+                    token=token,
+                    gateway=gateway,
+                    sources=sources,
+                    pinned=pinned,
+                    check=check,
+                    gate=lambda: _gate(sessionmaker, settings, row),
+                    collab_transport=collab_transport,
+                )
+            except edit_execute.EditFail as failure:
+                if failure.retryable:
+                    raise AnalysisAbort(failure.code, retryable=True) from None
+                raise _Fail(failure.code, failure.detail) from None
         # ---- 1. classify ----------------------------------------------------------------------------------
         await check("gathering_context")
         classified: str | None = None

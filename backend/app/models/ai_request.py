@@ -40,7 +40,7 @@ REQUEST_STATES = (
 )
 ACTIVE_STATES = ("waiting_for_sources", "queued", "running", "validating", "cancelling")
 TERMINAL_STATES = ("succeeded", "failed", "cancelled", "expired")
-TASK_TYPES = ("qa", "summarize", "compare", "document_review")
+TASK_TYPES = ("qa", "summarize", "compare", "document_review", "edit_proposal", "draft")
 
 
 def _in(values: tuple[str, ...]) -> str:
@@ -59,7 +59,7 @@ class AiRequest(Base):
         UniqueConstraint("message_id", name="uq_ai_requests_message_id"),
         UniqueConstraint("room_id", "id", name="uq_ai_requests_room_id_id"),
         CheckConstraint(f"state IN ({_in(REQUEST_STATES)})", name="state_valid"),
-        CheckConstraint("operation = 'answer'", name="operation_valid"),
+        CheckConstraint("operation IN ('answer', 'edit', 'draft')", name="operation_valid"),
         CheckConstraint(
             "task_hint IN ('auto', 'ask', 'summarize', 'compare')", name="task_hint_valid"
         ),
@@ -67,7 +67,16 @@ class AiRequest(Base):
             f"task_type IS NULL OR task_type IN ({_in(TASK_TYPES)})", name="task_type_valid"
         ),
         CheckConstraint(
-            "document_scope IN ('none', 'whole', 'blocks')", name="document_scope_valid"
+            "document_scope IN ('none', 'whole', 'blocks', 'edit')", name="document_scope_valid"
+        ),
+        CheckConstraint(
+            "operation = 'draft' OR document_id IS NOT NULL", name="document_required_unless_draft"
+        ),
+        CheckConstraint(
+            "(operation = 'edit') = (document_scope = 'edit')"
+            " AND jsonb_typeof(selected_ranges) = 'array'"
+            " AND (insert_at IS NULL OR (operation = 'edit' AND insert_at IN ('start', 'end')))",
+            name="edit_target_shape",
         ),
         CheckConstraint("char_length(instruction) BETWEEN 1 AND 4000", name="instruction_length"),
         CheckConstraint("octet_length(request_fingerprint) = 32", name="fingerprint_length"),
@@ -111,8 +120,8 @@ class AiRequest(Base):
     task_hint: Mapped[str] = mapped_column(String(12), nullable=False)
     task_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     instruction: Mapped[str] = mapped_column(Text, nullable=False)
-    document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="RESTRICT"), nullable=False
+    document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="RESTRICT"), nullable=True
     )
     include_document_content: Mapped[bool] = mapped_column(Boolean, nullable=False)
     document_scope: Mapped[str] = mapped_column(String(8), nullable=False)
@@ -120,6 +129,11 @@ class AiRequest(Base):
         JSONB, server_default=sa_text("'[]'::jsonb"), nullable=False
     )
     selection_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # an edit target (phase 2): character ranges and/or an insertion point, besides selected_block_ids
+    selected_ranges: Mapped[list] = mapped_column(
+        JSONB, server_default=sa_text("'[]'::jsonb"), nullable=False
+    )
+    insert_at: Mapped[str | None] = mapped_column(String(5), nullable=True)
     include_chat_context: Mapped[bool] = mapped_column(Boolean, nullable=False)
     chat_message_ids: Mapped[list] = mapped_column(
         JSONB, server_default=sa_text("'[]'::jsonb"), nullable=False

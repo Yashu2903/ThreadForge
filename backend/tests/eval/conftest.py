@@ -16,8 +16,8 @@ def pytest_collection_modifyitems(config, items):  # noqa: ARG001
         return
     skip = pytest.mark.skip(reason="evaluation harness: set RUN_EVAL=1 to run it (not part of CI)")
     for item in items:
-        if (
-            "tests/eval" in item.nodeid.replace("\\", "/")
-            and item.fspath.basename == "test_eval.py"
+        if "tests/eval" in item.nodeid.replace("\\", "/") and item.fspath.basename in (
+            "test_eval.py",
+            "test_proposal_eval.py",
         ):
             item.add_marker(skip)

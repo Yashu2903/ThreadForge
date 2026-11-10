@@ -48,20 +48,24 @@ from app.config import Settings
 from app.errors import (
     ai_capacity,
     ai_context_required,
+    ai_proposals_disabled,
     ai_request_id_reused,
     ai_request_not_cancellable,
     ai_request_not_found,
     ai_request_not_retryable,
     analysis_cap_exceeded,
     confirmation_required,
+    edit_target_required,
     insufficient_role,
     invalid_ai_request,
     key_rejected,
     key_unavailable,
+    proposal_rate_limited,
 )
 from app.logging_config import APP_LOGGER
 from app.models import (
     AiManifest,
+    AiProposal,
     AiRequest,
     AiRequestSource,
     AiResult,
@@ -79,6 +83,7 @@ log = logging.getLogger(f"{APP_LOGGER}.ai.requests")
 _REQ = AiRequest.__table__
 _RS = AiRequestSource.__table__
 _RES = AiResult.__table__
+_PROP = AiProposal.__table__
 _MAN = AiManifest.__table__
 _VER = SourceVersion.__table__
 _SRC = Source.__table__
@@ -126,7 +131,7 @@ class RequestInput:
     client_request_id: uuid.UUID
     instruction: str
     task_hint: str
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None
     include_document_content: bool
     document_scope: str
     selected_block_ids: tuple[uuid.UUID, ...]
@@ -135,6 +140,10 @@ class RequestInput:
     include_chat_context: bool
     chat_message_ids: tuple[uuid.UUID, ...]
     confirm_large: bool
+    # phase 2: "answer" | "edit" | "draft", and the edit target (ranges / insertion point)
+    operation: str = "answer"
+    selected_ranges: tuple[dict[str, Any], ...] = ()
+    insert_at: str | None = None
 
 
 def compute_fingerprint(settings: Settings, actor_id: uuid.UUID, inp: RequestInput) -> bytes:
@@ -146,7 +155,7 @@ def compute_fingerprint(settings: Settings, actor_id: uuid.UUID, inp: RequestInp
             "client_request_id": str(inp.client_request_id),
             "instruction": inp.instruction,
             "task_hint": inp.task_hint,
-            "document_id": str(inp.document_id),
+            "document_id": str(inp.document_id) if inp.document_id else None,
             "include_document_content": inp.include_document_content,
             "document_scope": inp.document_scope,
             "selected_block_ids": [str(i) for i in inp.selected_block_ids],
@@ -154,6 +163,16 @@ def compute_fingerprint(settings: Settings, actor_id: uuid.UUID, inp: RequestInp
             "source_version_ids": [str(i) for i in inp.source_version_ids],
             "include_chat_context": inp.include_chat_context,
             "chat_message_ids": [str(i) for i in inp.chat_message_ids],
+            # only for edit/draft, so the fingerprint of every phase 1 request is unchanged
+            **(
+                {
+                    "operation": inp.operation,
+                    "selected_ranges": list(inp.selected_ranges),
+                    "insert_at": inp.insert_at,
+                }
+                if inp.operation != "answer"
+                else {}
+            ),
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -192,7 +211,7 @@ class RequestView:
     queued_at: datetime | None
     started_at: datetime | None
     finished_at: datetime | None
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None
     include_document_content: bool
     document_scope: str
     include_chat_context: bool
@@ -204,6 +223,8 @@ class RequestView:
     key_source_embedding: str
     cancel_requested: bool
     reply_message_id: uuid.UUID | None = None
+    operation: str = "answer"
+    proposal_id: uuid.UUID | None = None
 
 
 # ---- reading ----------------------------------------------------------------------------------------------
@@ -236,6 +257,9 @@ async def _view(db: AsyncSession, row: Any) -> RequestView:
         ).scalar_one()
     reply = (
         await db.execute(select(_RES.c.reply_message_id).where(_RES.c.request_id == row.id))
+    ).scalar_one_or_none()
+    proposal_id = (
+        await db.execute(select(_PROP.c.id).where(_PROP.c.request_id == row.id))
     ).scalar_one_or_none()
     sources = tuple(
         SourceRef(
@@ -288,6 +312,8 @@ async def _view(db: AsyncSession, row: Any) -> RequestView:
         key_source_embedding=row.key_source_embedding,
         cancel_requested=row.cancel_requested_at is not None and row.state not in TERMINAL,
         reply_message_id=reply,
+        operation=row.operation,
+        proposal_id=proposal_id,
     )
 
 
@@ -344,8 +370,10 @@ async def _estimate(
     """Approximate tokens, calls and cost for the whole request: the chat/document part from the
     checkpoint-1 estimator, plus evidence from the chosen files and the analysis they would trigger."""
     selected_chars = 0
-    if inp.document_scope == "blocks":
-        selected_chars = 400 * len(inp.selected_block_ids)  # blocks are unknown until capture
+    scope = "blocks" if inp.document_scope == "edit" else inp.document_scope
+    if scope == "blocks":
+        # blocks are unknown until capture
+        selected_chars = 400 * max(1, len(inp.selected_block_ids) + len(inp.selected_ranges))
     base = await estimate_request(
         db,
         settings,
@@ -353,7 +381,7 @@ async def _estimate(
         document_id=inp.document_id,
         instruction=inp.instruction,
         task_hint=inp.task_hint,
-        document_scope=inp.document_scope,
+        document_scope=scope,
         include_document_content=inp.include_document_content,
         selected_chars=selected_chars,
         chat_message_ids=list(inp.chat_message_ids),
@@ -448,6 +476,11 @@ def validate_shape(settings: Settings, inp: RequestInput) -> None:
         raise invalid_ai_request(
             "chat_context_mismatch", "Chat context needs explicit message ids, and only then."
         )
+    if inp.operation != "answer":
+        _validate_proposal_shape(inp)
+        return
+    if inp.selected_ranges or inp.insert_at:
+        raise invalid_ai_request("edit_target", "An edit target needs an edit request.")
     if inp.include_document_content:
         if inp.document_scope not in ("whole", "blocks"):
             raise invalid_ai_request(
@@ -470,6 +503,42 @@ def validate_shape(settings: Settings, inp: RequestInput) -> None:
         raise ai_context_required()
 
 
+def _validate_proposal_shape(inp: RequestInput) -> None:
+    """Edit and draft requests. An EDIT needs a document and an explicit target (blocks, ranges, or an
+    insertion point): with none, the person is asked to select, nothing is guessed. A DRAFT is anchored on the
+    room role, has no document and no selection, and needs files to draft from."""
+    if inp.operation not in ("edit", "draft"):
+        raise invalid_ai_request("operation", "Unknown operation.")
+    if inp.include_chat_context != bool(inp.chat_message_ids):
+        raise invalid_ai_request(
+            "chat_context_mismatch", "Chat context needs explicit message ids, and only then."
+        )
+    if inp.operation == "draft":
+        if (
+            inp.document_id is not None
+            or inp.include_document_content
+            or inp.document_scope != "none"
+            or inp.selected_block_ids
+            or inp.selected_ranges
+            or inp.insert_at
+            or inp.selection_hash
+        ):
+            raise invalid_ai_request("draft_shape", "A draft has no document and no selection.")
+        if not inp.source_version_ids:
+            raise ai_context_required()
+        return
+    if inp.document_id is None or not inp.include_document_content or inp.document_scope != "edit":
+        raise invalid_ai_request("edit_shape", "An edit request targets one document.")
+    if not (inp.selected_block_ids or inp.selected_ranges or inp.insert_at):
+        raise edit_target_required()
+    if inp.selected_block_ids and not inp.selection_hash:
+        raise invalid_ai_request("selection_hash", "The selection needs its hash.")
+    if inp.selection_hash and not inp.selected_block_ids:
+        raise invalid_ai_request("selected_blocks", "A selection hash needs selected blocks.")
+    if inp.insert_at not in (None, "start", "end"):
+        raise invalid_ai_request("insert_at", "Insert at the start or the end.")
+
+
 async def create_request(
     sessionmaker: async_sessionmaker[AsyncSession],
     settings: Settings,
@@ -479,6 +548,8 @@ async def create_request(
 ) -> tuple[RequestView, bool]:
     """Admit a request. ONE transaction under the room lock; the chat message, the request and its
     source links commit together or not at all. Returns (view, created)."""
+    if inp.operation != "answer" and not settings.ai_proposals_enabled:
+        raise ai_proposals_disabled()
     validate_shape(settings, inp)
     fingerprint = compute_fingerprint(settings, actor_id, inp)
     async with sessionmaker() as db, db.begin():
@@ -500,8 +571,28 @@ async def create_request(
             return await _view(db, existing), False
 
         admission = await access.gate(
-            db, settings, user_id=actor_id, role=role, room_id=room_id, document_id=inp.document_id
+            db,
+            settings,
+            user_id=actor_id,
+            role=role,
+            room_id=room_id,
+            document_id=inp.document_id,
+            require_anchor=inp.operation != "draft",
         )
+        if inp.operation != "answer":
+            recent = (
+                await db.execute(
+                    select(func.count())
+                    .select_from(_REQ)
+                    .where(
+                        _REQ.c.requested_by == actor_id,
+                        _REQ.c.operation != "answer",
+                        _REQ.c.created_at > func.now() - timedelta(hours=1),
+                    )
+                )
+            ).scalar_one()
+            if recent >= settings.ai_proposals_per_user_per_hour:
+                raise proposal_rate_limited(settings.ai_proposals_per_user_per_hour)
         gen, emb = admission.key_sources["generation"], admission.key_sources["embedding"]
         if gen.source is None:
             raise _key_error(gen.problem, "openai")
@@ -601,6 +692,9 @@ async def create_request(
                 client_request_id=inp.client_request_id,
                 request_fingerprint=fingerprint,
                 task_hint=inp.task_hint,
+                operation=inp.operation,
+                selected_ranges=list(inp.selected_ranges),
+                insert_at=inp.insert_at,
                 instruction=inp.instruction,
                 document_id=inp.document_id,
                 include_document_content=inp.include_document_content,
@@ -746,6 +840,24 @@ async def redact_result(db: AsyncSession, request_id: uuid.UUID) -> None:
         .where(_MAN.c.request_id == request_id)
         .values(data={"redacted": True}, redacted_at=func.now())
     )
+    # The card that carried a proposal is gone: a pending proposal can no longer be applied, and what it
+    # proposed is wiped once it is not pending (an APPLIED proposal keeps its record: the change is in the
+    # document now). An `applying` one is left alone; its apply is in flight and finishes on its own.
+    await db.execute(
+        update(_PROP)
+        .where(_PROP.c.request_id == request_id, _PROP.c.state == "pending")
+        .values(state="rejected", resolved_at=func.now(), resolution_code="message_deleted")
+    )
+    await db.execute(
+        text(
+            """UPDATE ai_proposals
+                  SET operations = CASE kind WHEN 'edit' THEN '[]'::jsonb ELSE '{}'::jsonb END,
+                      before_content = '{}'::jsonb, preview = '{}'::jsonb, scope = '{}'::jsonb,
+                      base_hashes = '{}'::jsonb, citations = '[]'::jsonb
+                WHERE request_id = :r AND state IN ('rejected', 'conflicted', 'expired', 'superseded')"""
+        ),
+        {"r": request_id},
+    )
 
 
 async def retry_request(
@@ -778,7 +890,13 @@ async def retry_request(
         if await messages.is_deleted(db, row.message_id):
             raise ai_request_not_retryable("message_deleted")
         await access.gate(
-            db, settings, user_id=actor_id, role=role, room_id=room_id, document_id=row.document_id
+            db,
+            settings,
+            user_id=actor_id,
+            role=role,
+            room_id=room_id,
+            document_id=row.document_id,
+            require_anchor=row.operation != "draft",
         )
         pins = (
             await db.execute(select(_RS).where(_RS.c.request_id == row.id).order_by(_RS.c.position))
@@ -1235,6 +1353,8 @@ class Publication:
     models: dict[str, Any]
     body: str
     extras: dict[str, Any] = field(default_factory=dict)
+    # phase 2: the proposal row that is born with the result and the chat reply (all or nothing)
+    proposal: dict[str, Any] | None = None
 
 
 async def publish_success(
@@ -1285,6 +1405,18 @@ async def publish_success(
         ).scalar_one_or_none()
         if result_id is None:
             return "already_published"
+        if pub.proposal is not None:
+            await db.execute(
+                pg_insert(_PROP).values(
+                    request_id=row.id,
+                    result_id=result_id,
+                    room_id=row.room_id,
+                    created_by=row.requested_by,
+                    state="pending",
+                    expires_at=func.now() + timedelta(days=settings.ai_proposal_ttl_days),
+                    **pub.proposal,
+                )
+            )
         reply_id = reply_client_message_id(row.id)
         message_id = await messages.insert_message_row(
             db,
@@ -1336,6 +1468,15 @@ async def get_result(
                 select(_RES).where(_RES.c.request_id == request_id, _RES.c.room_id == room_id)
             )
         ).one_or_none()
+
+
+async def proposal_id_of(
+    sessionmaker: async_sessionmaker[AsyncSession], request_id: uuid.UUID
+) -> uuid.UUID | None:
+    async with sessionmaker() as db:
+        return (
+            await db.execute(select(_PROP.c.id).where(_PROP.c.request_id == request_id))
+        ).scalar_one_or_none()
 
 
 async def get_manifest_summary(

@@ -65,7 +65,10 @@ class EditTarget:
     block_ids: list[str]  # outermost selected blocks, in document order
     ranges: list[RangeSel]
     insert_at: str | None
-    scope_ids: set[str]
+    scope_ids: set[str]  # every block the model is shown (whole blocks and range-only blocks)
+    whole_ids: set[
+        str
+    ]  # selected blocks and everything inside them: replace/delete may touch these
     anchors: list[str]  # "start" and/or top-level block ids, in document order ("start" first)
     base_hashes: dict[str, str]
     before: dict[str, dict[str, Any]] = field(repr=False)  # block id -> node JSON copy
@@ -78,6 +81,7 @@ class EditTarget:
             "ranges": [r.to_json() for r in self.ranges],
             "insert_at": self.insert_at,
             "scope_ids": sorted(self.scope_ids),
+            "whole_ids": sorted(self.whole_ids),
             "anchors": self.anchors,
         }
 
@@ -206,6 +210,7 @@ def resolve_edit_target(
         ranges=parsed,
         insert_at=insert_at,
         scope_ids=scope_ids,
+        whole_ids=whole,
         anchors=anchors,
         base_hashes=base_hashes,
         before=before,

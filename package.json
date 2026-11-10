@@ -5,13 +5,15 @@
   "workspaces": [
     "packages/editor-schema",
     "packages/mermaid-check",
+    "packages/proposal-check",
     "collab",
     "frontend"
   ],
   "scripts": {
-    "build": "npm run build -w @threadforge/editor-schema && npm run build -w @threadforge/collab && npm run build -w @threadforge/mermaid-check",
+    "build": "npm run build -w @threadforge/editor-schema && npm run build -w @threadforge/collab && npm run build -w @threadforge/mermaid-check && npm run build -w @threadforge/proposal-check",
     "test:schema": "npm test -w @threadforge/editor-schema",
     "test:collab": "npm test -w @threadforge/collab",
-    "test:mermaid": "npm test -w @threadforge/mermaid-check"
+    "test:mermaid": "npm test -w @threadforge/mermaid-check",
+    "test:proposal": "npm test -w @threadforge/proposal-check"
   }
 }

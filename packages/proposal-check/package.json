@@ -1,0 +1,21 @@
+{
+  "name": "@threadforge/proposal-check",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Builds and validates the candidate document of an AI edit proposal or draft with the shared editor schema. Run by the AI worker as a sandboxed child process; touches no database, no network, no Yjs.",
+  "bin": { "proposal-check": "dist/cli.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@threadforge/editor-schema": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -245,3 +245,63 @@ and through Yjs, not yet in two real browsers (checkpoint 5). Undo behaviour for
 normal text undo.
 
 **Next**: checkpoint 2 (proposal generation, validation, review card with preview, no apply, and the gate report).
+
+
+## Checkpoint 2: proposal generation, validation, review card with preview (no apply), and the evaluation gate
+
+**Done**
+* Migration `0012_ai_proposal_requests` (expand only; the downgrade refuses to delete edit/draft history): `ai_requests`
+  gains `operation` (`answer|edit|draft`), a nullable `document_id` (a draft is anchored on the room role),
+  `document_scope = edit`, `selected_ranges`, `insert_at`; `task_type` gains `edit_proposal` and `draft`;
+  `analysis_jobs.anchor_document_id` is nullable (the analysis a draft waits for has no document). Up, down to `0011`,
+  down to base, up again, `alembic check` clean (scratch database, dropped).
+* `packages/editor-schema/src/ops.ts`: the shared edit-operation engine (replace block text, replace range, insert
+  after, delete; formatting inheritance; scope; one operation per block; caps; whole-document validation; a draft
+  builder). `packages/proposal-check`: a sandboxed Node child that runs it for the worker.
+* `backend/app/ai/edit/`: output schemas and normalization (`schema.py`), prompts `edit-v1`, generation with ONE
+  repair (`generate.py`), the Node runner (`check.py`), the worker flow (`execute.py`, wired into the existing
+  claim/lease/cancel machinery), and a target-less edit refused at admission (`edit_target_required`).
+  `CitationTable` was extracted from `validate_answer` unchanged so proposals resolve citations exactly like answers.
+* `ai_proposals` rows are born with the result and the chat reply in `publish_success` (one transaction); manifests
+  behind a pending proposal are kept; deleting the card rejects a pending proposal and wipes it.
+* `GET /rooms/{room}/ai-proposals/{id}`; `AI_PROPOSALS_ENABLED` (default false) and `proposals_enabled` in `/ai/status`;
+  per-user rate limit; the composer's "Propose document edit" / "Draft new document" with an explicit target chooser
+  (selected blocks, selected text as a UTF-16 range, start or end of the document); the review card with Preview
+  (word diff, before/after, rendered diagrams, reasons, citations).
+* The evaluation harness `tests/eval/test_proposal_eval.py` (16 gold items) and its recorded stub run
+  `tests/eval/results/proposals-stub-results.md`.
+
+**Where the interface is committed.** The composer's edit/draft choices and the review card were written together
+with the Apply / Reject / Regenerate / Publish controls, so they are committed with checkpoints 3 and 4: no commit
+contains a button its backend cannot serve. This commit is the backend, the shared engine, the checker and the harness.
+
+**Gate (the owner's brief, section 0): UNMEASURED.** No provider credentials exist here. The stub run (a scripted
+stand-in with deliberate defects in 6 of 16 items) gives 62 % schema-valid without repair, 94 % with one repair, 100 %
+of published proposals resolving against the captured document, 100 % citation validity. These are numbers about the
+harness and the repair loop, **not** about any model, and they cannot pass or fail the gate. The owner asked for
+phase 2 to be built before supplying keys, so checkpoints 3-5 were built before the gate could be measured.
+
+**Verified (automated)**
+* backend, full suite, 15 sequential batches (run in two parts because the host killed the first run for low memory at
+  batch 10): **2085 passed, 3 skipped, 0 failed**. Batches 1-8 passed (928, 2 skipped). In the first run batch 9 had ONE failure,
+  `test_outbox_dispatcher.py::test_only_due_rows_are_claimed_up_to_the_batch_size` (expected 6 claimed rows, got 0). It passes alone (28 of 28)
+  and its whole batch passed on a rerun (187); the cause was **not found** (code I did not change; it looks like interference
+  from something else touching the outbox during that run). Treat it as an unexplained flake, not as proven harmless. Batches
+  10-15: 970 passed, 1 skipped. New: 39 generation/permission tests (`test_ai_proposals_generation.py`), the security sweep updated for the
+  new route (13), 24 + 15 from checkpoint 1.
+* editor-schema 181 (29 operations), proposal-check 5, frontend 102 (14 new: composer choices, target data sent,
+  review card, preview, citations), client 76, collaboration service 69. `ruff` clean; typechecks clean.
+* Proven against real PostgreSQL, the real adapters and the real Node engine: a replacement/range/insertion/deletion
+  becomes a pending proposal and the document is untouched; a wrong label, a wrong range, a hostile diagram and
+  non-JSON are repaired once; two bad replies fail the request visibly and publish nothing; out-of-scope labels, undeclared
+  anchors, javascript: links, ragged tables, over-large heading levels, image blocks, unknown operations, more than 50
+  operations, more than 30,000 characters, bogus citations and a diagram above the size limit never become proposals;
+  a target-less edit is refused; a changed selection is `selection_changed`; instructions inside the document cannot widen
+  the scope; a draft works in a room with no documents; viewers/outsiders/read-only editors cannot ask; losing write access
+  while queued or while the model thinks blocks publication; the per-user rate limit; both model calls of a repair are
+  metered.
+
+**Not verified**: anything against a real model (reply shapes under a provider's strict structured-output mode, the real
+quality and cost of proposals); no cost estimate is shown for proposals.
+
+**Next**: checkpoints 3 and 4 (the apply path, then apply/reject/regenerate/expiry/events/UI/draft publishing).

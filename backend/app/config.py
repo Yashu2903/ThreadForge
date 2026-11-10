@@ -333,6 +333,16 @@ class Settings(BaseSettings):
         ""  # empty = packages/mermaid-check/dist/cli.js in the repository
     )
     ai_mermaid_check_timeout_seconds: float = 25.0
+    # AI phase 2: edit proposals, drafts, applying to the live document.
+    ai_proposals_enabled: bool = False  # the composer offers edit/draft only when this is on
+    ai_proposal_ttl_days: int = 7  # a pending proposal expires after this
+    ai_proposal_retention_days: int = 30  # a resolved proposal is deleted this long after
+    ai_proposals_per_user_per_hour: int = 20  # edit/draft requests per user
+    ai_proposal_check_script: str = ""  # empty = packages/proposal-check/dist/cli.js
+    ai_proposal_check_timeout_seconds: float = 25.0
+    ai_diagram_split_chars: int = 8000  # a longer generated diagram fails with "split it"
+    ai_apply_quiet_seconds: float = 3.0  # apply waits for no human edit within this window
+    ai_apply_max_wait_seconds: float = 10.0  # ...for at most this long, then document_busy
     collab_service_url: str = (
         "http://127.0.0.1:4010"  # the private address of the collaboration service
     )
@@ -816,6 +826,23 @@ class Settings(BaseSettings):
             problems.append("AI_REQUEST_MAX_SOURCES must be at most 10.")
         if self.ai_request_max_chat_context > 20:
             problems.append("AI_REQUEST_MAX_CHAT_CONTEXT must be at most 20.")
+        for name, positive in (
+            ("AI_PROPOSAL_TTL_DAYS", self.ai_proposal_ttl_days),
+            ("AI_PROPOSAL_RETENTION_DAYS", self.ai_proposal_retention_days),
+            ("AI_PROPOSALS_PER_USER_PER_HOUR", self.ai_proposals_per_user_per_hour),
+            ("AI_DIAGRAM_SPLIT_CHARS", self.ai_diagram_split_chars),
+        ):
+            if positive < 1:
+                problems.append(f"{name} must be at least 1.")
+        if self.ai_diagram_split_chars > 20_000:
+            problems.append("AI_DIAGRAM_SPLIT_CHARS must be at most 20000 (the Mermaid limit).")
+        if self.ai_proposal_check_timeout_seconds <= 0 or self.ai_apply_quiet_seconds < 0:
+            problems.append(
+                "AI_PROPOSAL_CHECK_TIMEOUT_SECONDS must be positive and "
+                "AI_APPLY_QUIET_SECONDS must not be negative."
+            )
+        if self.ai_apply_max_wait_seconds < self.ai_apply_quiet_seconds:
+            problems.append("AI_APPLY_MAX_WAIT_SECONDS must be at least AI_APPLY_QUIET_SECONDS.")
         if self.ai_collab_timeout_seconds <= 0 or self.ai_mermaid_check_timeout_seconds <= 0:
             problems.append(
                 "AI_COLLAB_TIMEOUT_SECONDS and AI_MERMAID_CHECK_TIMEOUT_SECONDS must be positive."

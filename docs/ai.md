@@ -1342,3 +1342,136 @@ proposal ("a capture referenced by a pending proposal must not be pruned").
 * `linearize` shows the model `[B12] (paragraph) text` with short labels; the server maps labels back to ids.
   The model never sees an id, a hash, HTML or Yjs bytes. For a document over 40 blocks a table of contents of
   headings is added.
+
+
+## 18. Phase 2, checkpoint 2: proposal generation and preview (no apply)
+
+### 18.1 The flow, with the files
+
+```
+browser composer ──POST /rooms/{room}/ai-requests (operation edit|draft)──▶ services/ai_requests.create_request
+        (admission: role, can_write, consent, keys, rate limit, capacity, target present)  → row + chat message
+worker  answer/execute.py _work ──(operation != "answer")──▶ edit/execute.py run
+        gate again → capture the document ONCE (collab /internal/ai/read) → resolve the target (edit/target.py)
+        → retrieve evidence from the pinned files → manifest → model call (edit/generate.py)
+        → normalize (edit/schema.py) → candidate + checks (Node: packages/proposal-check) → diagrams → ≤1 repair
+        → ONE transaction (services/ai_requests.publish_success): ai_results + ai_proposals + chat reply
+browser  reply card → GET /rooms/{room}/ai-proposals/{id} → review card with Preview (frontend/src/ai/Proposal.tsx)
+```
+
+A **proposal** is a request to change something, never a change. Where state lives at this checkpoint:
+**PostgreSQL** (`ai_requests`, `ai_results`, `ai_proposals`, the manifest) and nothing else. The collaboration
+process and the browsers' Yjs documents are only **read** (the capture); generating and previewing never write to
+them, and a finished job never changes the room's active document.
+
+### 18.2 Requests
+
+`POST /rooms/{room_id}/ai-requests` gains `operation: "answer" | "edit" | "draft"`:
+
+| Field | answer (phase 1) | edit | draft |
+|---|---|---|---|
+| `document_id` | required | required (the target document, even if not the open one) | **absent** (anchored on the room role) |
+| `document_scope` | none / whole / blocks | `"edit"` | `none` |
+| target | n/a | `selected_block_ids` + `selection_hash`, and/or `selected_ranges`, and/or `insert_at: start\|end` | n/a |
+| files | optional | optional | **at least one** |
+
+* **No target = no request** (`422 edit_target_required`): the person is asked to select blocks or a range, or to
+  choose an insertion point. Natural language never changes the target: it is chosen by buttons and sent as data.
+* `selected_ranges` items are `{block_id, start, end, text_hash}` in UTF-16 units of the block's text (17.4) with the
+  SHA-256 of the selected text taken by the client at send time. At capture a missing block, a changed hash or a
+  range that no longer resolves fails the request with `selection_changed` ("select again").
+* A **draft** needs `owner` or `editor` and the AI gate, but no document: a room with no documents can start one.
+  The analysis a draft waits for is anchored on no document (`analysis_jobs.anchor_document_id` is nullable); the
+  worker still re-checks role, consent and switches.
+* `AI_PROPOSALS_ENABLED` (default **false**) switches the whole feature; `/ai/status` reports `proposals_enabled`,
+  and the composer offers the two outputs only when it is true. `AI_PROPOSALS_PER_USER_PER_HOUR` (20) limits
+  requests per user (`429 proposal_rate_limited`). The normal per-user and per-room active-request caps apply.
+* Permissions are Phase 1's, re-checked at admission, at the worker's claim, and **before publication**
+  (a role or write-access loss while the model thinks fails the request and publishes nothing).
+
+### 18.3 What the model sees and returns
+
+It sees labels, never ids or hashes: `[B12] (paragraph) text` for the changeable blocks, a table of contents for a
+document over 40 blocks, the declared ranges with their exact `start`/`end`, the offered insertion points
+(`after [B3]`, `start`), and the evidence of the selected files (`P1`, `S2`, ...), all inside `UNTRUSTED` markers
+with a random token. Prompt version `edit-v1` (recorded in the manifest).
+
+Edit reply (`document_edit` schema, `edit/schema.py`): `{summary, operations[], evidence_gaps[]}`. Operations
+(the typed form, executed by `packages/editor-schema/src/ops.ts`):
+
+| Operation | Fields | Rules |
+|---|---|---|
+| `replace_block_text` | `block`, `new_inline[]` | a paragraph, heading or diagram inside the selection; keeps the element, id, alignment, spacing, indent |
+| `replace_range` | `block`, `start`, `end`, `new_inline[]` | inside a **declared** range (or a wholly selected block); UTF-16 units; never inside a surrogate pair |
+| `insert_blocks_after` | `anchor` (`B#` or `start`), `blocks[]` | the anchor must be an **offered** top-level block; new blocks are top-level |
+| `delete_blocks` | `block_refs[]` | blocks inside the selection |
+
+`new_inline` is a list of runs `{text, marks[]}`; marks are `bold`, `italic`, `underline`, `strike`, `link` (the
+document link policy: http, https, mailto). Replaced text inherits the **font, size, colour and highlight** marks
+of the first original run (of the block or of the replaced range); the model's marks are added. New blocks use
+defaults. A new block is one of `paragraph`, `heading` (1-3), `quote`, `bullet_list`/`numbered_list` (flat items with
+`depth`, at most 3 levels), `table` (existing row/column limits, optional header row), `diagram` (Mermaid source).
+No images, fonts or colours from the model. Each operation carries `reason` and `citations`.
+
+Draft reply (`document_draft` schema): `{title, summary, blocks[], include_sources_section, evidence_gaps[]}`, each
+block with `citations`. If `include_sources_section` is not false the **server** appends "Sources" and a list of the
+file names and locators actually cited (from the validated citation table, never from what the model says).
+
+### 18.4 Validation, in order (nothing is previewed until all of it passes)
+
+1. **Shape** (`edit/schema.py`): types, lengths, counts; unknown operation/block/mark = error; labels must be ones
+   that were shown. At most **50 operations**, **30,000 inserted characters** per proposal.
+2. **Citations** (`CitationTable`, shared with answers): labels map to the evidence bundle; quotes must be in the
+   passage and are dropped on OCR/vision/figure items; chat is context, not evidence. When the request has files and
+   more than 30 % of the content-changing operations (blocks, for a draft) have no valid citation, that is a defect.
+3. **The candidate document** (`packages/proposal-check`, a sandboxed Node child running the SAME engine the
+   collaboration service uses at apply time): scope (selection, ranges, anchors), one operation per block, links,
+   list depth, table shape, Mermaid rules per new diagram, then the whole result through `validateDocument`.
+4. **Diagrams**: size (`AI_DIAGRAM_SPLIT_CHARS`, default 8000, else "split it into smaller diagrams") and the Mermaid
+   parse (`packages/mermaid-check`).
+
+A defect in any step costs **one repair**: the problems (by operation number) are fed back in one more model call
+(metered like any other). A second failure fails the request visibly: `proposal_invalid`, with the problem codes in
+`error_detail`; nothing is published, no partial proposal ever exists. If Node or the engine is missing the request
+fails `proposal_check_unavailable` (retryable): a proposal is never published unchecked.
+
+### 18.5 Stored and shown
+
+`ai_proposals` (state `pending`) holds the validated `operations` (JSONB), a copy of every target block's **before**
+content (`before_content`, so snapshot pruning cannot remove it), the **base hashes** of every block in scope, the
+declared scope, the captured `yjs_update_counter`, the citation table, and the **preview** (for each change: the
+blocks before and after, the model's reason, citation numbers; for a draft, the whole validated document). The
+manifest of the request is kept while its proposal is pending or applying. `GET /rooms/{room}/ai-proposals/{id}`
+serves it to the requester and to owners/editors with **current** write access to the target (for a draft: the
+requester and the owner); anything else is `403`, another room's proposal is `404`. Expired (`AI_PROPOSAL_TTL_DAYS`,
+7) proposals stay readable and are reported as `expired`. Deleting the reply card (owner only) rejects a pending
+proposal and wipes its content.
+
+The review card (`frontend/src/ai/Proposal.tsx`): the target document named (even if it is not the open one), the
+summary, "this is a preview, nothing has changed", **Preview** (a word-level diff for text changes, the blocks before
+and after, rendered diagrams through SafeMermaid, the reason and citation marks that open the cited passage). There
+are **no Apply/Reject buttons yet**: they arrive with checkpoint 4, with their backend.
+
+### 18.6 The evaluation gate (the owner's brief, section 0)
+
+`RUN_EVAL=1 uv run pytest tests/eval/test_proposal_eval.py -s` (stub) and
+`RUN_EVAL=1 EVAL_PROVIDER=real ...` (the configured model) run 16 gold items (13 edits, 3 drafts) through the real
+pipeline and write `tests/eval/results/proposals-<mode>-results.md`: schema-valid rate **without** and **with one
+repair**, the share of proposals whose base hashes, anchors and replay resolve against the captured document,
+citation validity, and a sample of previews. Real mode asserts the 90 % line (it fails the run below it).
+
+**Result: UNMEASURED.** No provider credentials exist here, so only the stub mode ran. Its numbers (62 % valid
+without repair, 94 % with one repair, 100 % resolving, over a *scripted* stand-in with deliberate defects in 6 of
+16 items) show that the harness, the repair loop and the engine work; they are **not** a measurement of any model and
+cannot pass or fail the gate. The owner chose to have phase 2 built first and supply keys afterwards, so checkpoints
+3-5 were built **before** the gate could be measured. If the first real run is below 90 %, the apply path built here
+should not be shipped until the generation quality is fixed.
+
+### 18.7 Unverified at this checkpoint
+
+* Nothing here has talked to a real model: reply shapes under a provider's strict structured-output mode (nesting,
+  unions with `null`) follow the documented limits but were not exercised.
+* The preview shows blocks as stored; it is not a pixel-accurate rendering of fonts and spacing.
+* No cost estimate is shown for proposals (the estimate route knows answers only).
+* The Node engine runs under the same scrubbed-environment child policy as the Mermaid check, without the OS-level
+  resource limits on Windows.

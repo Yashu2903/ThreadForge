@@ -418,6 +418,36 @@ def invalid_ai_request(reason: str, message: str) -> AppError:
     return AppError(422, "invalid_ai_request", message, extra={"reason": reason})
 
 
+def edit_target_required() -> AppError:
+    return AppError(
+        422,
+        "edit_target_required",
+        "Select the blocks or the text to change, or choose where new text goes. "
+        "The assistant never guesses where to write.",
+    )
+
+
+def ai_proposals_disabled() -> AppError:
+    return AppError(
+        503,
+        "ai_proposals_disabled",
+        "Edit proposals and drafts are not switched on on this server.",
+    )
+
+
+def proposal_rate_limited(limit: int) -> AppError:
+    return AppError(
+        429,
+        "proposal_rate_limited",
+        "You have asked for many proposals in the last hour. Try again a little later.",
+        extra={"limit_per_hour": limit},
+    )
+
+
+def ai_proposal_not_found() -> AppError:
+    return AppError(404, "ai_proposal_not_found", "Proposal not found.")
+
+
 def ai_capacity(scope: str, limit: int) -> AppError:
     return AppError(
         429,

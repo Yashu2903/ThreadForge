@@ -38,6 +38,25 @@ router = APIRouter(tags=["ai-requests"])
 _HEX64 = "0123456789abcdef"
 
 
+class RangeIn(BaseModel):
+    """A character range inside one block, in UTF-16 code units of the block's text (docs/ai.md 17.4), and
+    the SHA-256 (hex) the client computed over the selected text at send time."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    block_id: JsonUuid
+    start: int = Field(ge=0, le=1_000_000)
+    end: int = Field(ge=0, le=1_000_000)
+    text_hash: str = Field(min_length=64, max_length=64)
+
+    @field_validator("text_hash")
+    @classmethod
+    def _hash(cls, value: str) -> str:
+        if value != value.lower() or any(c not in _HEX64 for c in value):
+            raise ValueError("text_hash must be 64 lowercase hex characters.")
+        return value
+
+
 class CreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -45,9 +64,14 @@ class CreateRequest(BaseModel):
     client_request_id: uuid.UUID = Field(strict=False)
     instruction: str = Field(min_length=1, max_length=4000)
     task_hint: Literal["auto", "ask", "summarize", "compare"] = "auto"
-    document_id: uuid.UUID = Field(strict=False)
+    # "answer" (phase 1), "edit" (a proposal for one document) or "draft" (a proposal for a NEW document,
+    # anchored on the room role: no document_id)
+    operation: Literal["answer", "edit", "draft"] = "answer"
+    document_id: uuid.UUID | None = Field(default=None, strict=False)
     include_document_content: bool = False
-    document_scope: Literal["none", "whole", "blocks"] = "none"
+    document_scope: Literal["none", "whole", "blocks", "edit"] = "none"
+    selected_ranges: list[RangeIn] = Field(default_factory=list, max_length=20)
+    insert_at: Literal["start", "end"] | None = None
     selected_block_ids: list[JsonUuid] = Field(default_factory=list, max_length=50)
     selection_hash: str | None = Field(default=None, min_length=64, max_length=64)
     source_version_ids: list[JsonUuid] = Field(default_factory=list, max_length=10)
@@ -99,7 +123,9 @@ class RequestOut(BaseModel):
     queued_at: datetime | None
     started_at: datetime | None
     finished_at: datetime | None
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None
+    operation: str
+    proposal_id: uuid.UUID | None
     include_document_content: bool
     document_scope: str
     include_chat_context: bool
@@ -118,6 +144,7 @@ class ResultOut(BaseModel):
     request_id: uuid.UUID
     reply_message_id: uuid.UUID | None
     task_type: str
+    proposal_id: uuid.UUID | None = None
     redacted: bool
     answer: dict[str, Any] | None
     citations: list[dict[str, Any]]
@@ -149,6 +176,8 @@ def _out(settings, view: svc.RequestView, access: RoomAccess) -> RequestOut:
         started_at=view.started_at,
         finished_at=view.finished_at,
         document_id=view.document_id,
+        operation=view.operation,
+        proposal_id=view.proposal_id,
         include_document_content=view.include_document_content,
         document_scope=view.document_scope,
         include_chat_context=view.include_chat_context,
@@ -188,6 +217,11 @@ async def _load_visible(request: Request, access: RoomAccess, request_id: uuid.U
     if access.role not in svc.EDIT_ROLES:
         raise insufficient_role()
     if view.requested_by != access.user_id:
+        if view.document_id is None:
+            # a draft has no document: only its requester and the owner(s) see it
+            if access.role != "owner":
+                raise ai_write_access_required()
+            return view
         async with sm() as db:
             decision = await decide_write(
                 db, request.app.state.settings, access.user_id, view.document_id
@@ -239,6 +273,9 @@ async def create_request(
             client_request_id=body.client_request_id,
             instruction=body.instruction,
             task_hint=body.task_hint,
+            operation=body.operation,
+            selected_ranges=tuple(r.model_dump(mode="json") for r in body.selected_ranges),
+            insert_at=body.insert_at,
             document_id=body.document_id,
             include_document_content=body.include_document_content,
             document_scope=body.document_scope,
@@ -348,6 +385,7 @@ async def get_result(request: Request, access: MemberAccess, request_id: str) ->
         request_id=rid,
         reply_message_id=row.reply_message_id,
         task_type=row.task_type,
+        proposal_id=await svc.proposal_id_of(request.app.state.sessionmaker, rid),
         redacted=row.redacted_at is not None,
         answer=row.answer,
         citations=citations,

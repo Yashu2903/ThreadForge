@@ -9,7 +9,7 @@ dependency; everything below runs for an active member.
   3. global switch  operator kill switch                     -> 503 ai_disabled
   4. capability     generation/embedding self-check failing  -> 503 ai_unavailable
   5. room switch    owner turned AI off in this room         -> 409 ai_disabled_for_room
-  6. anchor         no document given                        -> 409 ai_anchor_required
+  6. anchor         no document given (a draft needs none)  -> 409 ai_anchor_required
   7. can_write      shared decide_write()                    -> 403 ai_write_access_required
   8. consent        current notice version accepted          -> 403 consent_required
 
@@ -74,6 +74,7 @@ async def gate(
     room_id: uuid.UUID,
     document_id: uuid.UUID | None,
     require_consent: bool = True,
+    require_anchor: bool = True,
 ) -> Admission:
     if role not in EDIT_ROLES:
         raise insufficient_role()
@@ -90,16 +91,20 @@ async def gate(
     ).scalar_one()
     if not room_on:
         raise ai_disabled_for_room()
+    decision: WriteDecision | None = None
     if document_id is None:
-        raise ai_anchor_required()
-    decision = await decide_write(db, settings, user_id, document_id)
-    if decision.reason == "document_not_found" or (
-        decision.room_id is not None and decision.room_id != room_id
-    ):
-        # a document of another room is reported like a missing one: no cross-room oracle
-        raise document_not_found()
-    if not decision.allowed:
-        raise ai_write_access_required()
+        # a DRAFT is anchored on the room role (owner or editor), not on a document
+        if require_anchor:
+            raise ai_anchor_required()
+    else:
+        decision = await decide_write(db, settings, user_id, document_id)
+        if decision.reason == "document_not_found" or (
+            decision.room_id is not None and decision.room_id != room_id
+        ):
+            # a document of another room is reported like a missing one: no cross-room oracle
+            raise document_not_found()
+        if not decision.allowed:
+            raise ai_write_access_required()
     consent = await has_consent(db, user_id)
     if require_consent and not consent:
         raise consent_required()
