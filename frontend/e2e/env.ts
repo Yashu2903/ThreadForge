@@ -42,6 +42,8 @@ export const backendEnv: Record<string, string> = {
   // stub the pytest suite uses). Server keys only, so no key-encryption setting is needed. These keys
   // are the stub's, not real credentials.
   AI_ENABLED: "true",
+  AI_PROPOSALS_ENABLED: "true",
+  AI_APPLY_QUIET_SECONDS: "1",
   AI_KEY_POLICY: "server_only",
   AI_OPENAI_API_KEY: "sk-server-openai-0123456789abcdef",
   AI_GOOGLE_API_KEY: "AIzaServerGoogleKey0123456789abcdef",
@@ -74,4 +76,8 @@ export const collabEnv: Record<string, string> = {
   COLLAB_REDIS_URL: "redis://127.0.0.1:6390/14",
   COLLAB_REDIS_PREFIX: prefix,
   COLLAB_ACCESS_CHECK_MS: "3000",
+  AI_APPLY_QUIET_SECONDS: "1",
+  AI_APPLY_MAX_WAIT_SECONDS: "8",
+  COLLAB_AI_SWEEP_MS: "2000",
+  COLLAB_AI_STUCK_AFTER_MS: "4000",
 };

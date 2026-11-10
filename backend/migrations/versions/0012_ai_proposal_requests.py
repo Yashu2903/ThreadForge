@@ -91,9 +91,11 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Rows that only exist because of this migration cannot be represented by the old constraints, and they
     # are tied to chat messages and proposals, so the downgrade refuses instead of deleting someone's history.
-    leftover = op.get_bind().execute(
-        sa.text("SELECT count(*) FROM ai_requests WHERE operation <> 'answer'")
-    ).scalar_one()
+    leftover = (
+        op.get_bind()
+        .execute(sa.text("SELECT count(*) FROM ai_requests WHERE operation <> 'answer'"))
+        .scalar_one()
+    )
     if leftover:
         raise RuntimeError(
             f"{leftover} edit/draft request(s) exist; this downgrade will not delete AI history. "
@@ -103,9 +105,11 @@ def downgrade() -> None:
     op.drop_constraint(
         op.f("ck_ai_requests_document_required_unless_draft"), "ai_requests", type_="check"
     )
-    unanchored = op.get_bind().execute(
-        sa.text("SELECT count(*) FROM analysis_jobs WHERE anchor_document_id IS NULL")
-    ).scalar_one()
+    unanchored = (
+        op.get_bind()
+        .execute(sa.text("SELECT count(*) FROM analysis_jobs WHERE anchor_document_id IS NULL"))
+        .scalar_one()
+    )
     if unanchored:
         raise RuntimeError(
             f"{unanchored} analysis job(s) have no anchor document (they were queued for a draft); "

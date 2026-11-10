@@ -153,7 +153,10 @@ def upgrade() -> None:
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["created_by"], ["users.id"], name="fk_ai_proposals_created_by_users", ondelete="RESTRICT"
+            ["created_by"],
+            ["users.id"],
+            name="fk_ai_proposals_created_by_users",
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["applying_by"],
@@ -219,8 +222,12 @@ def upgrade() -> None:
         ["applying_since"],
         postgresql_where=sa.text("state = 'applying'"),
     )
-    op.create_index("ix_ai_proposals_expires_at_pending", "ai_proposals", ["expires_at"],
-        postgresql_where=sa.text("state = 'pending'"))
+    op.create_index(
+        "ix_ai_proposals_expires_at_pending",
+        "ai_proposals",
+        ["expires_at"],
+        postgresql_where=sa.text("state = 'pending'"),
+    )
 
     # ---- ai_proposal_applications ---------------------------------------------------------------
     op.create_table(

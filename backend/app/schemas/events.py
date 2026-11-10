@@ -64,6 +64,13 @@ class AiRequestPayload(_Strict):
     ]
 
 
+class AiProposalPayload(_Strict):
+    proposal_id: uuid.UUID
+    state: Literal[
+        "pending", "applying", "applied", "rejected", "conflicted", "expired", "superseded"
+    ]
+
+
 class SourcePayload(_Strict):
     source_id: uuid.UUID
     source_version_id: uuid.UUID
@@ -96,6 +103,8 @@ EVENT_SPECS: dict[str, EventSpec] = {
     "room_ai_settings_changed": EventSpec("room", False, AiSettingsPayload),
     # AI phase 1, checkpoint 4. Ids and states only: details come from authorized endpoints.
     "ai_request_updated": EventSpec("ai_request", False, AiRequestPayload),
+    # AI phase 2. Ids and states only: the proposal itself comes from an authorized endpoint.
+    "ai_proposal_updated": EventSpec("ai_proposal", False, AiProposalPayload),
     # terminal analysis states and new versions only (never a name, never any content)
     "source_updated": EventSpec("source", False, SourcePayload),
 }

@@ -1475,3 +1475,157 @@ should not be shipped until the generation quality is fixed.
 * No cost estimate is shown for proposals (the estimate route knows answers only).
 * The Node engine runs under the same scrubbed-environment child policy as the Mermaid check, without the OS-level
   resource limits on Windows.
+
+
+## 19. Phase 2, checkpoint 3: applying a proposal to the live document
+
+### 19.1 Why one process can do this atomically (and what it cannot do)
+
+The collaboration service (`collab/`, Node) holds the live **Y.Doc** of every open document and handles every update
+to it on a single thread. Yjs is a CRDT (a data structure that merges edits from many people without a central
+lock). A **synchronous Yjs transaction** (`doc.transact`) is therefore atomic against every update the service
+has *already received*: no other update can interleave inside it. This design is for **one collaboration instance**
+(the lease guarantees that); there are no document epochs and no freezing.
+
+What it cannot see: an edit still sitting **unsent in a browser**, or made **offline**. That edit reaches the server later, and
+if it is inside a block the AI replaced it is dropped (see 19.6). Everything below is built around being exact about that boundary.
+
+### 19.2 The protocol (`collab/src/apply.ts`), step by step
+
+`POST /internal/ai/apply-proposal {proposal_id, document_id, user_id}` (secret-protected, private network; the API's
+public apply route calls it, 20.1):
+
+| # | Step | Where it is decided | If it fails |
+|---|---|---|---|
+| 1 | **Lease**: this instance still holds the fenced lease | collab `LeaseKeeper`; the token is sent with every internal write and checked INSIDE the database transaction | `409 stale_lease`, nothing changed |
+| 2 | **Authority**: the user may write the document *now* (role, membership, document state); the proposal is an edit of THIS document and room, `pending` (or `applying` by the same user), unexpired; then `pending -> applying` by **compare-and-set** | PostgreSQL, `ai_proposals.begin_apply`, under the room lock | `403`, `404`, `409 proposal_<state>`; two competing applies: exactly one wins |
+| 3 | **Quiet**: if a *person's* edit reached the document within `AI_APPLY_QUIET_SECONDS` (default 3), wait up to `AI_APPLY_MAX_WAIT_SECONDS` (10) | collab, `lastHumanUpdateAt` (server-side changes do not count). **Document-level, not block-level.** | `document_busy` (retryable); the proposal goes back to `pending` |
+| 4 | **Check in memory, before any mutation**: read the live document; recompute the hash of every target block (`blockHash`, the shared package) and compare it with the proposal's `base_hashes`; run the SAME engine the worker used (`applyOperations`) on the live JSON to build the candidate; validate the whole result (`validateDocument`); **rehearse** the Yjs change on a *copy* and require the identical document | collab + `packages/editor-schema` | `409 conflicted` (`block_changed`, `block_missing`, `candidate_*`): **nothing changed**, the proposal becomes `conflicted` |
+| 5 | **Commit**: ONE `doc.transact` with its own origin `{source: "local", context: {source: "ai-apply", ...}}`: all changes together, plus an **idempotency marker** in the root `Y.Map` `ai_applications` keyed by the proposal id. A marker that already exists means "already applied": no change, same outcome | collab, `yapply.ts` | the transaction is all-or-nothing |
+| 6 | **Durable**: store NOW (not debounced). The *application receipt* (`ai_proposal_applications`: who, the resulting counter, a receipt hash) is written in the **same PostgreSQL transaction as the Yjs bytes** (`PUT /internal/collab/documents/{id}/state` with `X-Proposal-Id`, `X-Applied-By`, `X-Receipt-Hash`). Only after that commits is the proposal marked `applied` and the HTTP call answered | PostgreSQL | see the failure table |
+| 7 | **Recovery**: a sweeper at service start and every `COLLAB_AI_SWEEP_MS` looks for proposals stuck in `applying` | collab `ProposalApplier.sweep` | see below |
+
+Between 4 and 5 nothing may reach the document: the state vector is read before the checks and compared with the one
+just before the transaction (hashing is asynchronous, so a message could slip in); any change restarts the check, at
+most three times, then `document_busy`.
+
+Replacing text keeps the block **element** (its id, alignment, spacing, indent): only its inline children are
+deleted and re-inserted. Only `delete_blocks` removes elements. New blocks are built by `prosemirrorJSONToYXmlFragment`,
+the library the editor itself uses. Block ids, new content and order all come from the engine's result (`changes`);
+`yapply.ts` decides nothing.
+
+### 19.3 Where state lives
+
+| State | Where |
+|---|---|
+| the document people edit | each browser's Y.Doc, and the collaboration process's live Y.Doc (they sync over the WebSocket) |
+| the proposal, its operations, hashes, before-copy, the receipt | PostgreSQL (`ai_proposals`, `ai_proposal_applications`) |
+| the durable document | PostgreSQL (`document_yjs_state`, the full Yjs state, with a counter) |
+| "which proposals were applied to this document" | inside the document itself: the `ai_applications` Y.Map (so it survives crashes and travels with reconnecting clients) |
+| "is this proposal being applied right now" | the proposal's `applying` state in PostgreSQL |
+
+### 19.4 Failure outcomes
+
+| What happens | Result |
+|---|---|
+| a target block changed or vanished since the proposal | `conflicted`, document unchanged, **Regenerate** offered |
+| any operation cannot be applied, or the result fails the document rules | whole proposal refused (`conflicted`, `candidate_<code>`); never a partial change |
+| people are typing | `document_busy`, retryable; proposal stays `pending` |
+| the lease is stale | `stale_lease`, nothing changed |
+| the user lost write access (or was removed) between request and apply | `403`, proposal stays `pending`, nothing changed |
+| the proposal expired / was rejected / already applied | `409 proposal_<state>`; "already applied" is reported, not repeated |
+| the service **crashes or the store fails AFTER the change was broadcast** | the connected editors hold the change *and* the marker; the proposal stays `applying`; the sweeper stores the document with the receipt and marks it `applied` (or, if the process restarted and no client brought the change back, finds no marker and returns it to `pending`) |
+| the service crashes **after the store committed but before the proposal row was updated** | the receipt row already exists; the sweeper marks the proposal `applied`; there is no second change (the marker makes a repeat a no-op) |
+| the same proposal is applied twice, or at once | compare-and-set + the in-process single-flight + the marker: **one change** |
+
+"Synced" and "durable" are reported as separate facts: the reply says `synced: true` (every connected editor already has
+the change) and `durable: true` (it is in PostgreSQL with its receipt). If the store fails, the card shows "Being
+applied: the change has reached the editors and is being saved" (state `applying`) until the sweeper finishes it.
+
+### 19.5 Undo
+
+A person's Ctrl+Z must not undo an AI change, and the AI must not undo a person's. The editor's undo manager
+(y-prosemirror's `yUndoPlugin`) tracks only transactions whose origin is the editor's own sync plugin key. The AI's
+change happens in the *server's* Y.Doc with origin `{source: "local", context: {source: "ai-apply"}}` and arrives in
+each browser as a **remote** update applied by the provider, whose origin is not tracked. Tested three ways: the
+server-side origin carries `ai-apply` and is not among a manager's tracked origins; a `Y.UndoManager` that tracks only
+local typing leaves an applied AI block alone (`collab/test/apply.test.ts`); and two real browsers
+(`frontend/e2e/ai-proposals.spec.ts`).
+
+### 19.6 Limits, stated plainly
+
+* A **base hash protects the targeted blocks** against edits the server has seen. It does **not** protect against edits
+  still unsent in another browser or made **offline**.
+* **An unsent edit inside a block the AI replaced is lost.** Replacing text deletes the block's old text node and
+  inserts the new one (the block element and its id stay). Yjs discards anything a client inserted *inside* a node that
+  was deleted when that client's change finally merges. Measured in `collab/test/apply.test.ts` ("documents what an offline
+  client's UNSENT edit inside a replaced block does"): a person who typed offline at the end of "Bravo", while the AI
+  replaced "Bravo", comes back and every side converges on the AI's text; their typed words are gone, with no warning to
+  them. (This corrects an earlier expectation that the words would survive next to the AI's text: they do not.) The same
+  holds for a block removed by `delete_blocks`.
+* So the real protection is the **base hash + quiet guard + confirm dialog** (everything the server has seen), and the
+  reviewer's own judgement for people who may be offline. Nothing in this design can detect an edit the server never received.
+* The quiet guard is **document-level**: while anyone is typing anywhere in the document, an apply waits.
+* The presence warning in the confirm dialog uses presence of the document **open in this browser**; for a proposal
+  about another document, the reply reports how many people were connected afterwards.
+* One collaboration instance; no multi-instance scaling; no offline-recovery beyond what is described here.
+* The `ai_applications` marker map is never pruned (one small entry per applied proposal).
+
+### 19.7 Internal API (`/internal/collab/...`, secret + fenced lease)
+
+`POST /proposals/{id}/begin-apply` (checks and compare-and-set; returns operations, base hashes, scope),
+`POST /proposals/{id}/finish-apply`, `POST /proposals/{id}/release-apply` (-> `pending`), `POST /proposals/{id}/conflicted`,
+`GET /proposals/stuck?older_than_seconds=N`, and `PUT /documents/{id}/state` with the receipt headers. Each takes the
+fencing token and checks it inside its own transaction. None is reachable from a browser; none carries document text.
+
+## 20. Phase 2, checkpoint 4: review, apply, reject, regenerate, expiry, events, publishing a draft
+
+### 20.1 Routes (`backend/app/api/ai_proposals.py`)
+
+| Route | Who | What |
+|---|---|---|
+| `GET /rooms/{room}/ai-proposals/{id}` | requester; owner/editor with current write access (draft: requester and owner) | the proposal, its preview and `can_apply`, `can_reject`, `can_regenerate`, `can_publish` for THIS person |
+| `POST .../apply` | same people, and write access *now* | asks the collaboration service (19.2); returns `{state, already, synced, durable, counter, connected_users}` |
+| `POST .../reject` | the requester, or anyone with write access (draft: requester or owner) | `pending -> rejected`; changes nothing else; idempotent |
+| `POST .../regenerate {client_request_id}` | same people as apply, only from `conflicted` | a NEW request with the same instruction, files and target blocks, read from the CURRENT document; the old proposal becomes `superseded` and stays readable |
+| `POST .../publish {client_request_id}` | the **owner** | creates the draft's document through the existing create-document path and makes it the active document |
+
+All state-changing routes are CSRF-protected, return `404` for another room's or a missing proposal, and are
+whole-proposal actions only. Errors the card maps to words: `proposal_conflicted`, `document_busy`, `proposal_expired`,
+`proposal_rejected`, `proposal_applied`, `proposal_applying`, `proposal_superseded`, `ai_write_access_required`,
+`collab_unavailable`.
+
+### 20.2 States
+
+`pending -> applying -> applied | conflicted | pending`; `pending -> rejected | expired`; `conflicted -> superseded`;
+a draft goes `pending -> applied` when published. Only `pending` can be rejected, expired or superseded, so an apply in
+flight is never pulled out from under the collaboration service. A pending proposal past `AI_PROPOSAL_TTL_DAYS` is
+*reported* as `expired` immediately and *made* expired by the AI worker (an event is recorded). An expired proposal cannot
+be applied or published but stays readable until retention.
+
+### 20.3 Events
+
+`ai_proposal_updated {proposal_id, state}` (migration 0013; type CHECK, payload schema in `schemas/events.py`, client
+handling in `client/src/room-client.ts` -> `AiSignals.proposals`, the frontend store refetches the authorized view, and the
+completeness audit lists the writers). Recorded in the same transaction as every state change, at creation (`pending`),
+`applying`, `applied`, `conflicted`, `rejected`, `expired`, `superseded`. **Document changes themselves do not travel as
+events**: they reach clients through the Yjs connection.
+
+### 20.4 Publishing a draft
+
+Owner only. `documents.create_document` gained two hooks that run INSIDE its transaction: `before_insert` re-checks the
+proposal (draft, pending, unexpired) and `after_insert` links it (`published_document_id`, state `applied`,
+resolution `published`) and records the proposal event, so *document + `document_created` + `active_document_changed`
++ proposal update + proposal event* commit together or not at all. The content is the draft's validated Tiptap JSON
+(`seed_format = tiptap`, `template_key = ai_draft`), seeded by the collaboration service through the same path as every
+document (strictly validated again, diagrams included). A retry with the same `client_request_id` finds the document it
+made (the request fingerprint includes the proposal id); a different id finds the proposal already published
+(`409 proposal_applied`). The confirm dialog says "this will become the active document". A draft is never published
+automatically, and an editor's draft waits as a pending card until the owner publishes or rejects it.
+
+### 20.5 Retention
+
+Resolved proposals keep their before-copy, preview and receipt for `AI_PROPOSAL_RETENTION_DAYS` (30) after resolution, then
+`python -m app.commands.cleanup_ai` deletes them; `pending` and `applying` proposals are never deleted, and the request
+manifest behind a pending proposal is kept (17.3). Deleting the answer card (owner only) rejects a pending proposal and
+wipes its content.

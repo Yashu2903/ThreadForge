@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { type PMJson, blockHash } from "@threadforge/editor-schema";
+import { type PMJson, blockHash, textHash } from "@threadforge/editor-schema";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Api } from "./api";
 import { CollabSession, collabUrl } from "./collab/session";
@@ -19,6 +19,34 @@ export interface LiveHandle {
   text: () => string;
   /** the top-level blocks the selection touches, with the hash the server will check (or null) */
   selection: () => Promise<BlockSelection | null>;
+  /** the selected text inside ONE paragraph/heading/diagram, as a UTF-16 range with its hash (or null) */
+  range: () => Promise<RangeSelection | null>;
+  /** how many OTHER people are connected to this document right now (from presence/awareness) */
+  peers: () => number;
+}
+
+/** A character range inside one block, counted in UTF-16 code units of the block's text (docs/ai.md 17.4):
+ *  ProseMirror counts a text character as its UTF-16 length and a hard break or inline image as ONE position,
+ *  which is exactly the mapping the server and the collaboration service use. */
+export interface RangeSelection {
+  block_id: string;
+  start: number;
+  end: number;
+  text_hash: string;
+  text: string;
+}
+
+export async function readRangeSelection(editor: Editor | null): Promise<RangeSelection | null> {
+  if (!editor) return null;
+  const { $from, $to, empty } = editor.state.selection;
+  if (empty || !$from.sameParent($to)) return null;
+  const parent = $from.parent;
+  const id = parent.attrs?.id;
+  if (!["paragraph", "heading", "diagram"].includes(parent.type.name) || typeof id !== "string") return null;
+  const start = $from.parentOffset;
+  const end = $to.parentOffset;
+  const text = parent.textBetween(start, end, "", (leaf) => (leaf.type.name === "hardBreak" ? "\n" : "\uFFFC"));
+  return { block_id: id, start, end, text, text_hash: await textHash(text) };
 }
 
 export interface BlockSelection {
@@ -94,6 +122,8 @@ export function DocumentEditor(props: {
       unsynced: () => created.unsyncedChanges,
       text: () => editorRef.current?.getText({ blockSeparator: "\n" }) ?? "",
       selection: () => readBlockSelection(editorRef.current),
+      range: () => readRangeSelection(editorRef.current),
+      peers: () => Math.max(0, (created.provider.awareness?.getStates().size ?? 1) - 1),
     });
     return () => {
       props.onLive(null);

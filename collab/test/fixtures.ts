@@ -85,3 +85,68 @@ export async function scene(content: unknown = interchange("Hello")) {
   const docId = await createDocument(roomId, owner, content);
   return { owner, editor, viewer, roomId, docId };
 }
+
+/**
+ * A pending AI edit proposal, inserted straight into the database with the chain of rows it needs (chat message,
+ * request, result): the service under test only ever READS and CHANGES the state of proposals, it never makes one.
+ */
+export async function createProposal(opts: {
+  roomId: string;
+  documentId: string;
+  user: TestUser;
+  operations: unknown;
+  baseHashes: Record<string, string>;
+  scope: { whole_ids?: string[]; ranges?: unknown[]; anchors?: string[] };
+  state?: string;
+  expiresInSeconds?: number;
+}): Promise<string> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const requestId = randomUUID();
+    const message = await client.query(
+      "INSERT INTO messages (room_id, author_id, client_message_id, body, initial_request_fingerprint, created_at, kind, ai_request_id)" +
+        " VALUES ($1, $2, gen_random_uuid(), '@AI test', decode(repeat('00', 32), 'hex'), now(), 'ai_request', $3) RETURNING id",
+      [opts.roomId, opts.user.id, requestId],
+    );
+    await client.query(
+      "INSERT INTO ai_requests (id, room_id, requested_by, message_id, client_request_id, request_fingerprint, operation, task_hint," +
+        " instruction, document_id, include_document_content, document_scope, include_chat_context, state, key_source_generation," +
+        " key_source_embedding, charged_user_id, finished_at)" +
+        " VALUES ($1, $2, $3, $4, gen_random_uuid(), decode(repeat('00', 32), 'hex'), 'edit', 'ask', 'test', $5, true, 'edit', false," +
+        " 'succeeded', 'server', 'server', $3, now())",
+      [requestId, opts.roomId, opts.user.id, message.rows[0].id, opts.documentId],
+    );
+    const result = await client.query(
+      "INSERT INTO ai_results (request_id, room_id, task_type, answer) VALUES ($1, $2, 'edit_proposal', '{}'::jsonb) RETURNING id",
+      [requestId, opts.roomId],
+    );
+    const state = opts.state ?? "pending";
+    const proposal = await client.query(
+      "INSERT INTO ai_proposals (request_id, result_id, room_id, document_id, kind, state, operations, base_hashes, scope, captured_counter," +
+        " created_by, created_at, expires_at, applying_by, applying_since, resolved_at)" +
+        " VALUES ($1, $2, $3, $4, 'edit', $5::text, $6, $7, $8, 1, $9, now() - interval '1 hour', now() + ($10 || ' seconds')::interval," +
+        " CASE WHEN $5::text = 'applying' THEN $9::uuid END, CASE WHEN $5::text = 'applying' THEN now() - interval '5 minutes' END," +
+        " CASE WHEN $5::text NOT IN ('pending', 'applying') THEN now() END) RETURNING id",
+      [
+        requestId,
+        result.rows[0].id,
+        opts.roomId,
+        opts.documentId,
+        state,
+        JSON.stringify(opts.operations),
+        JSON.stringify(opts.baseHashes),
+        JSON.stringify(opts.scope),
+        opts.user.id,
+        String(opts.expiresInSeconds ?? 3600),
+      ],
+    );
+    await client.query("COMMIT");
+    return proposal.rows[0].id;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

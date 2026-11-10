@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import Settings
 from app.errors import AppError
+from app.services import ai_proposals as proposals
 from app.services import collab
 from app.services.permissions import decide_write
 
@@ -245,8 +246,25 @@ async def put_state(
     token: LeaseToken,
     x_update_counter: Annotated[int, Header(ge=0)],
     x_insert_if_absent: Annotated[bool, Header()] = False,
+    x_proposal_id: Annotated[str | None, Header()] = None,
+    x_applied_by: Annotated[str | None, Header()] = None,
+    x_receipt_hash: Annotated[str | None, Header()] = None,
 ) -> Response:
     state = await request.body()
+    receipt = None
+    if x_proposal_id or x_applied_by or x_receipt_hash:
+        try:
+            receipt = collab.ApplyReceipt(
+                uuid.UUID(x_proposal_id or ""),
+                uuid.UUID(x_applied_by or ""),
+                bytes.fromhex(x_receipt_hash or ""),
+            )
+            if len(receipt.receipt_hash) != 32:
+                raise ValueError("hash length")
+        except ValueError:
+            raise AppError(
+                422, "validation_error", "The application receipt is malformed."
+            ) from None
     await collab.store_state(
         request.app.state.sessionmaker,
         request.app.state.settings,
@@ -255,6 +273,100 @@ async def put_state(
         x_update_counter,
         state,
         x_insert_if_absent,
+        receipt,
+    )
+    return Response(status_code=204)
+
+
+# ---- AI proposals being applied (phase 2) ----------------------------------------
+
+
+class BeginApplyIn(_Body):
+    user_id: uuid.UUID
+    document_id: uuid.UUID
+
+
+class FinishApplyIn(_Body):
+    user_id: uuid.UUID
+    resulting_counter: int = Field(ge=0)
+    receipt_hash: str = Field(min_length=64, max_length=64)
+
+
+class ReleaseApplyIn(_Body):
+    reason: str = Field(min_length=1, max_length=60)
+
+
+class ConflictedIn(_Body):
+    user_id: uuid.UUID
+    code: str = Field(min_length=1, max_length=48)
+
+
+def _proposal_uuid(raw: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(raw)
+    except ValueError:
+        raise AppError(404, "ai_proposal_not_found", "Proposal not found.") from None
+
+
+@router.get("/proposals/stuck")
+async def stuck_proposals(request: Request, older_than_seconds: int = 60) -> dict[str, Any]:
+    """The recovery sweeper's work list: proposals that have been `applying` for a while."""
+    rows = await proposals.stuck_proposals(
+        request.app.state.sessionmaker, max(0, min(older_than_seconds, 86_400))
+    )
+    return {"proposals": rows}
+
+
+@router.post("/proposals/{proposal_id}/begin-apply")
+async def begin_apply(
+    request: Request, proposal_id: str, body: BeginApplyIn, token: LeaseToken
+) -> dict[str, Any]:
+    """Recheck the user's write access and the proposal, and move it pending -> applying."""
+    return await proposals.begin_apply(
+        request.app.state.sessionmaker,
+        request.app.state.settings,
+        token,
+        proposal_id=_proposal_uuid(proposal_id),
+        document_id=body.document_id,
+        user_id=body.user_id,
+    )
+
+
+@router.post("/proposals/{proposal_id}/finish-apply")
+async def finish_apply(
+    request: Request, proposal_id: str, body: FinishApplyIn, token: LeaseToken
+) -> dict[str, str]:
+    try:
+        receipt = bytes.fromhex(body.receipt_hash)
+    except ValueError:
+        raise AppError(422, "validation_error", "The receipt hash is malformed.") from None
+    state = await proposals.finish_apply(
+        request.app.state.sessionmaker,
+        token,
+        _proposal_uuid(proposal_id),
+        body.user_id,
+        body.resulting_counter,
+        receipt,
+    )
+    return {"state": state}
+
+
+@router.post("/proposals/{proposal_id}/release-apply", status_code=204)
+async def release_apply(
+    request: Request, proposal_id: str, body: ReleaseApplyIn, token: LeaseToken
+) -> Response:
+    await proposals.release_apply(
+        request.app.state.sessionmaker, token, _proposal_uuid(proposal_id), body.reason
+    )
+    return Response(status_code=204)
+
+
+@router.post("/proposals/{proposal_id}/conflicted", status_code=204)
+async def conflicted(
+    request: Request, proposal_id: str, body: ConflictedIn, token: LeaseToken
+) -> Response:
+    await proposals.mark_conflicted(
+        request.app.state.sessionmaker, token, _proposal_uuid(proposal_id), body.user_id, body.code
     )
     return Response(status_code=204)
 

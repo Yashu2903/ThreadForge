@@ -133,6 +133,7 @@ def resolve_edit_target(
     selection_hash: str | None,
     ranges: list[dict[str, Any]],
     insert_at: str | None,
+    skip_hash: bool = False,
 ) -> EditTarget:
     """The target, or CaptureFailed('target_required' | 'selection_changed')."""
     if not block_ids and not ranges and insert_at is None:
@@ -146,7 +147,7 @@ def resolve_edit_target(
 
     selected: list[DocBlock] = []
     if block_ids:
-        selected = resolve_selection(captured, block_ids, selection_hash)
+        selected = resolve_selection(captured, block_ids, selection_hash, skip_hash=skip_hash)
 
     parsed: list[RangeSel] = []
     range_text: dict[str, str] = {}

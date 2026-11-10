@@ -503,7 +503,7 @@ def test_payload_schemas_are_strict(event_type, resource_type, version, payload)
 def test_every_supported_event_type_has_a_spec_and_nothing_else_does():
     from app.models.room_event import EVENT_TYPES
 
-    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 15
+    assert set(EVENT_SPECS) == set(EVENT_TYPES) and len(EVENT_TYPES) == 16
 
 
 # ---- privacy ------------------------------------------------------------------------------------------------
@@ -535,6 +535,7 @@ SERVICE_FILES = [
     "messages",
     "documents",
     "ai_requests",
+    "ai_proposals",
     "sources",
 ]
 # Functions that open a transaction and mutate: which events each must record.
@@ -562,7 +563,15 @@ EXPECTED_EVENTS = {
     "finish": {"ai_request_updated"},
     "requeue": {"ai_request_updated"},
     "claim_next": {"ai_request_updated"},  # announces "running"
-    "publish_success": {"message_created", "ai_request_updated"},
+    "publish_success": {"message_created", "ai_request_updated", "ai_proposal_updated"},
+    # AI phase 2: every proposal transition announces itself in the transaction that makes it
+    "begin_apply": {"ai_proposal_updated"},
+    "release_apply": {"ai_proposal_updated"},
+    "mark_conflicted": {"ai_proposal_updated"},
+    "finish_apply": {"ai_proposal_updated"},
+    "reject": {"ai_proposal_updated"},
+    "supersede": {"ai_proposal_updated"},
+    "expire_due": {"ai_proposal_updated"},
     "finalize_upload": {"source_updated"},
     "remove_source": {"source_updated"},
 }
@@ -574,6 +583,8 @@ HELPER_EVENTS = {
     "_fail_locked(": {"ai_request_updated"},
     "_mark_succeeded(": {"ai_request_updated"},
     "emit_source_event(": {"source_updated"},
+    "await emit(": {"ai_proposal_updated"},  # the proposal service's state announcement
+    "ai_proposals.emit(": {"ai_proposal_updated"},
 }
 # Deliberately event-less (invitations are not room events: spec section 5).
 NO_EVENT_BY_DESIGN = {

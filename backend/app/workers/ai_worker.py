@@ -30,7 +30,7 @@ from app.ai.status import REQUIRED
 from app.config import Settings, load_settings
 from app.db import create_engine, create_sessionmaker
 from app.logging_config import APP_LOGGER, configure_logging
-from app.services import ai_requests
+from app.services import ai_proposals, ai_requests
 from app.storage import Storage
 
 log = logging.getLogger(f"{APP_LOGGER}.ai.worker")
@@ -64,6 +64,7 @@ async def analysis_loop(
             await ai_requests.advance_waiting(sessionmaker, settings)
             await ai_requests.expire_stale(sessionmaker, settings)
             await ai_requests.sweep_abandoned(sessionmaker, settings)
+            await ai_proposals.expire_due(sessionmaker)  # pending proposals past their expiry
             outcome = await process_next_request(sessionmaker, settings, storage)
             if outcome is None:
                 outcome = await process_next(sessionmaker, settings, storage)

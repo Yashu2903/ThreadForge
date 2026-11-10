@@ -20,7 +20,9 @@ import type {
   Consent,
   EstimateReply,
   KeyMeta,
+  ApplyReply,
   Passage,
+  ProposalInfo,
   RequestInfo,
   RoomAiSettings,
   SourceList,
@@ -38,13 +40,24 @@ export interface AiSnapshot {
   loadError: string | null;
 }
 
+export interface RangeTarget {
+  block_id: string;
+  start: number;
+  end: number;
+  text_hash: string;
+}
+
 export interface SendBody {
   client_request_id: string;
   instruction: string;
   task_hint: "auto" | "ask" | "summarize" | "compare";
-  document_id: string;
+  /** phase 2: "answer" (default), "edit" a document, or "draft" a new one (no document) */
+  operation?: "answer" | "edit" | "draft";
+  document_id: string | null;
   include_document_content: boolean;
-  document_scope: "none" | "whole" | "blocks";
+  document_scope: "none" | "whole" | "blocks" | "edit";
+  selected_ranges?: RangeTarget[];
+  insert_at?: "start" | "end" | null;
   selected_block_ids: string[];
   selection_hash: string | null;
   source_version_ids: string[];
@@ -59,6 +72,7 @@ export class AiStore {
   private snapshot: AiSnapshot = { version: 0, status: null, consent: null, settings: null, keys: [], sources: null, loadError: null };
   readonly requests = new Map<string, RequestInfo | "forbidden" | "missing">();
   readonly results = new Map<string, AiResult | "missing">();
+  readonly proposals = new Map<string, ProposalInfo | "forbidden" | "missing">();
   private polls = new Map<string, { timer: ReturnType<typeof setTimeout>; step: number }>();
   private disposed = false;
 
@@ -140,6 +154,8 @@ export class AiStore {
     }
     if (signals.sources.size > 0) await this.refreshSources();
     await Promise.all([...signals.requests.keys()].map((id) => this.refreshRequest(id)));
+    // a proposal changed state (applied, rejected, conflicted, expired...): fetch the authorized view again
+    await Promise.all([...signals.proposals.keys()].map((id) => this.ensureProposal(id, true)));
   };
 
   async refreshSettings(): Promise<void> {
@@ -204,9 +220,24 @@ export class AiStore {
     return value;
   }
 
+  async ensureProposal(id: string, force = false): Promise<ProposalInfo | "forbidden" | "missing"> {
+    const cached = this.proposals.get(id);
+    if (cached && !force) return cached;
+    let value: ProposalInfo | "forbidden" | "missing";
+    try {
+      value = (await this.api.get<ProposalInfo>(`/rooms/${this.roomId}/ai-proposals/${id}`)).body;
+    } catch (err) {
+      value = err instanceof ApiError && err.status === 403 ? "forbidden" : "missing";
+    }
+    if (this.disposed) return value;
+    this.proposals.set(id, value);
+    this.emit();
+    return value;
+  }
+
   // ---- actions -------------------------------------------------------------------------------------------
 
-  async estimate(body: Omit<SendBody, "client_request_id" | "confirm_large" | "selected_block_ids" | "selection_hash">, selectedChars: number) {
+  async estimate(body: Omit<SendBody, "client_request_id" | "confirm_large" | "selected_block_ids" | "selection_hash"> & { document_id: string }, selectedChars: number) {
     const res = await this.api.send<EstimateReply>("POST", `/rooms/${this.roomId}/ai-requests/estimate`, {
       instruction: body.instruction,
       task_hint: body.task_hint,
@@ -227,6 +258,41 @@ export class AiStore {
     this.emit();
     this.watch(res.body.id);
     return res.body;
+  }
+
+  // ---- proposals: apply, reject, regenerate, publish. The server decides; these only ask. ---------------------
+
+  async applyProposal(id: string): Promise<ApplyReply> {
+    try {
+      return (await this.api.send<ApplyReply>("POST", `/rooms/${this.roomId}/ai-proposals/${id}/apply`, {})).body;
+    } finally {
+      await this.ensureProposal(id, true);
+    }
+  }
+  async rejectProposal(id: string): Promise<void> {
+    try {
+      await this.api.send("POST", `/rooms/${this.roomId}/ai-proposals/${id}/reject`, {});
+    } finally {
+      await this.ensureProposal(id, true);
+    }
+  }
+  async regenerateProposal(id: string): Promise<RequestInfo> {
+    try {
+      const res = await this.api.send<RequestInfo>("POST", `/rooms/${this.roomId}/ai-proposals/${id}/regenerate`, { client_request_id: crypto.randomUUID() });
+      this.requests.set(res.body.id, res.body);
+      this.watch(res.body.id);
+      return res.body;
+    } finally {
+      await this.ensureProposal(id, true);
+    }
+  }
+  /** Owner only. `clientRequestId` makes a retry create nothing twice. The new document becomes the ACTIVE one. */
+  async publishDraft(id: string, clientRequestId: string): Promise<{ document_id: string }> {
+    try {
+      return (await this.api.send<{ document_id: string }>("POST", `/rooms/${this.roomId}/ai-proposals/${id}/publish`, { client_request_id: clientRequestId })).body;
+    } finally {
+      await this.ensureProposal(id, true);
+    }
   }
 
   async cancel(id: string): Promise<void> {

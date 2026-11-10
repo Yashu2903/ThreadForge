@@ -60,6 +60,7 @@ from app.ai.analysis.store import FIGURE_NAMESPACE, discard_generations
 from app.config import ConfigError, load_ai_cleanup_settings
 from app.db import create_engine_from_url, create_sessionmaker
 from app.models import SourceUpload, SourceVersion
+from app.services import ai_proposals
 from app.services.sources import NAMESPACE, OPEN_STATES, delete_removed_files
 from app.storage import Storage
 
@@ -81,6 +82,7 @@ class AiCleanupResult:
     orphan_figure_files: int = 0
     manifests_deleted: int = 0
     budget_rows_deleted: int = 0
+    proposals_deleted: int = 0
 
 
 async def _expire_uploads(sessionmaker: async_sessionmaker[AsyncSession], batch_size: int) -> int:
@@ -344,6 +346,7 @@ async def cleanup_ai(
     batch_size: int = 200,
     now: float | None = None,
     grace_hours: int = 24,
+    proposal_retention_days: int = 30,
 ) -> AiCleanupResult:
     now = time.time() if now is None else now
     expired = await _expire_uploads(sessionmaker, batch_size)
@@ -355,6 +358,7 @@ async def cleanup_ai(
     orphan_figures = await _sweep_orphan_figures(sessionmaker, storage, now, batch_size)
     manifests = await _delete_old_manifests(sessionmaker, batch_size)
     budget_rows = await _delete_expired_budget_rows(sessionmaker)
+    proposals = await ai_proposals.delete_old(sessionmaker, proposal_retention_days, batch_size)
     return AiCleanupResult(
         expired,
         upload_files,
@@ -365,6 +369,7 @@ async def cleanup_ai(
         orphan_figures,
         manifests,
         budget_rows,
+        proposals,
     )
 
 
@@ -383,6 +388,7 @@ async def _run(args: argparse.Namespace) -> AiCleanupResult:
             Storage(settings.storage_path),
             batch_size=args.batch_size,
             grace_hours=settings.ai_superseded_generation_grace_hours,
+            proposal_retention_days=settings.ai_proposal_retention_days,
         )
     finally:
         await engine.dispose()

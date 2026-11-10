@@ -3,8 +3,9 @@ import type { RoomClient } from "threadforge-client";
 import type { Api } from "../api";
 import { Composer } from "../ai/Composer";
 import { AnswerCard, RequestCard } from "../ai/Cards";
+import { ProposalCard } from "../ai/Proposal";
 import type { AiSnapshot, AiStore } from "../ai/store";
-import type { BlockSelection } from "../DocumentEditor";
+import type { BlockSelection, RangeSelection } from "../DocumentEditor";
 import { useClientState } from "../useRoom";
 
 export interface ChatAi {
@@ -15,6 +16,10 @@ export interface ChatAi {
   documentTitle: string | null;
   unsynced: number;
   readSelection: () => Promise<BlockSelection | null>;
+  readRange: () => Promise<RangeSelection | null>;
+  /** people connected to the OPEN document besides me, or null when no document is open */
+  openDocumentPeers: () => number | null;
+  isOwner: boolean;
 }
 
 /**
@@ -107,6 +112,7 @@ export function ChatPanel(props: { client: RoomClient; userId: string; ai: ChatA
           documentTitle: ai.documentTitle,
           unsynced: ai.unsynced,
           readSelection: ai.readSelection,
+          readRange: ai.readRange,
           chatSelection,
           clearChatSelection: () => setChatSelection([]),
           role,
@@ -135,5 +141,21 @@ function AnswerMessage({ ai, requestId, fallback, roomId }: { ai: ChatAi; reques
   void ai.snap.version;
   const result = ai.store.results.get(requestId);
   if (!result || result === "missing") return <span>{fallback}</span>;
+  if ((result.task_type === "edit_proposal" || result.task_type === "draft") && result.proposal_id) {
+    return (
+      <ProposalCard
+        api={ai.api}
+        store={ai.store}
+        roomId={roomId}
+        requestId={requestId}
+        proposalId={result.proposal_id}
+        fallback={fallback}
+        openDocumentId={ai.documentId}
+        peers={ai.openDocumentPeers}
+        isOwner={ai.isOwner}
+        userId={ai.store.userId}
+      />
+    );
+  }
   return <AnswerCard api={ai.api} roomId={roomId} result={result} requestId={requestId} />;
 }

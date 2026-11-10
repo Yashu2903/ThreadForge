@@ -183,12 +183,12 @@ def sample(record: dict[str, Any]) -> list[str]:
     lines = [f"**{record['id']}**: {record['instruction']}"]
     if preview.get("kind") == "draft":
         types = [n["type"] for n in (preview.get("document") or {}).get("content", [])]
-        lines.append(f"  draft \"{preview.get('title')}\": blocks {', '.join(types)}")
+        lines.append(f'  draft "{preview.get("title")}": blocks {", ".join(types)}')
         return lines
     for c in preview.get("changes", []):
         before = " / ".join(_text(n) for n in c["before"]) or "(nothing)"
         after = " / ".join(_text(n) or f"[{n.get('type')}]" for n in c["after"]) or "(deleted)"
-        lines.append(f"  {c['kind']}: \"{before}\" -> \"{after}\"")
+        lines.append(f'  {c["kind"]}: "{before}" -> "{after}"')
     return lines
 
 

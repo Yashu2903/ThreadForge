@@ -18,9 +18,49 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import httpx2
 
-from tests.analysis_helpers import AnalysisStub
+from tests.analysis_helpers import AnalysisStub, edit_reply, new_block, op, para, run_
 
 STUB = AnalysisStub()
+
+
+def e2e_edit(prompt):
+    """The stand-in model for edit proposals in the browser tests: deterministic, and it asks for a diagram
+    when the instruction does. It proves nothing about any real model."""
+    if "diagram" in prompt.text.lower() and prompt.anchors:
+        return edit_reply(
+            op(
+                "insert_blocks_after",
+                anchor=prompt.anchors[-1],
+                blocks=[new_block("diagram", mermaid="flowchart TD\n  A[Plan] --> B[Ship]")],
+                reason="A diagram of the flow.",
+            ),
+            summary="Adds a diagram.",
+        )
+    for label, (kind, _text) in prompt.scope.items():
+        if kind in ("paragraph", "heading 1", "heading 2", "heading 3"):
+            return edit_reply(
+                op(
+                    "replace_block_text",
+                    block=label,
+                    new_inline=[run_("Rewritten by the assistant.")],
+                    reason="Clearer.",
+                ),
+                summary="Rewrites the selected text.",
+            )
+    if prompt.anchors:
+        return edit_reply(
+            op(
+                "insert_blocks_after",
+                anchor=prompt.anchors[-1],
+                blocks=[para("A requirements section.")],
+                reason="As asked.",
+            ),
+            summary="Adds a section.",
+        )
+    return edit_reply()
+
+
+STUB.edit_fn = e2e_edit
 
 
 class Handler(BaseHTTPRequestHandler):

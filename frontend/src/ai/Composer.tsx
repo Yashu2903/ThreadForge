@@ -14,11 +14,15 @@
  *   - "Include chat context" (off by default; messages are picked explicitly in the chat list).
  * Nothing persists silently from one request to the next: after a send the chips reset, and a
  * remembered selection (last files) is shown, labelled, and clearable.
- * Output is "Answer in chat", the only output that exists in this phase; no other control is shown.
+ * Output: "Answer in chat" (always), and, only when the server says proposals are switched on,
+ * "Propose document edit" and "Draft new document". An edit needs an explicit TARGET chosen here (selected
+ * blocks, selected text, or the start/end of the document); nothing the person types in the instruction can
+ * change the target, and with none chosen the request cannot be sent. A draft has no document: it needs
+ * files, and only the room owner can publish it as a document afterwards.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../api";
-import type { BlockSelection } from "../DocumentEditor";
+import type { BlockSelection, RangeSelection } from "../DocumentEditor";
 import { type AiSnapshot, type AiStore, type SendBody, unavailableReason } from "./store";
 import { ERROR_TEXT, type EstimateReply, type SourceItem } from "./types";
 
@@ -29,6 +33,20 @@ interface ConfirmInfo {
   cost_known: boolean;
   expected_cost_micros: number | null;
 }
+
+type Output = "answer" | "edit" | "draft";
+type Target = "blocks" | "range" | "start" | "end";
+const OUTPUTS: { value: Output; label: string }[] = [
+  { value: "answer", label: "Answer in chat" },
+  { value: "edit", label: "Propose document edit" },
+  { value: "draft", label: "Draft new document" },
+];
+const TARGETS: { value: Target; label: string }[] = [
+  { value: "blocks", label: "Selected blocks" },
+  { value: "range", label: "Selected text" },
+  { value: "start", label: "Start of document" },
+  { value: "end", label: "End of document" },
+];
 
 type Hint = SendBody["task_hint"];
 const TASKS: { value: Hint; label: string }[] = [
@@ -44,6 +62,7 @@ export interface ComposerContext {
   /** unsynced local changes in the open editor (0 = everything is on the server) */
   unsynced: number;
   readSelection: () => Promise<BlockSelection | null>;
+  readRange: () => Promise<RangeSelection | null>;
   /** chat messages the person ticked in the list */
   chatSelection: string[];
   clearChatSelection: () => void;
@@ -67,6 +86,9 @@ export function Composer(props: {
   const [useBlocks, setUseBlocks] = useState(false);
   const [useChat, setUseChat] = useState(false);
   const [selection, setSelection] = useState<BlockSelection | null>(null);
+  const [output, setOutput] = useState<Output>("answer");
+  const [target, setTarget] = useState<Target>("blocks");
+  const [rangeSel, setRangeSel] = useState<RangeSelection | null>(null);
   const [estimate, setEstimate] = useState<EstimateReply | null>(null);
   const [confirm, setConfirm] = useState<ConfirmInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,27 +103,85 @@ export function Composer(props: {
   );
   const chosen = sources.filter((s) => picked.includes(s.current_version.id));
   const unsyncedBlock = ctx.unsynced > 0;
+  const proposalsOn = Boolean(snap.status?.proposals_enabled) && !viewer;
+  const editing = output === "edit";
+  const drafting = output === "draft";
 
   // the editor's selection can change while the chip is on: re-read it when the option is on
   useEffect(() => {
-    if (!ai || !useBlocks) return setSelection(null);
+    const wantBlocks = useBlocks || (editing && target === "blocks");
+    const wantRange = editing && target === "range";
+    if (!ai || !(wantBlocks || wantRange)) {
+      setSelection(null);
+      setRangeSel(null);
+      return;
+    }
     let alive = true;
-    const read = () => void ctx.readSelection().then((s) => alive && setSelection(s));
+    const read = () => {
+      if (wantBlocks) void ctx.readSelection().then((s) => alive && setSelection(s));
+      if (wantRange) void ctx.readRange().then((r) => alive && setRangeSel(r));
+    };
     read();
     const t = setInterval(read, 1000);
     return () => {
       alive = false;
       clearInterval(t);
     };
-  }, [ai, useBlocks, ctx]);
+  }, [ai, useBlocks, editing, target, ctx]);
 
   // keep a picked file only while it still exists (a removed file disappears from the chips)
   useEffect(() => {
     setPicked((p) => p.filter((id) => sources.some((s) => s.current_version.id === id)));
   }, [sources]);
 
+  /** An edit's target, as the server wants it; null while the person has not chosen one. */
+  function editTarget(): Pick<SendBody, "selected_block_ids" | "selection_hash" | "selected_ranges" | "insert_at"> | null {
+    if (target === "blocks") return selection ? { selected_block_ids: selection.ids, selection_hash: selection.hash, selected_ranges: [], insert_at: null } : null;
+    if (target === "range") {
+      return rangeSel
+        ? { selected_block_ids: [], selection_hash: null, selected_ranges: [{ block_id: rangeSel.block_id, start: rangeSel.start, end: rangeSel.end, text_hash: rangeSel.text_hash }], insert_at: null }
+        : null;
+    }
+    return { selected_block_ids: [], selection_hash: null, selected_ranges: [], insert_at: target };
+  }
+
   function body(confirmLarge: boolean): SendBody | null {
+    if (drafting) {
+      return {
+        client_request_id: requestId.current,
+        instruction: text.replace(/^@AI\s*/i, "").trim(),
+        task_hint: "ask",
+        operation: "draft",
+        document_id: null,
+        include_document_content: false,
+        document_scope: "none",
+        selected_block_ids: [],
+        selection_hash: null,
+        source_version_ids: picked,
+        include_chat_context: useChat && ctx.chatSelection.length > 0,
+        chat_message_ids: useChat ? ctx.chatSelection : [],
+        confirm_large: confirmLarge,
+      };
+    }
     if (!ctx.documentId) return null;
+    if (editing) {
+      const t = editTarget();
+      if (!t) return null;
+      return {
+        client_request_id: requestId.current,
+        instruction: text.replace(/^@AI\s*/i, "").trim(),
+        task_hint: "ask",
+        operation: "edit",
+        document_id: ctx.documentId,
+        include_document_content: true,
+        document_scope: "edit",
+        ...t,
+        source_version_ids: picked,
+        include_chat_context: useChat && ctx.chatSelection.length > 0,
+        chat_message_ids: useChat ? ctx.chatSelection : [],
+        confirm_large: confirmLarge,
+      };
+    }
     const scope = useBlocks ? "blocks" : useDoc ? "whole" : "none";
     return {
       client_request_id: requestId.current,
@@ -121,13 +201,14 @@ export function Composer(props: {
 
   // the estimate follows the choices (debounced); it never blocks typing
   useEffect(() => {
-    if (!ai || !ctx.documentId || !text.trim()) return setEstimate(null);
+    // proposals have no cost estimate yet (the estimate route knows answers only); never show a stale one
+    if (!ai || !ctx.documentId || !text.trim() || output !== "answer") return setEstimate(null);
     const b = body(false);
-    if (!b) return;
+    if (!b || !b.document_id) return;
     let alive = true;
     const t = setTimeout(() => {
       void store
-        .estimate(b, selection?.chars ?? 0)
+        .estimate({ ...b, document_id: b.document_id as string }, selection?.chars ?? 0)
         .then((e) => alive && setEstimate(e))
         .catch(() => alive && setEstimate(null));
     }, 500);
@@ -136,7 +217,7 @@ export function Composer(props: {
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ai, text, task, picked, useDoc, useBlocks, useChat, ctx.chatSelection.join(","), selection?.hash]);
+  }, [ai, text, task, output, picked, useDoc, useBlocks, useChat, ctx.chatSelection.join(","), selection?.hash]);
 
   function onChange(value: string) {
     setText(value);
@@ -160,6 +241,8 @@ export function Composer(props: {
     setUseDoc(false);
     setUseBlocks(false);
     setUseChat(false);
+    setOutput("answer");
+    setTarget("blocks");
     setEstimate(null);
     setConfirm(null);
     ctx.clearChatSelection();
@@ -204,7 +287,12 @@ export function Composer(props: {
     }
   }
 
-  const disabledAi = Boolean(blocked) || !ctx.documentId;
+  const noTarget = editing && !editTarget();
+  const draftNeedsFiles = drafting && picked.length === 0;
+  // with no document open, only a draft is possible (it is anchored on the room, not on a document)
+  const noDocument = !ctx.documentId;
+  const disabledAi = Boolean(blocked) || (noDocument && !proposalsOn);
+  const needsOpenDocument = noDocument && !drafting;
   return (
     <form className="composer" onSubmit={submit} aria-label="Message composer">
       {ai && (
@@ -229,7 +317,13 @@ export function Composer(props: {
               </button>
             </span>
           ))}
-          {(useDoc || useBlocks) && (
+          {editing && (
+            <span className="chip" data-testid="edit-chip">
+              Edit: {ctx.documentTitle ?? "document"} · {TARGETS.find((t) => t.value === target)?.label}
+            </span>
+          )}
+          {drafting && <span className="chip">New document draft</span>}
+          {!editing && (useDoc || useBlocks) && (
             <span className="chip">
               {useBlocks ? "Selected blocks" : "Open document"}: {ctx.documentTitle ?? "document"}
               <button type="button" aria-label="Remove document" onClick={() => (setUseDoc(false), setUseBlocks(false))}>
@@ -251,13 +345,50 @@ export function Composer(props: {
       {ai && (
         <fieldset className="ai-options">
           <legend className="sr-only">AI request options</legend>
-          <div className="tasks" role="group" aria-label="Task">
-            {TASKS.map((t) => (
-              <button key={t.value} type="button" aria-pressed={task === t.value} className={task === t.value ? "primary" : ""} onClick={() => setTask(t.value)}>
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {proposalsOn && (
+            <div className="tasks" role="group" aria-label="Output">
+              {OUTPUTS.map((o) => (
+                <button key={o.value} type="button" aria-pressed={output === o.value} className={output === o.value ? "primary" : ""} onClick={() => (setOutput(o.value), setUseDoc(false), setUseBlocks(false))}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {needsOpenDocument && (
+            <p className="muted small" role="status">
+              Open a document to ask about it or change it. A draft needs no document.
+            </p>
+          )}
+          {output === "answer" && (
+            <div className="tasks" role="group" aria-label="Task">
+              {TASKS.map((t) => (
+                <button key={t.value} type="button" aria-pressed={task === t.value} className={task === t.value ? "primary" : ""} onClick={() => setTask(t.value)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {editing && (
+            <div role="group" aria-label="Where to change">
+              <p className="muted small">Where should the change go? Choose it here; what you type below can never change it.</p>
+              <div className="tasks">
+                {TARGETS.map((t) => (
+                  <button key={t.value} type="button" aria-pressed={target === t.value} className={target === t.value ? "primary" : ""} onClick={() => setTarget(t.value)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {target === "blocks" && <p className="muted small" role="status">{selection ? `${selection.ids.length} block(s) selected in the document.` : "Select the text to change in the document first."}</p>}
+              {target === "range" && <p className="muted small" role="status">{rangeSel ? `Selected text: “${rangeSel.text.slice(0, 60)}${rangeSel.text.length > 60 ? "…" : ""}”` : "Select some text inside one paragraph first."}</p>}
+              {(target === "start" || target === "end") && <p className="muted small">New text will be proposed at the {target} of “{ctx.documentTitle ?? "the document"}”.</p>}
+              {unsyncedBlock && <p className="muted" role="status">Your latest changes are not on the server yet. Wait for “Saved” so the AI sees them.</p>}
+            </div>
+          )}
+          {drafting && (
+            <p className="muted small">
+              A draft is written from the files you pick. It waits as a card for review; only the room owner can publish it as a document.
+            </p>
+          )}
           <details>
             <summary>Files ({picked.length} chosen)</summary>
             {sources.length === 0 && <p className="muted">No files in this room yet. Upload one in the Files panel.</p>}
@@ -280,6 +411,7 @@ export function Composer(props: {
               ))}
             </ul>
           </details>
+          {output === "answer" && (<>
           <label className={unsyncedBlock ? "muted" : ""}>
             <input
               type="checkbox"
@@ -303,11 +435,13 @@ export function Composer(props: {
               Your latest changes are not on the server yet, so the document cannot be included. Wait for “Saved”.
             </p>
           )}
+          </>)}
           <label>
             <input type="checkbox" checked={useChat} onChange={(e) => setUseChat(e.target.checked)} /> Include chat context
             {useChat && ` (${ctx.chatSelection.length} message(s) ticked above)`}
           </label>
-          <p className="muted small">Output: Answer in chat.</p>
+          {!proposalsOn && <p className="muted small">Output: Answer in chat.</p>}
+          {draftNeedsFiles && <p className="muted small" role="status">Pick at least one file to draft from.</p>}
           {estimate && <EstimateLine estimate={estimate} />}
           {snap.consent && !snap.consent.accepted && (
             <p role="status" className="muted">
@@ -377,8 +511,8 @@ export function Composer(props: {
             Ask AI
           </button>
         )}
-        <button type="submit" className="primary" disabled={busy || !text.trim() || (ai && (disabledAi || (useBlocks && !selection)))}>
-          {ai ? "Send to AI" : "Send"}
+        <button type="submit" className="primary" disabled={busy || !text.trim() || (ai && (disabledAi || needsOpenDocument || (useBlocks && !selection) || noTarget || draftNeedsFiles))}>
+          {ai ? (editing ? "Ask for an edit" : drafting ? "Ask for a draft" : "Send to AI") : "Send"}
         </button>
       </div>
     </form>

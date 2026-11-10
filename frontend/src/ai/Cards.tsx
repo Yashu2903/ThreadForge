@@ -124,7 +124,7 @@ function locatorText(c: Citation): string {
   return bits.join(" · ");
 }
 
-function CitationDetail(props: { api: Api; roomId: string; requestId: string; c: Citation; visible: boolean; onClose: () => void }) {
+export function CitationDetail(props: { api: Api; roomId: string; requestId: string; c: Citation; visible: boolean; onClose: () => void }) {
   const { c } = props;
   const removed = c.source_removed || c.redacted;
   const image = c.figure_chunk_id && !removed && props.visible ? `/rooms/${props.roomId}/ai-requests/${props.requestId}/citations/${c.n}/image` : null;

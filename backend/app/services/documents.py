@@ -129,7 +129,9 @@ def log_document_event(
 # ---- request fingerprint ------------------------------------------------------------------------
 
 
-def compute_create_fingerprint(settings: Settings, title: str, template_key: str) -> bytes:
+def compute_create_fingerprint(
+    settings: Settings, title: str, template_key: str, extra: str = ""
+) -> bytes:
     """HMAC-SHA256 over a versioned, deterministic serialization of the creation fields.
 
     Keyed (with the existing fingerprint secret) so the stored value is not an offline-checkable
@@ -140,7 +142,7 @@ def compute_create_fingerprint(settings: Settings, title: str, template_key: str
     import hashlib
 
     canonical = json.dumps(
-        {"title": title, "template_key": template_key},
+        {"title": title, "template_key": template_key, **({"extra": extra} if extra else {})},
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
@@ -301,6 +303,12 @@ async def create_document(
     title: str,
     template_key: str,
     client_request_id: uuid.UUID,
+    *,
+    content: dict | None = None,
+    seed_format: str = "interchange",
+    extra_fingerprint: str = "",
+    before_insert=None,
+    after_insert=None,
 ) -> CreateResult:
     """Owner-only. Creates the document, makes it the room's active document and records
     document_created then active_document_changed, ALL in one transaction. Or answers a retry.
@@ -320,8 +328,15 @@ async def create_document(
     back and the whole thing re-runs once, which then answers as a retry. Permission is checked
     BEFORE the existing row is returned, so a demoted owner cannot use a retry to read a document.
     """
-    template = template_document(template_key, limits_from_settings(settings))
-    fingerprint = compute_create_fingerprint(settings, title, template_key)
+    # An AI draft brings its own already-validated content (validated Tiptap JSON, seed_format
+    # "tiptap"); `before_insert` / `after_insert` run INSIDE the same transaction (the proposal is
+    # checked first, and linked and marked in the same commit that creates the document).
+    seed_content = (
+        content
+        if content is not None
+        else template_document(template_key, limits_from_settings(settings)).content
+    )
+    fingerprint = compute_create_fingerprint(settings, title, template_key, extra_fingerprint)
     document_id: uuid.UUID
     created: bool
     for attempt in (1, 2):
@@ -342,6 +357,8 @@ async def create_document(
                         raise document_request_id_reused()
                     document_id, created = existing.id, False
                 else:
+                    if before_insert is not None:
+                        await before_insert(db, locked)
                     count = (
                         await db.execute(
                             select(func.count())
@@ -360,8 +377,9 @@ async def create_document(
                                 title=title,
                                 template_key=template_key,
                                 schema_version=1,
-                                content=template.content,
-                                content_hash=content_hash(template.content),
+                                seed_format=seed_format,
+                                content=seed_content,
+                                content_hash=content_hash(seed_content),
                                 client_request_id=client_request_id,
                                 request_fingerprint=fingerprint,
                                 created_at=func.clock_timestamp(),
@@ -382,6 +400,8 @@ async def create_document(
                         payload={"document_id": str(document_id)},
                     )
                     await _activate(db, locked, room_id, document_id, actor_id)
+                    if after_insert is not None:
+                        await after_insert(db, locked, document_id)
                     created = True
             break
         except IntegrityError as exc:

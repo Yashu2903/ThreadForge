@@ -8,6 +8,8 @@ export interface AiStatus {
   notice_version: number;
   capabilities: Record<string, { state: "ok" | "failed" | "not_checked"; code: string }>;
   spend_controls: { prices_configured: boolean; budgets_enforced: boolean };
+  /** phase 2: the composer offers "Propose document edit" / "Draft new document" only when true */
+  proposals_enabled?: boolean;
 }
 
 export interface Consent {
@@ -124,6 +126,9 @@ export type RequestState =
 
 export interface RequestInfo {
   id: string;
+  operation?: "answer" | "edit" | "draft";
+  proposal_id?: string | null;
+  document_id?: string | null;
   message_id: string;
   requested_by: string;
   state: RequestState;
@@ -189,12 +194,85 @@ export interface AiResult {
   request_id: string;
   reply_message_id: string | null;
   task_type: string;
+  proposal_id?: string | null;
   redacted: boolean;
   answer: { blocks: AnswerBlock[]; evidence_gaps: string[] } | null;
   citations: Citation[];
   coverage: Coverage;
   models: Record<string, string>;
   citation_text_visible: boolean;
+}
+
+/** A ProseMirror node as the server stores it (a block of a document). */
+export interface PMNode {
+  type?: string;
+  attrs?: Record<string, unknown>;
+  content?: PMNode[];
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
+  text?: string;
+}
+
+export interface ProposalChange {
+  op: number;
+  kind: "replace_block_text" | "replace_range" | "insert_blocks_after" | "delete_blocks";
+  block_id: string | null;
+  anchor: string | null;
+  before: PMNode[];
+  after: PMNode[];
+  reason: string;
+  citations: number[];
+  unsupported: boolean;
+}
+
+export type ProposalState = "pending" | "applying" | "applied" | "rejected" | "conflicted" | "expired" | "superseded";
+
+export interface ProposalInfo {
+  id: string;
+  request_id: string;
+  kind: "edit" | "draft";
+  state: ProposalState;
+  document_id: string | null;
+  document_title: string | null;
+  summary: string;
+  operation_count: number;
+  preview: {
+    kind: "edit" | "draft";
+    summary?: string;
+    changes?: ProposalChange[];
+    title?: string;
+    document?: PMNode;
+    block_citations?: number[][];
+    unsupported_blocks?: number;
+    inserted_chars?: number;
+  };
+  citations: Citation[];
+  citation_text_visible: boolean;
+  scope: { block_ids?: string[]; ranges?: { block_id: string; start: number; end: number }[]; insert_at?: string | null; anchors?: string[] };
+  captured_counter: number | null;
+  created_by: string;
+  created_at: string;
+  expires_at: string;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  resolution_code: string | null;
+  regenerated_from: string | null;
+  published_document_id: string | null;
+  /** what THIS person may do with it right now (decided by the server) */
+  can_apply?: boolean;
+  can_reject?: boolean;
+  can_regenerate?: boolean;
+  can_publish?: boolean;
+}
+
+/** The server's answer to Apply. `synced` = connected editors already have the change; `durable` = it is saved in
+ *  the database with its receipt. They are separate facts. */
+export interface ApplyReply {
+  state: ProposalState;
+  already: boolean;
+  synced: boolean;
+  durable: boolean;
+  counter: number | null;
+  connected_users: number;
 }
 
 /** Plain-language text for the codes users can actually meet. */
@@ -217,4 +295,19 @@ export const ERROR_TEXT: Record<string, string> = {
   request_expired: "The request waited too long and expired.",
   capture_unavailable: "The open document could not be read right now.",
   provider_unavailable: "The AI provider could not be reached.",
+  proposal_invalid: "The AI could not produce a change that passes the document's rules, even after one retry, so nothing was proposed.",
+  proposal_check_unavailable: "The change checker is not available right now. Try again in a moment.",
+  no_evidence: "Nothing relevant was found in the selected files, so no draft was written.",
+  edit_target_required: "Select the blocks or text to change, or choose where new text goes. The AI never guesses where to write.",
+  ai_proposals_disabled: "Edit proposals and drafts are not switched on on this server.",
+  proposal_rate_limited: "You have asked for many proposals in the last hour. Try again a little later.",
+  proposal_conflicted: "The document changed since this was proposed, so nothing was changed. Ask for a new proposal from the current text.",
+  proposal_expired: "This proposal expired. Ask for a new one.",
+  proposal_applied: "This proposal was already applied.",
+  proposal_rejected: "This proposal was rejected.",
+  proposal_superseded: "A newer proposal replaced this one.",
+  proposal_applying: "This proposal is being applied right now. Wait a moment.",
+  document_busy: "Someone is editing the document right now. Try again in a few seconds.",
+  collab_unavailable: "The editing service could not be reached. Nothing was changed; try again.",
+  document_not_found: "The document no longer exists.",
 };

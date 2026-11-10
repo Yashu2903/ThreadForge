@@ -81,6 +81,7 @@ async def run(
             selection_hash=row.selection_hash,
             ranges=list(row.selected_ranges),
             insert_at=row.insert_at,
+            skip_hash=row.regenerate_of is not None,
         )
         view = linearize(captured, target)
         async with sessionmaker() as db:

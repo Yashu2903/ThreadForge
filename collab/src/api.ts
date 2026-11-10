@@ -53,6 +53,32 @@ export interface LeaseInfo {
   expires_at: string;
   ttl_seconds: number;
 }
+/** What a store carries when it also records that a proposal was applied. */
+export interface ApplyReceipt {
+  proposalId: string;
+  userId: string;
+  receiptHash: string;
+}
+
+export interface BeginApply {
+  /** true: this proposal was applied before; nothing to do but report it */
+  already_applied: boolean;
+  proposal_id: string;
+  document_id: string;
+  room_id: string;
+  operations: unknown;
+  base_hashes: Record<string, string>;
+  scope: { whole_ids?: string[]; ranges?: { block_id: string; start: number; end: number }[]; anchors?: string[] };
+  captured_counter: number | null;
+  resulting_counter?: number | null;
+}
+
+export interface StuckProposal {
+  proposal_id: string;
+  document_id: string;
+  applying_by: string;
+}
+
 export interface StoredState {
   state: Uint8Array;
   /** -1 = the document has no Yjs state yet */
@@ -159,10 +185,48 @@ export class InternalApi {
       roomId: r.headers.get("X-Room-Id") ?? "",
     };
   }
-  async putState(documentId: string, token: number, counter: number, state: Uint8Array, insertIfAbsent = false): Promise<void> {
+  async putState(
+    documentId: string,
+    token: number,
+    counter: number,
+    state: Uint8Array,
+    insertIfAbsent = false,
+    receipt?: ApplyReceipt,
+  ): Promise<void> {
     const headers: Record<string, string> = { "X-Collab-Lease": String(token), "X-Update-Counter": String(counter) };
     if (insertIfAbsent) headers["X-Insert-If-Absent"] = "true";
+    if (receipt) {
+      // the application receipt is written by the SAME database transaction that stores these bytes
+      headers["X-Proposal-Id"] = receipt.proposalId;
+      headers["X-Applied-By"] = receipt.userId;
+      headers["X-Receipt-Hash"] = receipt.receiptHash;
+    }
     await this.call("PUT", `/documents/${documentId}/state`, { body: state, headers });
+  }
+
+  // ---- AI proposals (phase 2): the authority checks and state changes live in PostgreSQL ----------------
+
+  /** Recheck the user's write access and the proposal, and move pending -> applying (compare-and-set). */
+  async beginApply(proposalId: string, token: number, body: { user_id: string; document_id: string }): Promise<BeginApply> {
+    const r = await this.call("POST", `/proposals/${proposalId}/begin-apply`, { json: body, headers: { "X-Collab-Lease": String(token) } });
+    return (await r.json()) as BeginApply;
+  }
+  async finishApply(proposalId: string, token: number, body: { user_id: string; resulting_counter: number; receipt_hash: string }): Promise<{ state: string }> {
+    const r = await this.call("POST", `/proposals/${proposalId}/finish-apply`, { json: body, headers: { "X-Collab-Lease": String(token) } });
+    return (await r.json()) as { state: string };
+  }
+  /** applying -> pending (nothing was changed): the document was busy, or the apply failed before any change */
+  async releaseApply(proposalId: string, token: number, reason: string): Promise<void> {
+    await this.call("POST", `/proposals/${proposalId}/release-apply`, { json: { reason }, headers: { "X-Collab-Lease": String(token) } });
+  }
+  /** applying -> conflicted: the document no longer matches what the proposal was based on */
+  async markConflicted(proposalId: string, token: number, body: { user_id: string; code: string }): Promise<void> {
+    await this.call("POST", `/proposals/${proposalId}/conflicted`, { json: body, headers: { "X-Collab-Lease": String(token) } });
+  }
+  /** proposals that have been `applying` for longer than `olderThanSeconds` (the recovery sweeper's work list) */
+  async stuckProposals(olderThanSeconds: number): Promise<StuckProposal[]> {
+    const r = await this.call("GET", `/proposals/stuck?older_than_seconds=${olderThanSeconds}`);
+    return ((await r.json()) as { proposals: StuckProposal[] }).proposals;
   }
 
   async getSeed(documentId: string): Promise<Seed> {

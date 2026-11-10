@@ -201,3 +201,20 @@ button.cite { padding: 0 3px; margin-left: 2px; border: 0; background: none; col
 .badge.state-queued, .badge.state-extracting, .badge.state-indexing { background: #8a6d00; color: #fff; }
 .badge.state-not_analyzed { background: var(--line); color: var(--text); }
 .passages li { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+
+/* AI proposals (phase 2) */
+.ai-card.proposal header { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.badge { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #eef1f5; color: #3b4452; }
+.badge.state-applied { background: #dff3e3; color: #1d5a2c; }
+.badge.state-rejected, .badge.state-expired, .badge.state-superseded { background: #f1e3e3; color: #6b2b2b; }
+.badge.state-conflicted { background: #fff0d6; color: #7a4a00; }
+.notice { background: #f3f6fb; border-left: 3px solid #8aa4d0; padding: 4px 8px; margin: 6px 0; }
+.proposal-preview .change { border-top: 1px solid #e1e5ea; padding-top: 8px; margin-top: 8px; }
+.proposal-preview .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 640px) { .proposal-preview .before-after { grid-template-columns: 1fr; } }
+.proposal-preview .before { background: #fbeeee; padding: 4px 8px; border-radius: 4px; }
+.proposal-preview .after { background: #eef8f0; padding: 4px 8px; border-radius: 4px; }
+.proposal-preview .label { font-size: 11px; text-transform: uppercase; color: #5b6573; display: block; }
+.proposal-preview del { background: #f7cfcf; text-decoration: line-through; }
+.proposal-preview ins { background: #cfeed6; text-decoration: none; }
+.proposal-preview .link { text-decoration: underline dotted; }

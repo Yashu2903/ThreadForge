@@ -172,6 +172,11 @@ async def lease_is_free(sessionmaker: async_sessionmaker[AsyncSession]) -> bool:
     return row is None or bool(row.free)
 
 
+async def require_fence(db: AsyncSession, token: int) -> None:
+    """Refuse unless `token` is the CURRENT fencing token (stale_lease); same transaction."""
+    await _fence(db, token)
+
+
 async def _fence(db: AsyncSession, token: int) -> None:
     held = (
         await db.execute(
@@ -277,8 +282,13 @@ async def store_state(
     counter: int,
     state: bytes,
     insert_if_absent: bool,
+    receipt: ApplyReceipt | None = None,
 ) -> None:
     """Persist the full Yjs state.
+
+    `receipt` (phase 2): when the state includes an applied AI proposal, the application's
+    receipt is written in THIS transaction, so "the document contains the change" and "the
+    receipt exists" are one fact.
 
     insert_if_absent=True is SEEDING: INSERT ... ON CONFLICT DO NOTHING, and collab_state becomes
     'ready' in the same transaction. If a row already exists the caller lost the race (or restarted
@@ -353,9 +363,44 @@ async def store_state(
             .where(_DOCS.c.id == document_id)
             .values(content_updated_at=func.clock_timestamp(), updated_at=func.clock_timestamp())
         )
+        if receipt is not None:
+            recorded = (
+                await db.execute(
+                    text(
+                        """INSERT INTO ai_proposal_applications
+                                  (proposal_id, applied_by, resulting_counter, receipt_hash)
+                           SELECT p.id, :by, :counter, :hash FROM ai_proposals p
+                            WHERE p.id = :p AND p.document_id = :d
+                              AND p.state IN ('applying', 'applied')
+                           ON CONFLICT (proposal_id) DO NOTHING"""
+                    ),
+                    {
+                        "p": receipt.proposal_id,
+                        "by": receipt.applied_by,
+                        "counter": counter,
+                        "hash": receipt.receipt_hash,
+                        "d": document_id,
+                    },
+                )
+            ).rowcount
+            log.info(
+                "collab receipt document=%s proposal=%s recorded=%s",
+                document_id,
+                receipt.proposal_id,
+                bool(recorded),
+            )
 
 
 # ---- seed material ----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ApplyReceipt:
+    """The proof, carried by a store, that an AI proposal is part of the stored state."""
+
+    proposal_id: uuid.UUID
+    applied_by: uuid.UUID
+    receipt_hash: bytes
 
 
 @dataclass(frozen=True)

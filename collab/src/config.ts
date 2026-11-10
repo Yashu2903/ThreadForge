@@ -49,6 +49,14 @@ export interface CollabConfig {
   aiAppliesPerDocumentPerMinute: number;
   aiMaxBlockBytes: number;
   aiMaxBodyBytes: number;
+  /** applying an AI proposal waits until no human edit arrived within this window ... */
+  aiApplyQuietMs: number;
+  /** ... for at most this long, then answers document_busy (retryable) */
+  aiApplyMaxWaitMs: number;
+  /** the recovery sweeper looks for proposals stuck in `applying` this often (and once at start) */
+  aiApplySweepMs: number;
+  /** a proposal is "stuck" when it has been applying for longer than this */
+  aiApplyStuckAfterMs: number;
   limits: Limits;
 }
 
@@ -82,8 +90,21 @@ export const DEFAULTS: Omit<CollabConfig, "apiBaseUrl" | "internalSecret" | "all
   aiAppliesPerDocumentPerMinute: 60,
   aiMaxBlockBytes: 64 * 1024,
   aiMaxBodyBytes: 256 * 1024,
+  aiApplyQuietMs: 3_000,
+  aiApplyMaxWaitMs: 10_000,
+  aiApplySweepMs: 60_000,
+  aiApplyStuckAfterMs: 60_000,
   limits: DEFAULT_LIMITS,
 };
+
+/** seconds (may be fractional) in the environment, milliseconds in the config */
+function seconds(env: NodeJS.ProcessEnv, name: string, fallbackMs: number): number {
+  const raw = env[name];
+  if (raw === undefined || raw === "") return fallbackMs;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${name} must be a non-negative number of seconds.`);
+  return Math.round(value * 1000);
+}
 
 function int(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
   const raw = env[name];
@@ -146,6 +167,10 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): CollabConfi
     aiAppliesPerDocumentPerMinute: int(env, "COLLAB_AI_APPLIES_PER_DOCUMENT_PER_MINUTE", DEFAULTS.aiAppliesPerDocumentPerMinute),
     aiMaxBlockBytes: int(env, "COLLAB_AI_MAX_BLOCK_BYTES", DEFAULTS.aiMaxBlockBytes),
     aiMaxBodyBytes: int(env, "COLLAB_AI_MAX_BODY_BYTES", DEFAULTS.aiMaxBodyBytes),
+    aiApplyQuietMs: seconds(env, "AI_APPLY_QUIET_SECONDS", DEFAULTS.aiApplyQuietMs),
+    aiApplyMaxWaitMs: seconds(env, "AI_APPLY_MAX_WAIT_SECONDS", DEFAULTS.aiApplyMaxWaitMs),
+    aiApplySweepMs: int(env, "COLLAB_AI_SWEEP_MS", DEFAULTS.aiApplySweepMs),
+    aiApplyStuckAfterMs: int(env, "COLLAB_AI_STUCK_AFTER_MS", DEFAULTS.aiApplyStuckAfterMs),
     limits: DEFAULT_LIMITS,
   };
 }

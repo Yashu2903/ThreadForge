@@ -1066,6 +1066,7 @@ class _AiCleanupSettings(BaseSettings):
     database_url: SecretStr
     storage_path: str = "./data/storage"
     ai_superseded_generation_grace_hours: int = 24
+    ai_proposal_retention_days: int = 30  # same default and name as Settings
 
 
 def load_ai_cleanup_settings() -> _AiCleanupSettings:

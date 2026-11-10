@@ -97,6 +97,12 @@ class AiRequest(Base):
             "jsonb_typeof(selected_block_ids) = 'array' AND jsonb_typeof(chat_message_ids) = 'array'",
             name="ids_are_arrays",
         ),
+        ForeignKeyConstraint(
+            ["regenerate_of"],
+            ["ai_proposals.id"],
+            name="fk_ai_requests_regenerate_of_ai_proposals",
+            ondelete="SET NULL",
+        ),
         Index("ix_ai_requests_state_queued_at", "state", "created_at"),
         Index("ix_ai_requests_room_id_state", "room_id", "state"),
         Index("ix_ai_requests_requested_by_state", "requested_by", "state"),
@@ -134,6 +140,8 @@ class AiRequest(Base):
         JSONB, server_default=sa_text("'[]'::jsonb"), nullable=False
     )
     insert_at: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    # the proposal this request regenerates (set by "Regenerate" after a conflict)
+    regenerate_of: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     include_chat_context: Mapped[bool] = mapped_column(Boolean, nullable=False)
     chat_message_ids: Mapped[list] = mapped_column(
         JSONB, server_default=sa_text("'[]'::jsonb"), nullable=False

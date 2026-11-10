@@ -444,6 +444,23 @@ def proposal_rate_limited(limit: int) -> AppError:
     )
 
 
+def proposal_not_pending(state: str) -> AppError:
+    messages = {
+        "applied": "This proposal was already applied.",
+        "rejected": "This proposal was rejected.",
+        "conflicted": "The document changed since this proposal was made. Ask for a new one.",
+        "expired": "This proposal expired. Ask for a new one.",
+        "superseded": "A newer proposal replaced this one.",
+        "applying": "This proposal is being applied right now.",
+    }
+    return AppError(
+        409,
+        f"proposal_{state}",
+        messages.get(state, "This proposal can no longer be applied."),
+        extra={"state": state},
+    )
+
+
 def ai_proposal_not_found() -> AppError:
     return AppError(404, "ai_proposal_not_found", "Proposal not found.")
 

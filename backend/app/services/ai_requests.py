@@ -144,6 +144,8 @@ class RequestInput:
     operation: str = "answer"
     selected_ranges: tuple[dict[str, Any], ...] = ()
     insert_at: str | None = None
+    # the proposal this request regenerates: the blocks are re-read from the CURRENT document, not re-hashed
+    regenerate_of: uuid.UUID | None = None
 
 
 def compute_fingerprint(settings: Settings, actor_id: uuid.UUID, inp: RequestInput) -> bytes:
@@ -169,6 +171,7 @@ def compute_fingerprint(settings: Settings, actor_id: uuid.UUID, inp: RequestInp
                     "operation": inp.operation,
                     "selected_ranges": list(inp.selected_ranges),
                     "insert_at": inp.insert_at,
+                    "regenerate_of": str(inp.regenerate_of) if inp.regenerate_of else None,
                 }
                 if inp.operation != "answer"
                 else {}
@@ -531,7 +534,7 @@ def _validate_proposal_shape(inp: RequestInput) -> None:
         raise invalid_ai_request("edit_shape", "An edit request targets one document.")
     if not (inp.selected_block_ids or inp.selected_ranges or inp.insert_at):
         raise edit_target_required()
-    if inp.selected_block_ids and not inp.selection_hash:
+    if inp.selected_block_ids and not inp.selection_hash and inp.regenerate_of is None:
         raise invalid_ai_request("selection_hash", "The selection needs its hash.")
     if inp.selection_hash and not inp.selected_block_ids:
         raise invalid_ai_request("selected_blocks", "A selection hash needs selected blocks.")
@@ -695,6 +698,7 @@ async def create_request(
                 operation=inp.operation,
                 selected_ranges=list(inp.selected_ranges),
                 insert_at=inp.insert_at,
+                regenerate_of=inp.regenerate_of,
                 instruction=inp.instruction,
                 document_id=inp.document_id,
                 include_document_content=inp.include_document_content,
@@ -1406,17 +1410,27 @@ async def publish_success(
         if result_id is None:
             return "already_published"
         if pub.proposal is not None:
-            await db.execute(
-                pg_insert(_PROP).values(
-                    request_id=row.id,
-                    result_id=result_id,
-                    room_id=row.room_id,
-                    created_by=row.requested_by,
-                    state="pending",
-                    expires_at=func.now() + timedelta(days=settings.ai_proposal_ttl_days),
-                    **pub.proposal,
+            proposal_id = (
+                await db.execute(
+                    pg_insert(_PROP)
+                    .values(
+                        request_id=row.id,
+                        result_id=result_id,
+                        room_id=row.room_id,
+                        created_by=row.requested_by,
+                        state="pending",
+                        expires_at=func.now() + timedelta(days=settings.ai_proposal_ttl_days),
+                        regenerated_from=row.regenerate_of,
+                        **pub.proposal,
+                    )
+                    .returning(_PROP.c.id)
                 )
+            ).scalar_one()
+            from app.services import (
+                ai_proposals,  # late: that module reads requests, not the reverse
             )
+
+            await ai_proposals.emit(db, locked, proposal_id, "pending", row.requested_by)
         reply_id = reply_client_message_id(row.id)
         message_id = await messages.insert_message_row(
             db,

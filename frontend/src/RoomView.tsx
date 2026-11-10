@@ -295,6 +295,9 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
           documentTitle: docs.open?.doc?.title ?? null,
           unsynced: atRisk,
           readSelection: async () => (await liveRef.current?.selection()) ?? null,
+          readRange: async () => (await liveRef.current?.range()) ?? null,
+          openDocumentPeers: () => (docs.open?.id && liveRef.current?.docId === docs.open.id ? liveRef.current.peers() : null),
+          isOwner,
         }}
       />
       {aiDialog && <AiSettingsDialog store={ai} snap={aiSnap} isOwner={isOwner} onClose={() => setAiDialog(false)} />}

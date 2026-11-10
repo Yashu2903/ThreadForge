@@ -30,7 +30,8 @@ import { Throttle } from "@hocuspocus/extension-throttle";
 import * as Y from "yjs";
 import { AccessMonitor } from "./access.js";
 import { AiHooks } from "./ai-hooks.js";
-import { ApiError, InternalApi, type Access } from "./api.js";
+import { ApiError, InternalApi, type Access, type ApplyReceipt } from "./api.js";
+import { ProposalApplier } from "./apply.js";
 import type { CollabConfig } from "./config.js";
 import { SeedError, buildSeed, documentIdOf, validatedSnapshot, validatedSnapshotOfState } from "./documents.js";
 import { LeaseKeeper } from "./lease.js";
@@ -86,6 +87,10 @@ interface LiveDoc {
   /** state reached the size limit: read-only for everyone */
   frozen: boolean;
   recoveryTimer: NodeJS.Timeout | null;
+  /** when a PERSON's edit last reached this document (AI applies and server-side changes do not count) */
+  lastHumanUpdateAt: number;
+  /** an AI apply's receipt, carried by the next store so the database records it in the same transaction */
+  receipt: ApplyReceipt | null;
 }
 
 /** What `POST /internal/migrate` answers for one document. `detail` is a code or a path, never content. */
@@ -111,6 +116,7 @@ export class CollabServer {
   private readonly live = new Map<string, LiveDoc>();
   readonly access: AccessMonitor;
   readonly ai: AiHooks;
+  readonly applier: ProposalApplier;
   private readonly throttle: Throttle;
   private readonly rateWindows = new WeakMap<object, { second: number; count: number }>();
   private openSockets = 0;
@@ -149,6 +155,7 @@ export class CollabServer {
       },
     );
     this.ai = new AiHooks(this, this.api, config, this.log);
+    this.applier = new ProposalApplier(this, this.api, config, this.log);
     this.server = new Server<Ctx>({
       port: config.port,
       address: config.address,
@@ -191,6 +198,7 @@ export class CollabServer {
     await this.lease.acquire();
     await this.server.listen();
     this.access.start();
+    this.applier.startSweeper();
     this.started = true;
     this.log.info("collaboration service listening", { port: this.port });
   }
@@ -213,6 +221,7 @@ export class CollabServer {
       }
     }
     await this.access.stop();
+    this.applier.stopSweeper();
     this.hocuspocus.flushPendingStores();
     await this.server.destroy();
     await this.throttle.onDestroy();
@@ -236,7 +245,10 @@ export class CollabServer {
           connections: this.hocuspocus.getConnectionsCount(),
         }),
       );
-    } else if (request.method === "POST" && ["/internal/migrate", "/internal/ai/read", "/internal/ai/apply"].includes(path)) {
+    } else if (
+      request.method === "POST" &&
+      ["/internal/migrate", "/internal/ai/read", "/internal/ai/apply", "/internal/ai/apply-proposal"].includes(path)
+    ) {
       await this.onInternalRequest(path, request, response);
     } else {
       response.writeHead(404, { "Content-Type": "text/plain" });
@@ -251,6 +263,7 @@ export class CollabServer {
    *   POST /internal/migrate     {document_id, dry_run}                       seed one legacy document
    *   POST /internal/ai/read     {document_id, requester_id}                  AI hook: read
    *   POST /internal/ai/apply    {document_id, requester_id, block_id, base_hash, block}   AI hook: change
+   *   POST /internal/ai/apply-proposal {proposal_id, document_id, user_id}      apply a reviewed proposal
    */
   private async onInternalRequest(path: string, request: HttpRequest, response: ServerResponse): Promise<void> {
     const send = (status: number, body: unknown) => {
@@ -285,6 +298,10 @@ export class CollabServer {
       const reply = await this.ai.apply(body);
       return send(reply.status, reply.body);
     }
+    if (path === "/internal/ai/apply-proposal") {
+      const reply = await this.applier.apply(body);
+      return send(reply.status, reply.body);
+    }
     if (typeof body.document_id !== "string" || !/^[0-9a-f-]{36}$/.test(body.document_id)) return send(422, { error: "invalid_document_id" });
     send(200, await this.migrate(body.document_id, body.dry_run === true));
   }
@@ -313,12 +330,42 @@ export class CollabServer {
    * Store the live document NOW (unless nothing changed since the last store) and say exactly which
    * bytes were stored under which counter, so a caller can describe that state precisely.
    */
-  async storeNow(name: string, document: HocuspocusDocument): Promise<{ counter: number; bytes: Uint8Array }> {
+  async storeNow(
+    name: string,
+    document: HocuspocusDocument,
+    receipt?: ApplyReceipt,
+  ): Promise<{ counter: number; bytes: Uint8Array; durable: boolean }> {
     const live = this.live.get(name);
     if (!live) throw new Error("document not loaded");
-    await this.onStoreDocument({ documentName: name, document } as never); // a no-op if nothing changed
+    if (receipt) live.receipt = receipt;
+    try {
+      await this.onStoreDocument({ documentName: name, document } as never); // a no-op if nothing changed
+    } finally {
+      live.receipt = null;
+    }
     const bytes = Y.encodeStateAsUpdate(document);
-    return { counter: live.counter, bytes };
+    // onStoreDocument gives up quietly after its retries (the document stays in memory and is retried later):
+    // "durable" is only true when the newest stored bytes ARE these bytes.
+    const durable = live.lastStoredHash === createHash("sha256").update(bytes).digest("hex");
+    return { counter: live.counter, bytes, durable };
+  }
+
+  /** Milliseconds since a person's edit last reached this document (Infinity if none since it loaded). */
+  msSinceHumanUpdate(documentName: string): number {
+    const live = this.live.get(documentName);
+    return live ? Date.now() - live.lastHumanUpdateAt : Number.POSITIVE_INFINITY;
+  }
+
+  /** Distinct users with an open connection to this document, with their roles. */
+  connectedUsers(documentName: string): { userId: string; displayName: string; canEdit: boolean }[] {
+    const document = this.hocuspocus.documents.get(documentName);
+    if (!document) return [];
+    const seen = new Map<string, { userId: string; displayName: string; canEdit: boolean }>();
+    for (const connection of document.getConnections()) {
+      const ctx = connection.context as Ctx | undefined;
+      if (ctx?.userId && !seen.has(ctx.userId)) seen.set(ctx.userId, { userId: ctx.userId, displayName: ctx.displayName, canEdit: ctx.canEdit });
+    }
+    return [...seen.values()];
   }
 
   /**
@@ -529,6 +576,15 @@ export class CollabServer {
         duplicateIdStrikes: 0,
         frozen: false,
         recoveryTimer: null,
+        lastHumanUpdateAt: 0,
+        receipt: null,
+      });
+      // a PERSON's edit arrives with the connection as the transaction origin; a direct (server-side) change,
+      // like an AI apply, has `{source: "local", ...}`. Only people reset the "quiet" clock.
+      data.document.on("update", (_update: Uint8Array, origin: unknown) => {
+        const isServerSide = typeof origin === "object" && origin !== null && (origin as { source?: string }).source === "local";
+        const live = this.live.get(data.documentName);
+        if (live && !isServerSide) live.lastHumanUpdateAt = Date.now();
       });
       this.log.info("document loaded", { document: id, counter });
     } catch (error) {
@@ -633,7 +689,7 @@ export class CollabServer {
     for (let attempt = 0; attempt <= this.config.storeRetries; attempt += 1) {
       const counter = live.counter + 1;
       try {
-        await this.api.putState(live.id, this.lease.token, counter, update);
+        await this.api.putState(live.id, this.lease.token, counter, update, false, live.receipt ?? undefined);
         live.counter = counter;
         live.lastStoredHash = createHash("sha256").update(update).digest("hex");
         live.pendingSnapshot = { bytes: update, counter };

@@ -150,9 +150,14 @@ def selection_hash(blocks: list[DocBlock]) -> str:
 
 
 def resolve_selection(
-    captured: Captured, selected_ids: list[str], expected_hash: str | None
+    captured: Captured,
+    selected_ids: list[str],
+    expected_hash: str | None,
+    *,
+    skip_hash: bool = False,
 ) -> list[DocBlock]:
-    """The selected blocks in DOCUMENT order, or CaptureFailed('selection_changed')."""
+    """The selected blocks in DOCUMENT order, or CaptureFailed('selection_changed'). `skip_hash` (a
+    regeneration after a conflict) checks only that the blocks still exist: the text is read afresh."""
     by_id = {b.id: b for b in captured.blocks}
     if any(i not in by_id for i in selected_ids):
         raise CaptureFailed("selection_changed")
@@ -161,7 +166,7 @@ def resolve_selection(
     # a container selected together with its own children would count the text twice
     ids = {b.id for b in chosen}
     chosen = [b for b in chosen if b.parent_id not in ids]
-    if (
+    if not skip_hash and (
         expected_hash is None
         or selection_hash(sorted_like(chosen, selected_ids, captured)) != expected_hash
     ):

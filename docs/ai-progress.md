@@ -305,3 +305,61 @@ phase 2 to be built before supplying keys, so checkpoints 3-5 were built before 
 quality and cost of proposals); no cost estimate is shown for proposals.
 
 **Next**: checkpoints 3 and 4 (the apply path, then apply/reject/regenerate/expiry/events/UI/draft publishing).
+
+
+## Checkpoints 3 and 4: applying a proposal to the live document, and everything around it
+
+Committed together, as in phase 1, because the apply protocol is only reachable through the routes and the review card,
+and the review card was written together with its controls (see the note under checkpoint 2).
+
+**Done**
+* **The apply protocol** (`collab/src/apply.ts`, `yapply.ts`, `docs/ai.md` section 19): lease check, authority and a
+  compare-and-set `pending -> applying`, a quiet guard, an in-memory check of every target block hash and a rehearsal of
+  the exact Yjs change on a copy, one `doc.transact` with its own non-undo-tracked origin and an idempotency marker, a
+  forced store whose receipt is written in the same PostgreSQL transaction as the Yjs bytes, and a sweeper that finishes or
+  releases proposals left in `applying` by a crash.
+* **The review side** (section 20): `apply`, `reject`, `regenerate` (from `conflicted`), `publish` (owner only, through the
+  existing create-document path with `seed_format=tiptap`), expiry made by the AI worker, retention in `cleanup_ai`,
+  the `ai_proposal_updated` event (migration `0013`, also `ai_requests.regenerate_of`), and the interface: composer
+  choices, review card with preview, confirm dialogs, conflict and busy messages.
+* Internal routes the collaboration service uses (`begin-apply`, `finish-apply`, `release-apply`, `conflicted`, `stuck`,
+  receipt headers on the state PUT), each checking the fencing token inside its own transaction.
+
+**Found by testing, and fixed**
+* The rehearsal refused the first real apply: replacing text deleted the old text but inserted nothing (a detached Yjs
+  element returns no children). The rehearsal did its job: nothing was changed. Fixed in `yapply.ts`.
+* `python -m app.commands.cleanup_ai` crashed on start (its slim settings class lacked `ai_proposal_retention_days`).
+  Caught by an existing test in the full run; fixed.
+* The collaboration service started by the browser tests used a stale `collab/dist`; `npm run build` must be run
+  before `npm run e2e` (the global setup already says so).
+
+**A limit, measured rather than assumed.** An edit a person typed *offline or unsent* inside a block the AI replaced is
+**dropped** when it later merges (Yjs discards content inserted inside a deleted node); everyone converges on the AI's
+text and the person is not told. The same holds for `delete_blocks`. An earlier draft of the documentation said such text
+would survive next to the AI's; a test showed it does not, and `docs/ai.md` 19.6 and `collab/test/apply.test.ts` now say
+so. The base hash, the quiet guard and the confirm dialog protect only against what the server has seen.
+
+**Verified (automated)**
+* backend, full suite in 15 sequential batches (the host stopped two runs for low memory; every batch was then run to
+  completion, some twice): **2109 passed, 3 skipped, 0 failed**. 24 new action tests (`test_ai_proposals_actions.py`:
+  begin/CAS under competition, fencing, receipt in the same transaction, stuck listing, reject/regenerate/publish rules,
+  retention); security sweep now lists the four new routes (outsider answers identical to a missing id; no login = 401/403);
+  the events completeness audit lists every writer of the new event.
+* Flaky runs seen once and **not explained**: `test_outbox_dispatcher` (checkpoint 2 run), `test_ws_access` revoked-session
+  and `test_ai_proposals_schema` valid-proposal (each failed once in a loaded full run and passed alone and on a rerun of
+  their batch), and one `make_proposal` worker drain that returned nothing. All four are timing-shaped; none reproduced.
+* collaboration service **88** (19 new: converge, busy, conflict, all-or-nothing, rotated active document, stale lease,
+  access, CAS, crashes and the sweeper, restart recovery, undo, the offline limit, the private route); frontend **111**;
+  client **77**; editor-schema 181 and proposal-check 5 (unchanged since checkpoint 2). All typechecks and `ruff` clean.
+* **Two real browsers** (`frontend/e2e/ai-proposals.spec.ts`, real API/worker/collab service/PostgreSQL, stub providers):
+  apply an insertion with convergence and an undo that leaves the AI's text; a conflict that changes nothing and Regenerate;
+  a diagram proposed, previewed, applied, and shown read-only to a viewer; a draft that waits for the owner and is
+  published once. The 16 existing browser tests (`ai-chat`, `editor-collab`) still pass.
+* Migration `0013`: upgrade, downgrade to `0012`, up, down to base, up, `alembic check` clean (scratch database, dropped).
+  SQLAlchemy warns that `ai_proposals`, `ai_requests` and `ai_results` have a foreign-key cycle (it cannot sort them
+  for autogenerate); nothing is wrong at run time.
+
+**Not verified**: any real model; two browsers on Firefox (only Chromium was run); an apply under real network latency;
+more than one collaboration instance (the design does not support it).
+
+**Next**: checkpoint 5 (final numbers, the demonstration, the final report with unverified assumptions).

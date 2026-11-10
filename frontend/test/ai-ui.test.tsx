@@ -13,6 +13,7 @@ const ctx = (over: Partial<ComposerContext> = {}): ComposerContext => ({
   documentTitle: "Launch plan",
   unsynced: 0,
   readSelection: async () => null,
+  readRange: async () => null,
   chatSelection: [],
   clearChatSelection: () => undefined,
   role: "editor",
@@ -262,15 +263,15 @@ describe("the store", () => {
     server.on("GET", `/rooms/${ROOM}/ai-requests/r1`, requestInfo({ state: "running" }));
     const { store } = await loadedStore(server);
     const before = server.fetch.mock.calls.length;
-    await store.applySignals({ requests: new Map([["r1", "running"]]), sources: new Map(), aiEnabled: null, reset: false });
+    await store.applySignals({ requests: new Map([["r1", "running"]]), proposals: new Map(), sources: new Map(), aiEnabled: null, reset: false });
     expect(server.sent("GET", "/ai-requests/r1")).toHaveLength(1);
     expect((store.requests.get("r1") as { state: string }).state).toBe("running");
-    await store.applySignals({ requests: new Map(), sources: new Map([["s-a", { versionId: "v-a", state: "ready" }]]), aiEnabled: null, reset: false });
+    await store.applySignals({ requests: new Map(), proposals: new Map(), sources: new Map([["s-a", { versionId: "v-a", state: "ready" }]]), aiEnabled: null, reset: false });
     expect(server.sent("GET", `/rooms/${ROOM}/sources`).length).toBeGreaterThanOrEqual(2);
-    await store.applySignals({ requests: new Map(), sources: new Map(), aiEnabled: false, reset: false });
+    await store.applySignals({ requests: new Map(), proposals: new Map(), sources: new Map(), aiEnabled: false, reset: false });
     expect(store.getSnapshot().settings?.ai_enabled).toBe(false);
     server.fetch.mockClear();
-    await store.applySignals({ requests: new Map(), sources: new Map(), aiEnabled: null, reset: true });
+    await store.applySignals({ requests: new Map(), proposals: new Map(), sources: new Map(), aiEnabled: null, reset: true });
     expect(server.fetch.mock.calls.length).toBeGreaterThanOrEqual(5);
     expect(server.fetch.mock.calls.length).toBeGreaterThan(0);
     expect(before).toBeGreaterThan(0);
