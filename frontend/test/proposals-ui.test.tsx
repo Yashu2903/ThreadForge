@@ -268,6 +268,7 @@ describe("the actions", () => {
     const dialog = screen.getByRole("alertdialog", { name: "Confirm apply" });
     expect(dialog).toHaveTextContent("2 other people are connected");
     expect(dialog).toHaveTextContent("unsent in someone's browser");
+    expect(dialog).toHaveTextContent("it is lost when it arrives"); // the measured behaviour, not "mixed text"
     expect(server.sent("POST", "/apply")).toHaveLength(0); // nothing happened before the confirmation
     await user.click(within(dialog).getByRole("button", { name: "Apply now" }));
     await waitFor(() => expect(server.sent("POST", "/apply")).toHaveLength(1));

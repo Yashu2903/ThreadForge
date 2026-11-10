@@ -4,7 +4,7 @@
  * WHY THIS IS SAFE TO DO IN ONE PROCESS (single collaboration instance; no epochs, no freezing): this service
  * holds the live Y.Doc and handles every update to it on one thread. A synchronous Yjs transaction is therefore
  * atomic against every update the server has ALREADY RECEIVED. What it cannot see is an edit still sitting in
- * a browser (unsent, or made offline): that merges in later (docs/ai.md, "limits").
+ * a browser (unsent, or made offline): if it is inside a block we replace or delete it is dropped when it arrives (docs/ai.md 19.6).
  *
  *   POST /internal/ai/apply-proposal {proposal_id, document_id, user_id}      (secret-protected, private network)
  *

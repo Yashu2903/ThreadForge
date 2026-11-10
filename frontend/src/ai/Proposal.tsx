@@ -199,7 +199,7 @@ function Actions(props: { p: ProposalInfo; store: AiStore; openDocumentId: strin
               : ""}
           </p>
           <p className="muted small">
-            A check protects the blocks this proposal targets. It cannot see edits still sitting unsent in someone's browser or made offline: those merge in later and can leave mixed text where a block was replaced.
+            A check protects the blocks this proposal targets. It cannot see edits still sitting unsent in someone's browser or made offline: if such an edit is inside a block this proposal replaces or deletes, it is lost when it arrives.
           </p>
           <button type="button" className="primary" disabled={busy} onClick={() => void apply()}>
             Apply now

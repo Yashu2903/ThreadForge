@@ -363,3 +363,18 @@ so. The base hash, the quiet guard and the confirm dialog protect only against w
 more than one collaboration instance (the design does not support it).
 
 **Next**: checkpoint 5 (final numbers, the demonstration, the final report with unverified assumptions).
+
+
+## Checkpoint 5: concurrency and failure tests, browser tests, docs, final report
+
+**Done**: the concurrency and failure tests (checkpoints 3-4: competing applies, duplicate/concurrent apply, stale lease,
+store failure after broadcast, crash after the store, restart recovery, offline client), the four two-browser tests,
+`docs/ai.md` section 21 (what exists, the gate, commands and results, the demo, the reading order, the limits, the
+unverified assumptions).
+
+**Corrected in this checkpoint**: the confirm dialog and a code comment still said an unsent or offline edit would
+"merge in later and leave mixed text". The measured behaviour is that it is **dropped** when it is inside a block the AI
+replaced or deleted. The dialog, the comment, the test and the documentation now say so.
+
+**Gate: UNMEASURED** (no provider credentials). **Not built**: the highlight of changed blocks for connected editors.
+**Not verified**: see `docs/ai.md` 21.7.

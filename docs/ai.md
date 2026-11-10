@@ -1629,3 +1629,116 @@ Resolved proposals keep their before-copy, preview and receipt for `AI_PROPOSAL_
 `python -m app.commands.cleanup_ai` deletes them; `pending` and `applying` proposals are never deleted, and the request
 manifest behind a pending proposal is kept (17.3). Deleting the answer card (owner only) rejects a pending proposal and
 wipes its content.
+
+
+## 21. Final report (phase 2)
+
+### 21.1 What exists
+
+A person with write access can ask `@AI` for a **document edit** (selected blocks, selected text, the start or end of
+the document) or a **new draft document**, grounded in the sources they choose and the open document; review it as a
+**preview**; and **apply** it. Applying is done by the collaboration service in one Yjs transaction, is idempotent, is
+refused with a *conflict* (not silently overwritten) when the targeted blocks changed, and survives a crash. Diagrams are
+a first-class block (`diagram`, Mermaid text). A draft becomes a document only when the **room owner** publishes it.
+Off by default: `AI_PROPOSALS_ENABLED=false`.
+
+### 21.2 The evaluation gate (brief, section 0): **UNMEASURED**
+
+The brief says to stop after checkpoint 2 and report if the schema-valid rate **with one repair** is below 90 % on the
+gold set "with the configured model". **No real model has ever been called** (no credentials exist in this environment;
+the owner chose to supply keys after phase 2 was built). The only numbers are from a scripted stand-in with deliberate
+defects: 62 % valid without repair, 94 % with one repair, 100 % resolving, 100 % citation validity
+(`backend/tests/eval/results/proposals-stub-results.md`). They measure the harness and the repair loop. **They are not a
+pass and not a fail of the gate.** Checkpoints 3-5 were built before the gate could be measured; if the real run is below
+90 %, that run, not this build, decides what happens next. To run it when keys exist, set the real provider settings in
+`.env` and run `cd backend && RUN_EVAL=1 uv run python -m pytest tests/eval/test_proposal_eval.py -s` (section 13 explains
+how the answer evaluation is run in real mode; the proposal evaluation follows the same switch).
+
+### 21.3 Commands and results
+
+| Command (from the repository root unless noted) | Result |
+|---|---|
+| `cd backend && uv run python scripts/run_suite_in_batches.py --batches 15` | **2109 passed, 3 skipped, 0 failed** across the 15 batches (run in pieces after the host stopped two runs for low memory; every batch ran to completion) |
+| `cd backend && uv run ruff check . && uv run ruff format --check .` | clean |
+| `npm test -w @threadforge/editor-schema` | 181 passed |
+| `npm test -w @threadforge/proposal-check` | 5 passed |
+| `npm test -w @threadforge/collab` (needs the dedicated PostgreSQL database; its own setup starts the API on port 8110) | 88 passed |
+| `cd frontend && npm test` / `npx tsc --noEmit` | 111 passed / clean |
+| `cd client && npm test` | 77 passed |
+| `npm run build` (needed before the browser tests: the collaboration service runs from `collab/dist`) | clean |
+| `cd frontend && npx playwright test e2e/ai-proposals.spec.ts --project=chromium -g "<test name>"` (one test at a time: two browsers each) | 4 passed |
+| `cd frontend && npx playwright test e2e/ai-chat.spec.ts e2e/editor-collab.spec.ts --project=chromium` | 16 passed |
+| `alembic upgrade head`, `downgrade`, `upgrade head`, `downgrade base`, `upgrade head`, `alembic check` (scratch database) | clean for 0011, 0012 and 0013 |
+
+Timing-shaped failures seen **once each** and **not explained** (all passed alone and on a rerun of the same batch):
+`test_outbox_dispatcher::test_only_due_rows_are_claimed_up_to_the_batch_size`, `test_ws_access` (revoked session closes
+4401), `test_ai_proposals_schema::test_a_valid_edit_and_draft_proposal_are_accepted`, and one `make_proposal` helper whose
+worker drain returned nothing. Treat them as flakes under load, not as proven harmless.
+
+### 21.4 Demo (step by step)
+
+There is no way to log in with a real Google account in this environment (no credentials), and the application has no
+login bypass by design. The demonstration is therefore the **automated two-browser run**, which seeds real sessions in the
+test database and uses the **stand-in providers** (`backend/scripts/e2e_ai_stub.py`): everything is real except the two AI
+providers. Run `npm run build` once, then each of the four tests separately; what each shows:
+
+1. *preview, apply an insertion...* - the owner and an editor edit one document; the owner asks for an edit at the end of
+   the document; the card says "Nothing has changed in the document"; Preview shows the new text; Apply warns that 1 other
+   person is connected; both browsers converge; the editor's Ctrl+Z undoes their own typing and not the AI's text.
+2. *a changed target gives a conflict...* - the owner asks to rewrite a selected block; the editor changes that block
+   first; Apply reports "The document changed after this was proposed" and **changes nothing**; Regenerate asks again from
+   the current text; the old card is marked replaced.
+3. *a diagram is proposed...* - a diagram is requested, previewed as source and picture, applied; a viewer sees the picture
+   and has no edit control; the editor can open the source.
+4. *a draft waits for the owner...* - an editor attaches a file and asks for a draft; the editor cannot publish it; the
+   owner publishes it once; it becomes the room's active document in both browsers.
+
+Parts of the brief's demo that are covered by **automated tests but not by a browser run**: the viewer cannot call AI
+(`test_only_owners_and_editors_with_write_access_can_ask`; the viewer sees no AI controls in `ai-chat.spec.ts`); selecting
+three sources, then other two, and checking only those are used (phase 1 tests, section 13); the editor losing write
+access makes AI actions fail (`test_losing_write_access_while_the_model_thinks_blocks_publication`,
+`test_begin_apply_checks_fencing_document_and_write_access`). To run it by hand with real models, once keys exist: set
+the AI settings in `.env`, set `AI_PROPOSALS_ENABLED=true`, start the API, the outbox dispatcher, the AI worker
+(`uv run python -m app.workers.ai_worker`), the collaboration service (`node dist/main.js` in `collab/`) and the frontend,
+then follow the same four stories with real Google logins.
+
+### 21.5 File reading order
+
+1. `docs/ai.md` sections 17-21 (this document), then `docs/ai-progress.md` (what each checkpoint did and verified).
+2. `packages/editor-schema/src/ops.ts` - the edit engine shared by the worker and the apply path; `src/units.ts` ranges.
+3. `backend/app/ai/edit/` - `target.py` (what the person pointed at), `schema.py` / `prompts.py` / `generate.py`
+   (model output, one repair), `execute.py` (worker flow), `collab_client.py` (the API's one call to the service).
+4. `backend/app/services/ai_proposals.py` and `backend/app/api/ai_proposals.py` - states, permissions, events, publishing.
+5. `collab/src/apply.ts` (the protocol), `collab/src/yapply.ts` (the Yjs writes), `collab/src/server.ts` (route, store).
+6. `frontend/src/ai/Proposal.tsx` (the card), `Composer.tsx` (targets), `frontend/src/editor/DiagramView.tsx`.
+7. Tests that explain behaviour: `collab/test/apply.test.ts`, `backend/tests/test_ai_proposals_actions.py`,
+   `frontend/e2e/ai-proposals.spec.ts`.
+
+### 21.6 Limits (brief, section 7), stated plainly
+
+* A base hash protects the **targeted blocks against edits the server has seen**. It does not see edits still unsent in
+  another browser or made offline. **Measured:** if such an edit is inside a block the AI replaced or deleted, it is
+  **dropped** when it arrives and the person is not told. (The brief expected mixed text; the test in
+  `collab/test/apply.test.ts`, "documents what an offline client's UNSENT edit...", shows the actual behaviour. The
+  confirm dialog says it.)
+* The quiet guard is document-level, not block-level.
+* The warning about connected people uses presence of the document open in this browser.
+* A brief highlight of changed blocks for connected editors was **not built**.
+* One collaboration instance; no multi-instance scaling; the `ai_applications` marker map is never pruned.
+* Proposals show no cost estimate. Diagrams are not exported (no export exists).
+
+### 21.7 Unverified assumptions
+
+* **Everything about real models:** reply shapes under a provider's strict structured-output mode, real quality, cost and
+  latency of proposals, whether the 90 % gate is met. The stand-in is deterministic.
+* **Library behaviour was checked against the installed package versions** (their source and type definitions, and by
+  tests that failed when I was wrong, e.g. a detached `Y.XmlElement` returns no children from `toArray()`), **not against
+  the vendors' current online documentation** in this session. The Hocuspocus provider's disconnect/reconnect, the
+  `ai-apply` origin being untracked by the editor's undo manager (tested with the real Tiptap editor and in two
+  browsers), and `prosemirrorJSONToYXmlFragment` were exercised, not read from docs.
+* Only Chromium was used for the two-browser tests (the Firefox project exists for older editor specs only).
+* Behaviour under real network latency, a crash of the real operating-system process mid-store (crashes are simulated by
+  failing the internal API), and Postgres/Redis other than the local Docker ones.
+* The four unexplained single-run flakes in 21.3.
+* Mermaid rendering is verified in a jsdom editor and one real browser run; other diagram types and very large diagrams
+  were not exercised visually.
