@@ -1785,6 +1785,7 @@ What changed since section 21, in one place. The detailed record (commands, coun
 * **Real-model gate: PASS (22.2), twice.** 100% schema-valid with one repair (94% without) on the 16 gold items, in two runs. The real
   answer evaluation was also run twice (13/13 published; its own thresholds: none), with a classifier-truncation finding (22.2).
   The workflow through the normal interface and the offline-edit recovery were verified with real inference (22.3, 22.5).
+  The classifier truncation was fixed and the routing and cost reporting corrected (22.7); the post-fix run is in 22.8.
   **No human assessment** of factual support or usefulness has been done (22.4).
 * **Unsent/offline edit loss (19.6): fixed in the browser.** The server still drops such an edit when it is inside a block the
   AI replaced; the person who typed it now gets a recovery copy, readable and copyable, put back only on request, discarded
@@ -1851,7 +1852,7 @@ the single top passage: 0.5) and `diagram-release` (0.0 at 1, 1.0 at 3).
 `max_output_tokens=50` (`app/ai/answer/execute.py`, `_classify`) and the model's reply did not fit. They happened only on the diagram
 requests (1 of 2 in run 1, 2 of 2 in run 2, none of the 22 other requests). By design a failed classification means "qa" and the
 request still publishes; for a diagram request that equals the expected strategy, so nothing visibly broke and "task classified as
-expected: 100%" could not reveal it. Left unchanged (the code under evaluation was not modified). It would matter for a summarise or
+expected: 100%" could not reveal it. *Correction, 2026-11-19, later the same day: the cause was found in the real responses and fixed; see 22.7. The sentence below was true when written.* Left unchanged (the code under evaluation was not modified). It would matter for a summarise or
 compare request phrased in a way that also overruns the cap: it would silently be answered as a question. Recommended next steps: raise
 the cap or retry once on `provider_output_truncated`, and add the failed-call count to the report.
 
@@ -1905,8 +1906,125 @@ confirms the stub default is unchanged by the real-mode switch.
 
 ### 22.6 Remaining limitations
 
-* The classifier truncation above (3 failed calls in 26 requests, all diagram requests); cost unknown; no human review of answers or proposals.
+* The classifier truncation above (3 failed calls in 26 requests, all diagram requests) is **fixed** (22.7). The post-fix run showed a remaining
+  misrouting of `diagram-release` to `summarize` (22.8). Cost is unknown; there is no human review of answers or proposals.
 * Two runs of each evaluation on small sets (16 and 13 items): a few points of difference are noise. The gold set contains stub-only defects.
 * Real inference was exercised in Chromium only; Firefox runs only the stub-mode editor specs.
 * Run 1's evidence is reconstructed (see the evidence README). The backend test suite was not re-run: no application code changed (only `backend/tests/eval/` and its new manifest module); collection, the metric tests and lint were re-checked.
 * Text the browser never recorded (a crash, a killed tab, another tab or device) is still not recoverable (19.6).
+
+### 22.7 The classifier truncation, the routing record and the cost status (2026-11-19, after 22.2-22.5)
+
+**What was found.** In runs 1 and 2 of the answer evaluation (22.2) the `@AI` task classifier failed once and twice with
+`provider_output_truncated`, only on the diagram requests. The request fell back to `qa` (by design) and still published, and the
+report's "task classified as expected 100%" counted the fallback as a correct classification. Cost printed as 0.
+
+**Root cause (from the real responses, not inferred).** The classifier was called with `max_output_tokens=50`
+(`app/ai/answer/execute.py`). On the Responses API that cap **includes hidden reasoning tokens**; `gpt-6-luna` defaults to
+`medium` reasoning when no effort is sent, and the adapter sent none. Diagnostic calls with the adapter's exact request body, printing
+only metadata:
+
+* diagram requests at 50: `status: incomplete`, `incomplete_details.reason: max_output_tokens`, `reasoning_tokens: 50` of `output_tokens: 50`, output
+  items `['reasoning']` only (nothing visible); once, 39 reasoning tokens and a JSON object cut off mid-way;
+* plain qa, summarize and compare requests: `reasoning_tokens: 0`, an answer in 13-15 tokens;
+* at 150 tokens or more every call that got through completed; when the model reasons it used about 55-130 tokens (largest total output
+  seen: 144). The model is non-deterministic: the same input sometimes reasons and sometimes does not;
+* the provider also returned transient 503s during the diagnosis (the production call policy retries those; the raw diagnostic did not).
+
+Official documentation checked on 2026-11-19 (`developers.openai.com/api/docs/guides/reasoning`): `max_output_tokens` bounds visible output
+**and reasoning**; an incomplete response "might occur before any visible output tokens are produced"; GPT-6 Luna defaults to `medium`;
+supported effort values depend on the model. Tested on this account: `none` accepted (reasoning 0), `low` accepted, `minimal` rejected
+with HTTP 400.
+
+Two further defects surfaced in the same path: a truncated call was written to the usage ledger with **0 tokens** although the provider
+had billed them (the adapter raised before reading the usage), and the usage panel read a field that does not exist (`est_cost_micros`;
+the API sends `cost_micros`), so it **always** showed "about $0.0000", priced or not.
+
+**What changed.**
+
+| Change | Where |
+|---|---|
+| The classifier has its own output budget, `AI_CLASSIFIER_MAX_OUTPUT_TOKENS` (default **512**, validated 16 to `AI_MAX_OUTPUT_TOKENS`): about 4x the largest total seen, still bounded. The generation budget is not shared or copied | `config.py`, `answer/execute.py` |
+| Optional `AI_CLASSIFIER_REASONING_EFFORT` (empty by default, so any model keeps working; sent for this one call only; validated against the known values) | `config.py`, adapter `generate_structured(reasoning_effort=...)`, gateway |
+| The reply is held to the schema's enum; the routes are defined once (`ROUTES`). Anything else (missing, unsupported or wrong-case value, malformed, empty) is `invalid_output` | `answer/execute.py` |
+| Stable failure categories: `truncated`, `invalid_output`, `refused`, `timeout`, `provider_failure`. Budget and key problems still stop the request | `answer/execute.py` |
+| A truncated reply keeps what the provider reported (tokens, reasoning tokens, reason); the failed attempt is **recorded with its real tokens and cost** and counted in the request's usage (`llm_failed_calls`) | adapter, `ProviderError.usage/detail`, `calls.py`, gateway |
+| Each request records what the classifier did, separately from what it ran as: attempted, model route, failure and its code, fallback used and why, final route, narrowed-to-context, `degraded`. Safe fields in the result's `coverage.routing`; the numbers (tokens, reasoning tokens) only in the manifest | `answer/execute.py` |
+| Published usage and the usage totals state the cost status (`none`, `estimated`, `partial`, `unpriced`); an unpriced cost is `null`, not 0. The totals derive it from the ledger (a call with tokens above 0 and cost 0 can only be unpriced), so no migration was needed | `pricing.cost_report`, `usage.py`, both publications |
+| The usage panel reads `cost_micros` and shows "cost unknown" or "partial", never $0 for unpriced usage | `frontend/src/ai/Panels.tsx` |
+
+**Unchanged on purpose.** The classifier prompt and enum; the fallback to `qa`; truncation is still **not retried** (retries remain
+429/5xx/timeouts up to `AI_RETRY_MAX_ATTEMPTS`, each attempt in the ledger); the proposal 90% rule.
+
+**Evaluation reporting (evaluator version `eval-2`).** Routing outcomes with explicit numerators and denominators; failed provider calls by
+operation and code, from the run-wide ledger (reported even when every request published); cost status with currency, rate provenance
+and tokens retained; definitions of recall (retrieved passages, not pages; expected evidence = the gold phrases), of the citation checks
+(mechanical; they do not require an answer to cite anything), and of what is not assessed. The row that masked the failure was replaced.
+Manifests are captured in two stages (start, completion); `tests/eval/run_eval.py` records the evaluator's own exit status (a wrapper's
+trailing command can no longer hide a failure). The answer evaluation still has **no acceptance threshold**.
+
+**Provenance of the earlier runs.** Run 1's manifests are rebuilt after the fact with every field labelled
+(`captured_at_completion`, `reconstructed` with its evidence, or `unavailable`); the `.env` timestamp is cited only as limited supporting
+evidence. Run 2's manifests were written at completion, not start (`docs/evidence/ai-eval/run2-provenance-note.json`). Corrected figures for
+runs 1 and 2 are in `corrections.json`, dated and labelled as derived; the original reports are unchanged. The model's own route was not
+recorded by runs 1 or 2, so **model classification accuracy is unavailable for them**.
+
+### 22.8 The post-fix run against the baseline (one run each; observed behaviour on these cases only)
+
+Post-fix code: commit `7a815e7` plus the uncommitted working tree of this change (the manifest records the paths and a hash of the tracked
+diff; untracked files are listed by path, not hashed). The runs used the classifier defaults (512 tokens, effort unset); that is stated here
+and was not recorded by those manifests (the settings are in the allowlist from now on).
+
+| Answer evaluation (13 questions) | Run 1 | Run 2 | Post-fix |
+|---|---|---|---|
+| Published | 13/13 | 13/13 | 13/13 |
+| Classifier failures (truncated) | 1/13 | 2/13 | **0/13** |
+| Requests that ran the fallback | 1/13 | 2/13 | **0/13** |
+| Valid model classifications | 12/13 | 11/13 | 13/13 |
+| Model classification accuracy (of valid) | unavailable | unavailable | 12/13 |
+| Final route correct (fallback included) | 13/13 | 13/13 | **12/13** |
+| Recall@1 / @3 / @5 (mean share of required phrases) | 85 / 100 / 100% | 85 / 100 / 100% | 85 / 90 / 90% |
+| Cited text contains the required phrase | 100% | 100% | 90% |
+| Citation check (no invalid reference or dropped quote) / expected source cited | 100% / 100% | 100% / 100% | 100% / 100% |
+| Latency p50 / p95 | 5.31 / 11.38 s | 5.07 / 10.51 s | 4.99 / 17.22 s |
+| Calls and tokens attributed to the 13 requests | 38; 20,897 in / 2,630 out | 38; 20,769 in / 2,714 out | 38; 21,276 in / 3,352 out |
+| Failed provider calls, run-wide ledger | 1 of 44 | 2 of 44 | **0 of 44** |
+| Cost | unknown (unpriced) | unknown (unpriced) | unknown (unpriced) |
+
+| Proposal gate (16 items; rule: 90% schema-valid with at most one repair) | Run 1 | Run 2 | Post-fix |
+|---|---|---|---|
+| Valid without repair / with one repair | 15/16 / **16/16** | 15/16 / **16/16** | 16/16 / **16/16** |
+| Failed provider calls | 0 | 0 | 0 of 25 |
+| Latency p50 / p95 | 6.11 / 22.42 s | 6.63 / 26.55 s | 6.35 / 24.77 s |
+| Exit status (runner) | 0 (logged) | 0 (logged) | 0 (recorded by the runner) |
+
+The proposal gate was re-run because the fix changed the shared adapter and call policy; it still passes.
+
+**What the post-fix run shows, and the one remaining error.** The truncations are gone and every failed provider call is gone. Final routing
+accuracy *fell* from 13/13 to 12/13, and that is the fix revealing something the fallback had hidden: the model classifies
+`diagram-release` ("Draw a flowchart of the build and deploy steps") as **`summarize`**, not the `qa` the gold set expects. The request still
+publishes (and still produces a rendering diagram), but the summarize strategy surfaces none of the required evidence for it (recall 0 at
+every k, required phrase not in the cited text, latency 17 s against 8-11 s). It is the only item that changed. In the earlier diagnostics the
+same request was classified `summarize` in 2 of 6 completed calls at the default effort (budget 150 or more), and every one of the 3
+completed diagram calls with effort `none` returned `qa`; that is a small diagnostic sample, not an evaluation. Nothing was tuned after the run to improve this number. Options, each needing its own run and
+a decision: set `AI_CLASSIFIER_REASONING_EFFORT=none` for this model; clarify the classifier prompt for requests to draw something (a
+versioned prompt change, which also changes what the evaluation measures); or accept the behaviour and change the gold expectation. The
+classifier enum has no diagram route, so a drawing request has no category of its own.
+
+### 22.9 Verification of this change
+
+| Check | Result |
+|---|---|
+| New backend tests | `tests/test_ai_classifier.py` 45, `tests/test_eval_reporting.py` 25, `tests/test_ai_cost_status.py` 10: all pass. With the budget and the truncation-usage fix reverted, the four tests that depend on them fail; with "unpriced shows as 0" and "a fallback counts as a model classification" reintroduced, seven reporting tests fail (both restored) |
+| Existing AI backend tests after the change | 522 passed in three batches (one `test_analysis_lifecycle` test failed once in a batch run and passed alone and on a re-run of its file, 37/37: a single non-reproducing failure, the same class as the timing flakes in 21.3, not explained and not called harmless) |
+| Full backend suite, `scripts/run_suite_in_batches.py --batches 15` | **Incomplete: stopped by the system.** The run was killed for low memory during batch 10 of 15 (the situation `docs/ai-progress.md` warns about) and was **not restarted**. Batches 1-9 (51 of 84 test files) passed: 1,257 passed, 3 skipped, 0 failed. Batches 10-15 (33 files) did not run. Of those, the AI-related files were run separately earlier in this stage and passed (`test_ai_core`, `test_ai_config`, `test_ai_requests_flow`, `test_ai_proposals_actions`, `test_ai_migration`, `test_analysis_lifecycle`, `test_analysis_vision`, `test_retrieval`, `test_answer_validation`, `test_edit_target` and the three new files). **Not run since these changes:** the non-AI remainder (rooms, realtime and websocket, documents, messages, sources, login, invitations, constraints, account resolution, the client end-to-end and manual-sequence files). The change does not touch those areas (it adds validated settings and changes AI code), but they were not verified. To finish: run the remaining batches when memory allows |
+| Frontend | type check clean; build clean; 159 unit tests (5 new for the usage cost) |
+| Browser, real providers (`E2E_AI=real`, Chromium) | `ai-real.spec.ts` passed: `@AI` with one chosen source (request `4c3141e1-…`: classification attempted, model route `qa`, no failure, no fallback; cited the right file, not the unchosen one), edit proposal previewed and applied (request `dee62ef8-…`, proposal `2f3d54e9-…`, receipt written) and seen by the second browser and the viewer, viewer's apply and AI request refused (403), second proposal (request `08c69676-…`, proposal `16c8489c-…`) `conflicted / block_changed` after another person edited its target. Usage ledger: `openai/gpt-6-luna` and `google/gemini-embedding-2`, all `ok`, no stub, published usage `cost_status: unpriced, est_cost_micros: null` |
+| Offline-edit recovery with a real model's replacement | `ai-real-recovery.spec.ts` passed (request `4bb5c469-…`, proposal `738def12-…`): the model's text intact in both browsers, the offline words in neither document, only the typist told, inserted back once, both converge |
+| Stub-mode browser specs, sequentially | `pending-recovery` 2, `ai-access` 1, `ai-proposals` 4, `ai-chat` 2, `room-rail` 6, `room-layout` 2, `editor-collab` 14 (one toolbar test failed once in a sequence and passed alone and on a re-run of the file: 14/14; not explained) |
+| Real-server recovery integration (`collab/test/pending-recovery.test.ts`) | 6 passed |
+
+**Real and not real.** Real: the two providers (OpenAI `gpt-6-luna`, Google `gemini-embedding-2`), the API, worker, collaboration service,
+PostgreSQL and Redis, and two or three Chromium sessions, in the `E2E_AI=real` specs and both evaluations. Deterministic test doubles: the
+provider stand-in in the stub-mode specs and in the backend regression tests (controlled failures belong there; no real model response was
+ever faulted on purpose). Not done: any human assessment of factual support or usefulness; real-inference runs in Firefox.

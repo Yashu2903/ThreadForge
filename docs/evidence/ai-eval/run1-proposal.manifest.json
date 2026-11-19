@@ -1,226 +1,290 @@
 {
-  "manifest_version": 1,
+  "manifest_version": 2,
+  "evaluator_version": "eval-1",
+  "created": {
+    "stage": "after_execution",
+    "meaning": "this manifest was built after the run, from the evidence named per field; the run did not capture it"
+  },
   "kind": "proposal",
   "mode": "real",
-  "captured": "after the run (reconstructed): this run predates the harness's own manifest capture",
-  "finished_utc_from_results_file_name": "2026-11-19T15:20:29Z",
-  "pytest_duration_seconds": 143,
-  "started_utc": "unavailable: not recorded; finished time minus the pytest duration is approximate",
-  "code": {
-    "commit": "14e0cf12aa8765426877fc7f5bf867eebbb1d8f6",
-    "branch": "verification-pass-recovery",
-    "provenance": "reconstructed after the run",
-    "working_tree": "tracked files equal the commit. Evidence: (answer run) a `git status` snapshot taken at 2026-11-19T15:26:05Z, before launch, listed only docs/ai.md and docs/ai-progress.md as modified; (proposal run, 15:20:29Z) the same snapshot plus the first edit to docs/ai.md at 15:21:53Z, after the run. Documentation does not affect either run. The prompt, schema, dataset and configuration files below are byte-identical to the commit (`git diff HEAD` empty) and date from 2026-11-09."
-  },
-  "dataset": {
-    "items": 16,
-    "gold_sha256": "4adf63a1991ec3cd3feb4c6ff90395d0f1c87cde600c739ec8addfda9555fec1",
-    "proposals_py_sha256": "d9372790691ca58b6ac75855f54833153477dbb17955ab0b270bba627609bca1",
-    "corpus_py_sha256": "b2eeb89e4eb4fc56a54f125a4a28a88b0146c63685fa74374db3871d13fdd918",
-    "sources_sha256": {
-      "release.md": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41",
-      "depots.pdf": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf"
+  "run_ended": "2026-11-19T15:20:29Z",
+  "fields": {
+    "run_ended": {
+      "value": "2026-11-19T15:20:29Z",
+      "provenance": "captured_at_completion",
+      "evidence": "the harness's own results file name stamp (UTC)"
     },
-    "provenance": "computed after the run from files identical to the commit"
-  },
-  "prompts_and_schemas": {
-    "answer_prompt_template_version": "answer-v1",
-    "edit_prompt_template_version": "edit-v1",
-    "parser_version": "extract-v1",
-    "classify_schema_sha256": "2b15a848d3cfae4b10ea074fb5c80ae97737d319197fcbde2c85e436539d3ce4",
-    "file_sha256": {
-      "answer_prompts": "a579675a3ce41f1e4e72a0fa6da7c086a430d00e590b2b65223517069c6f5599",
-      "answer_schema_and_validation": "53f6890a667ec0ba54a490f81cdc46620b5f8743deb630a03bef84ca7db3e47c",
-      "edit_prompts": "cd721b5453144c276acd311742a6301d7432498697b0c81758696e191de64c5c",
-      "edit_schema": "f723484f72249dbddbd8e8f4ffda62507f0ce7dad0ea5d82245c1512f48cd7c8"
+    "started_utc": {
+      "value": "unavailable: not recorded; only the finish time and the pytest duration (143 s) are known",
+      "provenance": "unavailable"
     },
-    "provenance": "computed after the run from files identical to the commit"
-  },
-  "configuration": {
-    "ai_llm_model": "gpt-6-luna",
-    "ai_embed_model": "gemini-embedding-2",
-    "ai_embed_dimensions": 1536,
-    "ai_embed_max_input_tokens": 8192,
-    "ai_llm_context_tokens": 1050000,
-    "ai_llm_max_output_tokens": 128000,
-    "ai_llm_structured_output": true,
-    "ai_llm_reasoning_effort": "",
-    "ai_max_input_tokens": 200000,
-    "ai_max_output_tokens": 8000,
-    "ai_max_provider_calls": 40,
-    "ai_call_timeout_seconds": 120.0,
-    "ai_retry_max_attempts": 4,
-    "ai_key_concurrency": 4,
-    "ai_key_policy": "server_only",
-    "ai_proposals_enabled": true,
-    "ai_retrieval_lexical_k": 20,
-    "ai_retrieval_vector_k": 20,
-    "ai_retrieval_rrf_k": 60,
-    "ai_retrieval_evidence_tokens": 24000,
-    "ai_retrieval_max_distance": 0.6,
-    "ai_chunk_target_tokens": 400,
-    "ai_chunk_max_tokens": 900,
-    "ai_chunk_overlap_tokens": 40,
-    "ai_openai_base_url": "https://api.openai.com",
-    "ai_google_base_url": "https://generativelanguage.googleapis.com",
-    "ai_prices_checked_on": "",
-    "provenance": "computed after the run from the settings the run used: the repository .env (last written 2026-11-19T15:17:10Z, before the run) plus the harness overrides (ai_enabled=true, ai_proposals_enabled=true)"
-  },
-  "cost": {
-    "prices_configured": {
-      "ai_llm_input_micros_per_mtok": false,
-      "ai_llm_output_micros_per_mtok": false,
-      "ai_embed_text_micros_per_mtok": false,
-      "ai_embed_image_micros_per_mtok": false
+    "evaluator_version": {
+      "value": "eval-1",
+      "provenance": "reconstructed",
+      "evidence": "the evaluator code at commit 14e0cf1"
     },
-    "status": "unknown/unconfigured: no price settings",
-    "note": "The ledger's est_cost_micros is 0 because nothing could be priced. That is NOT a free run and must not be read as one: the true cost is unknown here."
-  },
-  "models": {
-    "requested": {
-      "generation": "gpt-6-luna",
-      "embedding": "gemini-embedding-2"
+    "expected_items": {
+      "value": 16,
+      "provenance": "reconstructed",
+      "evidence": "the gold list at commit 14e0cf1 has 16 items; 16 records exist"
     },
-    "returned_per_call": "unavailable: the run's per-call usage-ledger rows were not preserved (the test database was overwritten by the next evaluation) and the report does not record them",
-    "separate_preflight_observation": "before this run, one structured call and one embedding call returned the same model ids as configured (gpt-6-luna, gemini-embedding-2); that is a different set of calls, not this run's"
-  },
-  "usage_totals": {
-    "calls": 24,
-    "generation_calls": 17,
-    "input_tokens": 25434,
-    "output_tokens": 9205,
-    "failed_calls": 0,
-    "provenance": "summed from the per-case ledger in the results JSON (calls attributed to the 16 requests; source-analysis calls made before them are not included)"
-  },
-  "request_ids": "unavailable: not recorded by the harness at the time",
-  "cases": [
-    {
-      "id": "edit-rewrite",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 4.0580186000152025
+    "code": {
+      "value": {
+        "commit": "14e0cf12aa8765426877fc7f5bf867eebbb1d8f6",
+        "tracked_tree_equals_commit": true
+      },
+      "provenance": "reconstructed",
+      "evidence": "Reconstructed after the run. Answer run: a `git status` snapshot taken at 15:26:05Z, immediately before launch, shows HEAD 14e0cf1 and only docs/ai.md and docs/ai-progress.md modified. Proposal run (finished 15:20:29Z): no snapshot was taken; inferred from the same snapshot and from docs/ai.md's first modification at 15:21:53Z, after the run. Documentation does not affect either evaluation."
     },
-    {
-      "id": "edit-range",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 3.9005533999879844
+    "dataset": {
+      "value": {
+        "items": 16,
+        "gold_sha256": "4adf63a1991ec3cd3feb4c6ff90395d0f1c87cde600c739ec8addfda9555fec1",
+        "proposals_py_sha256": "d9372790691ca58b6ac75855f54833153477dbb17955ab0b270bba627609bca1",
+        "corpus_py_sha256": "b2eeb89e4eb4fc56a54f125a4a28a88b0146c63685fa74374db3871d13fdd918",
+        "sources_sha256": {
+          "release.md": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41",
+          "depots.pdf": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf"
+        }
+      },
+      "provenance": "reconstructed",
+      "evidence": "Computed after the run from the files as they are now. `git diff HEAD` is empty for these files, so they are CONSISTENT WITH commit 14e0cf1; that is a statement about the files, not a record of what the run read."
     },
-    {
-      "id": "edit-insert-from-release",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 9.211303000018233
+    "prompts_and_schemas": {
+      "value": {
+        "answer_prompt_template_version": "answer-v1",
+        "edit_prompt_template_version": "edit-v1",
+        "parser_version": "extract-v1",
+        "classify_schema_sha256": "2b15a848d3cfae4b10ea074fb5c80ae97737d319197fcbde2c85e436539d3ce4",
+        "file_sha256": {
+          "answer_prompts": "a579675a3ce41f1e4e72a0fa6da7c086a430d00e590b2b65223517069c6f5599",
+          "answer_schema_and_validation": "53f6890a667ec0ba54a490f81cdc46620b5f8743deb630a03bef84ca7db3e47c",
+          "edit_prompts": "cd721b5453144c276acd311742a6301d7432498697b0c81758696e191de64c5c",
+          "edit_schema": "f723484f72249dbddbd8e8f4ffda62507f0ce7dad0ea5d82245c1512f48cd7c8"
+        }
+      },
+      "provenance": "reconstructed",
+      "evidence": "Computed after the run from the files as they are now. `git diff HEAD` is empty for these files, so they are CONSISTENT WITH commit 14e0cf1; that is a statement about the files, not a record of what the run read."
     },
-    {
-      "id": "edit-insert-table",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 6.111556399991969
+    "configuration": {
+      "value": {
+        "ai_llm_model": "gpt-6-luna",
+        "ai_embed_model": "gemini-embedding-2",
+        "ai_embed_dimensions": 1536,
+        "ai_embed_max_input_tokens": 8192,
+        "ai_llm_context_tokens": 1050000,
+        "ai_llm_max_output_tokens": 128000,
+        "ai_llm_structured_output": true,
+        "ai_llm_reasoning_effort": "",
+        "ai_max_input_tokens": 200000,
+        "ai_max_output_tokens": 8000,
+        "ai_max_provider_calls": 40,
+        "ai_call_timeout_seconds": 120.0,
+        "ai_retry_max_attempts": 4,
+        "ai_key_concurrency": 4,
+        "ai_key_policy": "server_only",
+        "ai_proposals_enabled": true,
+        "ai_retrieval_lexical_k": 20,
+        "ai_retrieval_vector_k": 20,
+        "ai_retrieval_rrf_k": 60,
+        "ai_retrieval_evidence_tokens": 24000,
+        "ai_retrieval_max_distance": 0.6,
+        "ai_chunk_target_tokens": 400,
+        "ai_chunk_max_tokens": 900,
+        "ai_chunk_overlap_tokens": 40,
+        "ai_openai_base_url": "https://api.openai.com",
+        "ai_google_base_url": "https://generativelanguage.googleapis.com",
+        "ai_prices_checked_on": ""
+      },
+      "provenance": "reconstructed",
+      "evidence": "Computed after the run from the allowlisted settings of today's .env plus the harness overrides. LIMITED evidence only: the .env file was last written at 15:17:10Z, before both runs, but a file timestamp does not prove which values were in force during a run, so this is NOT claimed as the exact runtime configuration. No independent evidence of the model in use exists for this run."
     },
-    {
-      "id": "edit-delete",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 3.306734999991022
+    "models_requested": {
+      "value": {
+        "generation": "gpt-6-luna",
+        "embedding": "gemini-embedding-2"
+      },
+      "provenance": "reconstructed",
+      "evidence": "Computed after the run from the allowlisted settings of today's .env plus the harness overrides. LIMITED evidence only: the .env file was last written at 15:17:10Z, before both runs, but a file timestamp does not prove which values were in force during a run, so this is NOT claimed as the exact runtime configuration."
     },
-    {
-      "id": "edit-end-summary",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": false,
-      "repaired": true,
-      "latency_s": 7.522216899989871
+    "models_returned_per_call": {
+      "value": "unavailable: this run's per-call usage-ledger rows were not preserved (the test database was overwritten by the next evaluation)",
+      "provenance": "unavailable"
     },
-    {
-      "id": "edit-diagram",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 8.266787100001238
+    "request_ids": {
+      "value": "unavailable: not recorded by the harness at the time",
+      "provenance": "unavailable"
     },
-    {
-      "id": "edit-two-operations",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 6.503792600007728
+    "retry_and_repair": {
+      "value": {
+        "retried_provider_codes": [
+          "provider_rate_limited",
+          "provider_unavailable",
+          "provider_timeout"
+        ],
+        "max_attempts_per_call": 4,
+        "base_delay_seconds": 1.0,
+        "max_delay_seconds": 30.0,
+        "call_timeout_seconds": 120.0,
+        "truncated_output_retried": false,
+        "repairs": "at most one repair request per proposal (the gate's definition)"
+      },
+      "provenance": "reconstructed",
+      "evidence": "the retry settings are defaults in app/config.py at commit 14e0cf1 and are not set in the .env"
     },
-    {
-      "id": "edit-wrong-label-repaired",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 3.901558399986243
+    "usage_request_attributed": {
+      "value": {
+        "calls": 24,
+        "answer_calls": 17,
+        "input_tokens": 25434,
+        "output_tokens": 9205,
+        "failed_calls": 0
+      },
+      "provenance": "captured_at_completion",
+      "evidence": "summed from the per-case ledger the harness wrote into the results JSON; source-analysis calls made before the requests are NOT included"
     },
-    {
-      "id": "edit-wrong-range-repaired",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 4.261968200007686
+    "cost": {
+      "value": {
+        "status": "unpriced",
+        "est_cost_micros": null,
+        "note": "no price settings exist in the .env, so usage could not be priced; the ledger's 0 means not priced. Embedding usage during source analysis is unavailable, so this run's token usage is incomplete"
+      },
+      "provenance": "reconstructed",
+      "evidence": "the price settings are unset in the .env (computed from its allowlisted names); the per-case ledger shows cost 0 with tokens above 0, which is only possible when unpriced"
     },
-    {
-      "id": "edit-hostile-diagram-repaired",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 8.946566900005564
-    },
-    {
-      "id": "edit-not-json-repaired",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 4.525609100004658
-    },
-    {
-      "id": "edit-never-valid",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 3.681118900014553
-    },
-    {
-      "id": "draft-proposal",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 16.050979100022232
-    },
-    {
-      "id": "draft-with-diagram",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 13.562731000012718
-    },
-    {
-      "id": "draft-two-sources",
-      "published": true,
-      "outcome": "published",
-      "first_try_valid": true,
-      "repaired": false,
-      "latency_s": 22.424895200005267
+    "cases": {
+      "value": [
+        {
+          "id": "edit-rewrite",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 4.0580186000152025
+        },
+        {
+          "id": "edit-range",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 3.9005533999879844
+        },
+        {
+          "id": "edit-insert-from-release",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 9.211303000018233
+        },
+        {
+          "id": "edit-insert-table",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 6.111556399991969
+        },
+        {
+          "id": "edit-delete",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 3.306734999991022
+        },
+        {
+          "id": "edit-end-summary",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": false,
+          "repaired": true,
+          "latency_s": 7.522216899989871
+        },
+        {
+          "id": "edit-diagram",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 8.266787100001238
+        },
+        {
+          "id": "edit-two-operations",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 6.503792600007728
+        },
+        {
+          "id": "edit-wrong-label-repaired",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 3.901558399986243
+        },
+        {
+          "id": "edit-wrong-range-repaired",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 4.261968200007686
+        },
+        {
+          "id": "edit-hostile-diagram-repaired",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 8.946566900005564
+        },
+        {
+          "id": "edit-not-json-repaired",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 4.525609100004658
+        },
+        {
+          "id": "edit-never-valid",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 3.681118900014553
+        },
+        {
+          "id": "draft-proposal",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 16.050979100022232
+        },
+        {
+          "id": "draft-with-diagram",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 13.562731000012718
+        },
+        {
+          "id": "draft-two-sources",
+          "published": true,
+          "outcome": "published",
+          "first_try_valid": true,
+          "repaired": false,
+          "latency_s": 22.424895200005267
+        }
+      ],
+      "provenance": "captured_at_completion",
+      "evidence": "from the results JSON"
     }
-  ]
+  }
 }

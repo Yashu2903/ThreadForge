@@ -1,0 +1,153 @@
+{
+  "started": "2026-11-19T16:40:11.862Z",
+  "requests": [
+    {
+      "request_id": "4c3141e1-09d4-47a0-aaf4-880aa05b4732",
+      "task_hint": "auto"
+    },
+    {
+      "request_id": "dee62ef8-809d-4023-8363-7b9a18f30dcc",
+      "task_hint": "ask"
+    },
+    {
+      "request_id": "08c69676-f82d-4e44-a109-c9f2d7d4f98b",
+      "task_hint": "ask"
+    }
+  ],
+  "proposals": [
+    {
+      "proposal_id": "2f3d54e9-f7e9-4823-ab9f-21f0a28f0b0a"
+    },
+    {
+      "proposal_id": "16c8489c-f6bb-49bd-b296-ac25d0eae527"
+    }
+  ],
+  "answer": {
+    "cited_expected_source": true,
+    "fact_in_answer": true,
+    "unchosen_source_cited": false
+  },
+  "applied": {
+    "first_proposal_applied": true,
+    "visible_in_second_browser": true,
+    "visible_to_viewer": true
+  },
+  "viewer": {
+    "apply_status": 403,
+    "ai_request_status": 403
+  },
+  "conflict": {
+    "detected": true,
+    "document_unchanged_by_proposal": true
+  },
+  "finished": "2026-11-19T16:40:42.810Z",
+  "room_id": "bf279746-28b6-4dde-8bff-aad1296def6a",
+  "label": "post-fix run (after the classifier, routing, cost and provenance changes), 2026-11-19",
+  "spec": "frontend/e2e/ai-real.spec.ts (E2E_AI=real)",
+  "captured": "identifiers and browser-observed results by the spec during the run; the database facts below were read straight after the run",
+  "real_provider_check": {
+    "stub_started": false,
+    "base_urls": "not overridden (api.openai.com, generativelanguage.googleapis.com)",
+    "usage_ledger": [
+      {
+        "operation": "answer",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "status": "ok",
+        "calls": 3,
+        "input_tokens": 3449,
+        "output_tokens": 512
+      },
+      {
+        "operation": "classify",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "status": "ok",
+        "calls": 1,
+        "input_tokens": 137,
+        "output_tokens": 13
+      },
+      {
+        "operation": "embed_text",
+        "provider": "google",
+        "model": "gemini-embedding-2",
+        "status": "ok",
+        "calls": 5,
+        "input_tokens": 212,
+        "output_tokens": 0
+      },
+      {
+        "operation": "self_check",
+        "provider": "google",
+        "model": "gemini-embedding-2",
+        "status": "ok",
+        "calls": 3,
+        "input_tokens": 559,
+        "output_tokens": 0
+      },
+      {
+        "operation": "self_check",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "status": "ok",
+        "calls": 3,
+        "input_tokens": 171,
+        "output_tokens": 56
+      }
+    ],
+    "failed_provider_calls": 0,
+    "cost": "unknown/unconfigured (no price settings): not zero"
+  },
+  "final_states_from_database": {
+    "requests": [
+      {
+        "id": "4c3141e1-09d4-47a0-aaf4-880aa05b4732",
+        "state": "succeeded",
+        "task_hint": "auto",
+        "what": "@AI question, only ops.md chosen",
+        "routing": {
+          "classification_attempted": true,
+          "model_route": "qa",
+          "failure": null,
+          "fallback_used": false,
+          "final_route": "qa"
+        },
+        "published_usage": {
+          "cost_status": "unpriced",
+          "est_cost_micros": null
+        }
+      },
+      {
+        "id": "dee62ef8-809d-4023-8363-7b9a18f30dcc",
+        "state": "succeeded",
+        "task_hint": "ask",
+        "what": "edit proposal 1"
+      },
+      {
+        "id": "08c69676-f82d-4e44-a109-c9f2d7d4f98b",
+        "state": "succeeded",
+        "task_hint": "ask",
+        "what": "edit proposal 2, target changed before Apply"
+      }
+    ],
+    "proposals": [
+      {
+        "id": "2f3d54e9-f7e9-4823-ab9f-21f0a28f0b0a",
+        "request_id": "dee62ef8-809d-4023-8363-7b9a18f30dcc",
+        "kind": "edit",
+        "state": "applied",
+        "resolution_code": "applied",
+        "receipt": "ai_proposal_applications row, resulting_counter 2, 32-byte receipt hash"
+      },
+      {
+        "id": "16c8489c-f6bb-49bd-b296-ac25d0eae527",
+        "request_id": "08c69676-f82d-4e44-a109-c9f2d7d4f98b",
+        "kind": "edit",
+        "state": "conflicted",
+        "resolution_code": "block_changed"
+      }
+    ],
+    "request_to_proposal_link": "read directly from ai_proposals.request_id"
+  },
+  "note": "Answer and proposal TEXT is not stored here; the assertions are on content patterns. Edit proposals do not classify, so they carry no routing record."
+}

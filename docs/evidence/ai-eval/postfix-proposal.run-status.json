@@ -1,0 +1,17 @@
+{
+  "kind": "proposal",
+  "command": [
+    "python.exe",
+    "-m",
+    "pytest",
+    "tests/eval/test_proposal_eval.py",
+    "-s",
+    "-p",
+    "no:cacheprovider"
+  ],
+  "exit_status": 0,
+  "meaning": "passed",
+  "started_utc": "2026-11-19T16:35:56.906274+00:00",
+  "finished_utc": "2026-11-19T16:38:24.968416+00:00",
+  "note": "exit_status is the evaluator process's own status, not that of any command that ran after it"
+}

@@ -1,0 +1,30 @@
+{
+  "started": "2026-11-19T16:41:27.704Z",
+  "model_text_differs_from_original": true,
+  "recovered_once": true,
+  "finished": "2026-11-19T16:41:43.312Z",
+  "label": "post-fix run, 2026-11-19",
+  "spec": "frontend/e2e/ai-real-recovery.spec.ts (E2E_AI=real)",
+  "scenario": "second browser offline (socket barrier) types inside a paragraph; the owner has the REAL model rewrite it and applies it; the second browser reconnects; its words are kept for it, not merged; inserted back on request, exactly once",
+  "real_provider_check": {
+    "usage_ledger": [
+      {
+        "operation": "answer",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "status": "ok",
+        "calls": 1,
+        "input_tokens": 1317,
+        "output_tokens": 278
+      }
+    ],
+    "stub_started": false
+  },
+  "database_facts": {
+    "request_id": "4bb5c469-a7e1-40bc-82f8-a134dbb8fe52",
+    "proposal_id": "738def12-99c1-455f-8748-10a3972a7d64",
+    "proposal_state": "applied",
+    "resolution_code": "applied"
+  },
+  "note": "The model's text is not stored; the assertions are that it replaced the original in both browsers and that the offline words were recovered exactly once."
+}

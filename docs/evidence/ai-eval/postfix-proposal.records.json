@@ -1,0 +1,3187 @@
+{
+  "mode": "real",
+  "run": {
+    "failures": {
+      "calls": {
+        "numerator": 0,
+        "denominator": 25,
+        "value": 0.0
+      },
+      "by_operation_and_code": []
+    },
+    "cost": {
+      "status": "unpriced",
+      "complete_total": false,
+      "est_cost_micros": null,
+      "est_cost_usd": null,
+      "currency": "USD",
+      "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+      "unpriced_components": [
+        "generation",
+        "embedding"
+      ],
+      "kind_of_value": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+      "rates": null,
+      "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+      "usage_retained": {
+        "generation_input_tokens": 23877,
+        "generation_output_tokens": 9391,
+        "embedding_input_tokens": 3207
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "edit-rewrite",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "52b040a1-8060-4cea-aeef-db83985e6dcb",
+      "latency_s": 4.394300199986901,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1301,
+        "output_tokens": 212,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "replace_block_text",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled to take place at noon on Friday.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Clarifies the sentence without changing its meaning.",
+            "block_id": "00fac41d-c7bf-5378-9d19-d56a6403aeec",
+            "citations": [],
+            "hash_after": [
+              "8d3f5c93f30aad1051a878252edd9fd37f900c2f54fe3cd328319665fc1e9288"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Rewrote the paragraph for clarity while preserving its meaning.",
+        "inserted_chars": 56
+      },
+      "instruction": "Rewrite this paragraph more clearly."
+    },
+    {
+      "id": "edit-range",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "efab3d50-19d2-4a8b-8be5-88dac45af7aa",
+      "latency_s": 3.822464700002456,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1340,
+        "output_tokens": 248,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "replace_range",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Thursday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Replace only the selected word as requested.",
+            "block_id": "00fac41d-c7bf-5378-9d19-d56a6403aeec",
+            "citations": [],
+            "hash_after": [
+              "5d722985f64ea205a256e7888d2d45cdeb53bed5198b8cbb5f0c715261f5c87c"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Change \u201cFriday\u201d to \u201cThursday\u201d and leave the rest unchanged.",
+        "inserted_chars": 8
+      },
+      "instruction": "Change only the word Friday to Thursday."
+    },
+    {
+      "id": "edit-insert-from-release",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "c917659e-d310-4405-ad1a-47e18cac4a79",
+      "latency_s": 7.836098200001288,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1472,
+        "output_tokens": 637,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": 1.0,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "insert_blocks_after",
+            "after": [
+              {
+                "type": "heading",
+                "attrs": {
+                  "id": "84ae44f5-a4a9-42d6-a653-cabe6be29a13",
+                  "level": 2
+                },
+                "content": [
+                  {
+                    "text": "Build and deploy",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "3e1efb7a-7d26-455d-9ac1-360be42c2108"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "01ad7c0a-cba3-4c7b-9c5d-3d724a484346"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "7d6f29fc-8a64-48a0-bca8-d53d7596aa70"
+                        },
+                        "content": [
+                          {
+                            "text": "Build (Alice): compile the sources and run the unit tests.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "b3ff7ec5-64d0-4f40-b032-097681635b17"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "d7463387-fdb9-4a2a-866b-a04883a1f034"
+                        },
+                        "content": [
+                          {
+                            "text": "Deploy (Bob): restart the workers one at a time.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "anchor": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7",
+            "before": [],
+            "reason": "Adds the build tasks, responsible owners, and deploy procedure documented in the release notes.",
+            "block_id": null,
+            "citations": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "hash_after": [
+              "5cc7b2d779dc7e027cd6dceecc4019d598a31714c2380b67912704e261f3c457",
+              "1590e8e4cc55d23c10d3794c942ff24acfc92fd94beb514b3ea2f5661e308fbf"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Added a build and deploy section based on the release notes.",
+        "inserted_chars": 122
+      },
+      "instruction": "Add a build and deploy section using the release notes."
+    },
+    {
+      "id": "edit-insert-table",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "202b11ea-0c5f-4ba6-91e2-da7534685479",
+      "latency_s": 6.347155800001929,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 2918,
+        "output_tokens": 598,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": 1.0,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "insert_blocks_after",
+            "after": [
+              {
+                "type": "table",
+                "attrs": {
+                  "id": "b470b82d-e801-46f3-8419-2f2fc0acfd4c"
+                },
+                "content": [
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "9cc1690f-7044-4034-81bc-97e52e210644"
+                    },
+                    "content": [
+                      {
+                        "type": "tableHeader",
+                        "attrs": {
+                          "id": "500dff41-bded-499a-b18d-4cf76bbe721c"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "afe73d9a-85bb-48f2-bb41-9172cca58b18"
+                            },
+                            "content": [
+                              {
+                                "text": "Depot",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableHeader",
+                        "attrs": {
+                          "id": "47f8ec71-4558-4ca7-b431-059a95939f26"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "ce47e767-d9d7-41a8-89aa-19c1b85bc6fa"
+                            },
+                            "content": [
+                              {
+                                "text": "Parcels handled in May",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "3001de10-a370-4d40-9623-ecb52c399e40"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "cf2703d9-42ed-4bc5-a45e-dea9d0b50bc0"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "26e94182-fdfa-46bc-a75d-b549bd11c01b"
+                            },
+                            "content": [
+                              {
+                                "text": "Berlin",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "78934590-e1aa-49ac-8ca8-e72ef96b61c6"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "9a53aca5-009a-498a-812b-5a6051b3cb21"
+                            },
+                            "content": [
+                              {
+                                "text": "4,200",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "789128ce-b1de-4ea8-99a0-d8c02c74e1d1"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "2dc70bcc-fd76-4501-bb58-ebe2de2a9ed6"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "c5194782-d320-4a60-b783-ede0587bcb42"
+                            },
+                            "content": [
+                              {
+                                "text": "Lisbon",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "9178364a-e94f-402f-82f1-86f28820e706"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "18e0a1dd-299a-46cf-aaec-33a751bfe1c5"
+                            },
+                            "content": [
+                              {
+                                "text": "3,100",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "f3d257db-3aad-40e6-b28d-b402e84c65c4"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "02550210-f0e1-4322-ab0b-b3dd52817454"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "791b48cb-0551-4084-90ee-6e746101d3b0"
+                            },
+                            "content": [
+                              {
+                                "text": "Madrid",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "84e3049e-df20-4b70-83b7-20e64697a1d5"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "74e3385a-77cc-462e-aa5e-339cd2366d77"
+                            },
+                            "content": [
+                              {
+                                "text": "5,100",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "91cf0c73-bbab-47a2-94ab-ae289439d578"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "14261ce2-c296-4158-a7d7-b852c0008156"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "7e6bdab3-b6ab-450e-9dfb-3e56e7edbe02"
+                            },
+                            "content": [
+                              {
+                                "text": "Oslo",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "326e0e37-f739-4c98-9b86-51df050898b2"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "d7fc6f0b-1fb9-4a15-9e21-bd8384d44df9"
+                            },
+                            "content": [
+                              {
+                                "text": "1,900",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "36f43f5e-6f35-4bef-ad4c-a2f8684b339e"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "f9f4d2a7-12c4-4907-85ef-c436cc42a1bf"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "a24df950-db65-4007-afbf-32bc3f856665"
+                            },
+                            "content": [
+                              {
+                                "text": "Paris",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "6efc44ed-b554-484b-b90a-7dd6577259c5"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "cf082f47-6abc-4053-929e-0d027c89f5af"
+                            },
+                            "content": [
+                              {
+                                "text": "6,100",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "b1059960-1e6f-4ca5-b774-cd3872bb8a9b"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "913fb74b-98f9-4a73-aed8-7064ff7fd507"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "4993e9ca-d3e8-4269-9d3c-847b39dcbbea"
+                            },
+                            "content": [
+                              {
+                                "text": "Prague",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "d0413cfd-ac82-4f60-b182-2b05b57d5b18"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "8e4b4d4b-938a-4f20-9f45-aa6194666ef3"
+                            },
+                            "content": [
+                              {
+                                "text": "3,600",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "a8eb4e85-765c-42c8-8c62-cede450ca68a"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "18edada5-4c14-4dea-aa35-56da31ee0d87"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "460d4e68-e266-4490-947f-37103f602e9c"
+                            },
+                            "content": [
+                              {
+                                "text": "Rome",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "304ada80-eeee-4b3b-bb8c-d5f6ccdee814"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "0db6e9fd-3c87-496f-9726-3fdf025585d9"
+                            },
+                            "content": [
+                              {
+                                "text": "4,700",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "id": "024df0b9-a958-43fb-922f-8017bdd19363"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "60f29a4f-9164-499f-adf3-1545b4009e6f"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "f8eb2d96-0569-4b61-8141-421f3f5ae76d"
+                            },
+                            "content": [
+                              {
+                                "text": "Vienna",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "id": "b99e1189-a9f7-4d3a-9a96-acc4f8ce7585"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "id": "7ec0fc70-461b-4251-abfe-1d5ae3cc5bed"
+                            },
+                            "content": [
+                              {
+                                "text": "2,800",
+                                "type": "text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "anchor": "c1298f6c-fed8-563a-abc2-7ec46aee0d8a",
+            "before": [],
+            "reason": "Summarizes each depot's May parcel count from the report.",
+            "block_id": null,
+            "citations": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "hash_after": [
+              "fdb3f9ad5be78554fd922f2c864f6f065c9db8f32830b20f8eda6adf36dd5b12"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Added a table of May parcel totals for the depots covered in the report.",
+        "inserted_chars": 110
+      },
+      "instruction": "Add a table of depot parcels from the depot report."
+    },
+    {
+      "id": "edit-delete",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "4872f83a-197d-4810-8a2a-d3f4504ed9f1",
+      "latency_s": 4.528860199992778,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1296,
+        "output_tokens": 157,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "delete_blocks",
+            "after": [],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7"
+                },
+                "content": [
+                  {
+                    "text": "The budget is forty thousand dollars.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Remove the budget paragraph as requested.",
+            "block_id": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7",
+            "citations": [],
+            "hash_after": [],
+            "unsupported": false
+          }
+        ],
+        "summary": "Propose removing the budget paragraph.",
+        "inserted_chars": 0
+      },
+      "instruction": "Remove the budget paragraph."
+    },
+    {
+      "id": "edit-end-summary",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "4b6176c4-59d8-4427-a35d-b1849f8a2be9",
+      "latency_s": 7.878406500007259,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1271,
+        "output_tokens": 637,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "insert_blocks_after",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "f9d2b1ab-b45c-48ce-bdb1-f89e7fe2115a"
+                },
+                "content": [
+                  {
+                    "text": "In summary, the preceding sections bring together the main points covered in this document.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": "c1298f6c-fed8-563a-abc2-7ec46aee0d8a",
+            "before": [],
+            "reason": "Add a closing summary paragraph; the document text was not available to summarize specific details.",
+            "block_id": null,
+            "citations": [],
+            "hash_after": [
+              "b2d6978613a996c02a7b6cb3a5a1ffe1abf9bb84d8525a0300a25ef5d5c2cdcc"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Added a general closing summary paragraph because the document content was not provided.",
+        "inserted_chars": 91
+      },
+      "instruction": "Add a closing summary paragraph."
+    },
+    {
+      "id": "edit-diagram",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "d1c655fb-7533-43d9-862d-e4afc12a93f2",
+      "latency_s": 14.164600099989912,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1470,
+        "output_tokens": 472,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": 1.0,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "insert_blocks_after",
+            "after": [
+              {
+                "type": "diagram",
+                "attrs": {
+                  "id": "66c0e675-ead8-404d-a903-b842183dbfcf"
+                },
+                "content": [
+                  {
+                    "text": "flowchart TD\n    A[Compile the sources] --> B[Run the unit tests]\n    B --> C[Deploy]\n    C --> D[Restart workers one at a time]",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7",
+            "before": [],
+            "reason": "Shows the documented build tasks followed by deployment and its worker restart step.",
+            "block_id": null,
+            "citations": [
+              1,
+              2,
+              3
+            ],
+            "hash_after": [
+              "f9429659b89fda542069b26ce19f242b9dafff2377cde5cf870325bf551f3e30"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Added a flowchart of the build and deploy steps.",
+        "inserted_chars": 128
+      },
+      "instruction": "Draw a flowchart of the build and deploy steps."
+    },
+    {
+      "id": "edit-two-operations",
+      "kind": "edit",
+      "defect": null,
+      "request_id": "2b990ece-d6b8-4dcb-87dc-7567da715bc1",
+      "latency_s": 7.8580044000118505,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1331,
+        "output_tokens": 567,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 2,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "replace_block_text",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "Launch is Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Make the launch sentence more concise while preserving its timing.",
+            "block_id": "00fac41d-c7bf-5378-9d19-d56a6403aeec",
+            "citations": [],
+            "hash_after": [
+              "636f107ed232d0f2dfe2e4bc4709ea026e435b6916f70307edec3ec303c90e64"
+            ],
+            "unsupported": false
+          },
+          {
+            "op": 1,
+            "kind": "insert_blocks_after",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "6643265b-d8a8-4070-ac7c-92cbf5005bd9"
+                },
+                "content": [
+                  {
+                    "text": "Risk note: Vendor delays may affect the schedule.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": "c1298f6c-fed8-563a-abc2-7ec46aee0d8a",
+            "before": [],
+            "reason": "Add a concise note restating the risk already identified in the paragraph.",
+            "block_id": null,
+            "citations": [],
+            "hash_after": [
+              "9eccdb460e2074d3c9c9c265d3a2054f1a44a120ee3dc72394ea676459007bf4"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Tightened the launch sentence and added a risk note after the risks paragraph, using only the stated vendor-delay risk.",
+        "inserted_chars": 74
+      },
+      "instruction": "Tighten the launch sentence and add a risk note after the risks paragraph."
+    },
+    {
+      "id": "edit-wrong-label-repaired",
+      "kind": "edit",
+      "defect": "a block label that was never shown",
+      "request_id": "d20a2c5a-10c4-4b2b-88ad-b05014c68215",
+      "latency_s": 3.9891622999857645,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1300,
+        "output_tokens": 204,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "replace_block_text",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7"
+                },
+                "content": [
+                  {
+                    "text": "The budget is $40,000.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7"
+                },
+                "content": [
+                  {
+                    "text": "The budget is forty thousand dollars.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Express the same budget amount more concisely.",
+            "block_id": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7",
+            "citations": [],
+            "hash_after": [
+              "c6703e01642fa5b1894c09130a4c0ba148b11ac6e35301b5d257d4688725657b"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Rewrote the budget line in concise numeric form without changing its amount.",
+        "inserted_chars": 22
+      },
+      "instruction": "Rewrite the budget line."
+    },
+    {
+      "id": "edit-wrong-range-repaired",
+      "kind": "edit",
+      "defect": "a range outside the declared one",
+      "request_id": "8bf8a707-a963-4a11-825d-c71a804b94fb",
+      "latency_s": 4.177540700009558,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1342,
+        "output_tokens": 176,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "replace_range",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Thursday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Replace only the specified day name.",
+            "block_id": "00fac41d-c7bf-5378-9d19-d56a6403aeec",
+            "citations": [],
+            "hash_after": [
+              "5d722985f64ea205a256e7888d2d45cdeb53bed5198b8cbb5f0c715261f5c87c"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Change \u201cFriday\u201d to \u201cThursday\u201d only.",
+        "inserted_chars": 8
+      },
+      "instruction": "Change only the word Friday to Thursday."
+    },
+    {
+      "id": "edit-hostile-diagram-repaired",
+      "kind": "edit",
+      "defect": "a diagram with a click handler",
+      "request_id": "4b069dd4-e0c0-4608-9e24-0a6fa39e75e3",
+      "latency_s": 9.508246699988376,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1462,
+        "output_tokens": 488,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": 1.0,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "insert_blocks_after",
+            "after": [
+              {
+                "type": "diagram",
+                "attrs": {
+                  "id": "142d63ec-021d-4c5f-9cda-d6fd2b646f57"
+                },
+                "content": [
+                  {
+                    "text": "flowchart TD\n  A[\"Deploy \u2014 Owner: Bob\"] --> B[\"Restart workers one at a time\"]",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": "5feca6a2-3ccc-5ade-a558-1b530be5f6d7",
+            "before": [],
+            "reason": "Show the documented deploy action and owner.",
+            "block_id": null,
+            "citations": [
+              1,
+              2
+            ],
+            "hash_after": [
+              "cfffc0742fab55ac52f71906ae4e9b98f26bec34aa028fe706bae1e0190d84f4"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Added a flowchart showing the documented deploy step and its owner.",
+        "inserted_chars": 78
+      },
+      "instruction": "Draw a flowchart of the deploy steps."
+    },
+    {
+      "id": "edit-not-json-repaired",
+      "kind": "edit",
+      "defect": "a reply that is not JSON",
+      "request_id": "7e7ef2d1-a6d8-4264-acd1-975880895a34",
+      "latency_s": 4.727892499999143,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1295,
+        "output_tokens": 239,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "replace_block_text",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is planned for Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Rephrase the sentence without changing its meaning.",
+            "block_id": "00fac41d-c7bf-5378-9d19-d56a6403aeec",
+            "citations": [],
+            "hash_after": [
+              "8a9bf506f7c052fed0deb0f1699b91d96f85eb3683fe6dc84d35d6699716a27e"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Rewrote the selected paragraph while preserving its meaning.",
+        "inserted_chars": 41
+      },
+      "instruction": "Rewrite this paragraph."
+    },
+    {
+      "id": "edit-never-valid",
+      "kind": "edit",
+      "defect": "the same out-of-scope edit twice",
+      "request_id": "48abaf15-7feb-4391-a0a7-b70e4a6a0ab0",
+      "latency_s": 4.019758100010222,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1299,
+        "output_tokens": 227,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": null,
+      "invalid_citation_refs": 0,
+      "operations": 1,
+      "preview": {
+        "kind": "edit",
+        "changes": [
+          {
+            "op": 0,
+            "kind": "replace_block_text",
+            "after": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is set for Friday at 12:00 p.m.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "anchor": null,
+            "before": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "00fac41d-c7bf-5378-9d19-d56a6403aeec"
+                },
+                "content": [
+                  {
+                    "text": "The launch is scheduled for Friday at noon.",
+                    "type": "text"
+                  }
+                ]
+              }
+            ],
+            "reason": "Make the sentence more concise without changing its meaning.",
+            "block_id": "00fac41d-c7bf-5378-9d19-d56a6403aeec",
+            "citations": [],
+            "hash_after": [
+              "598c035569742e177790f018075aced58d6fd511415e460efcab0c06b7a060c5"
+            ],
+            "unsupported": false
+          }
+        ],
+        "summary": "Rephrased the paragraph while preserving its meaning.",
+        "inserted_chars": 42
+      },
+      "instruction": "Rewrite this paragraph."
+    },
+    {
+      "id": "draft-proposal",
+      "kind": "draft",
+      "defect": null,
+      "request_id": "1d75c119-bb9c-4a30-8323-b6cde61a59e8",
+      "latency_s": 12.328694999974687,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1128,
+        "output_tokens": 1129,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": 1.0,
+      "invalid_citation_refs": 0,
+      "operations": 9,
+      "preview": {
+        "kind": "draft",
+        "title": "Project Proposal: Clarify and Document the Release Process",
+        "summary": "A short proposal to make the release process described in the notes clearer and more complete, including its three gates, build and deploy steps, and ownership.",
+        "document": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "2b634e6c-e01b-4bc3-9ea8-963e9ec08d56"
+              },
+              "content": [
+                {
+                  "text": "Project Proposal",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "98d0afa9-90c3-4a7b-9f0f-bb635407db1e",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Purpose",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "39cb1b5f-84ac-4592-8891-b3f5e82af4f2"
+              },
+              "content": [
+                {
+                  "text": "Document and clarify the release workflow so that all three release gates are explicit and the responsibilities and activities at each gate are easy to follow. The notes state that releases pass through three gates, but describe only the build and deploy stages in the available detail.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "567c8f76-f628-428b-800a-bc24c252ed40",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Proposed Scope",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "attrs": {
+                "id": "16d29bc8-d5ce-469b-90d1-c672e868bb29"
+              },
+              "content": [
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "da0ffbd6-9334-4125-b889-1d86062cec12"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "f52aa657-e0a9-4fcf-ac5b-7d1a0af50731"
+                      },
+                      "content": [
+                        {
+                          "text": "Record the build activities: compile the sources and run the unit tests. The notes name Alice as the build owner.",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "d4fe51e8-476d-432b-8c59-4180c3b0ed6a"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "0d1d9057-dcb9-4957-bb57-7e3dda7d1624"
+                      },
+                      "content": [
+                        {
+                          "text": "Record the deploy activity: restart workers one at a time. The notes name Bob as the deploy owner.",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "1f0b6b3a-942e-48ac-99f5-b721dcb51cc2"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "3aaebb9a-09d2-435d-9d8b-d098d7c0a29e"
+                      },
+                      "content": [
+                        {
+                          "text": "Identify and document the third gate, which is mentioned but not described in the notes.",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "10545972-aba8-4b55-98dd-bdc924ce7a5b",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Expected Outcome",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "d03a1751-eae1-442e-bcc3-eb4249d0db42"
+              },
+              "content": [
+                {
+                  "text": "A concise release-process reference that captures the known gate count, build and deploy steps, and named owners, while making the currently unspecified gate visible for clarification.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "18efc47d-a302-4462-9841-d2ed14365de5",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Sources",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "attrs": {
+                "id": "859ff824-0d69-4a67-81bb-239dfdf3a7e7"
+              },
+              "content": [
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "56a753eb-af7b-484a-bc02-e82d0c64e17a"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "0a89239c-34f9-4cc0-8bd6-f4afd474c216"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "cb97e219-6c5a-4b96-80fc-9bca00c5657f"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "52c7befc-d8d8-4e1e-95a2-f3415c1dc0ee"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process > Deploy",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "b496e588-5561-47cf-9615-3443d6c2afba"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "b9dfbfbe-8d35-4d99-aa1d-1ce2c26347a3"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process > Build",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "block_citations": [
+          [],
+          [],
+          [
+            1,
+            2,
+            3,
+            4
+          ],
+          [],
+          [
+            1,
+            2,
+            3,
+            4
+          ],
+          [],
+          [
+            1,
+            2,
+            3,
+            4
+          ]
+        ],
+        "unsupported_blocks": 0
+      },
+      "instruction": "Draft a short project proposal from the release notes."
+    },
+    {
+      "id": "draft-with-diagram",
+      "kind": "draft",
+      "defect": null,
+      "request_id": "65915a28-9bd5-4fea-a1fc-803761ea0b50",
+      "latency_s": 10.475758999993559,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1136,
+        "output_tokens": 613,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": 1.0,
+      "invalid_citation_refs": 0,
+      "operations": 5,
+      "preview": {
+        "kind": "draft",
+        "title": "Build and Deploy Flow",
+        "summary": "A flowchart of the documented build and deploy steps, with owners where specified.",
+        "document": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "7195ccce-dbaa-4689-8d56-530c07f70d01"
+              },
+              "content": [
+                {
+                  "text": "Build and deploy flow",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "diagram",
+              "attrs": {
+                "id": "a2c6458d-9b2b-4dda-8f2d-2006b5e4668b"
+              },
+              "content": [
+                {
+                  "text": "flowchart TD\n    A[Build \u2014 Alice] --> B[Compile the sources]\n    B --> C[Run the unit tests]\n    C --> D[Deploy \u2014 Bob]\n    D --> E[Restart workers one at a time]",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "2a428138-1cfa-4c27-be4a-2956e585f824"
+              },
+              "content": [
+                {
+                  "text": "The release process is described as having three gates, but the selected evidence details only the Build and Deploy stages. The remaining gate is not specified here.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "d4251f48-8884-4464-a0a7-6747de8667a6",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Sources",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "attrs": {
+                "id": "1773595a-9f56-4df0-93f4-f997fbde0918"
+              },
+              "content": [
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "2300bd80-2126-4bd9-8e0d-915c56cc7085"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "d99506fb-6edb-4f89-88c5-5646373f60b9"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process > Deploy",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "73061575-4565-41d5-98eb-9d1ca3ae2f37"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "9312acc0-515c-4f69-8d97-ab81a1b01052"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process > Build",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "524e3181-a3bc-4349-aaa4-08c9c24bbec4"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "f941f245-bae4-47b8-944d-a2b7e6519e20"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "block_citations": [
+          [],
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "unsupported_blocks": 0
+      },
+      "instruction": "Draft a document with a flowchart of the build and deploy steps."
+    },
+    {
+      "id": "draft-two-sources",
+      "kind": "draft",
+      "defect": "a first draft whose paragraphs cite nothing",
+      "request_id": "9f680dbc-dca7-4317-a5be-cd4fcc682af5",
+      "latency_s": 24.77384009998059,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 2730,
+        "output_tokens": 2787,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "problems": [],
+      "resolves": true,
+      "citation_valid": 1.0,
+      "invalid_citation_refs": 0,
+      "operations": 11,
+      "preview": {
+        "kind": "draft",
+        "title": "How Depots and Releases Are Organised",
+        "summary": "Depot reports describe a shared, locally operated workflow with city-specific capacity or operational changes. The release process is described as a gated sequence, with build and deploy details available but the third gate unspecified.",
+        "document": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "6c5977fb-8f7e-4915-8bd3-011bfe8fc04e"
+              },
+              "content": [
+                {
+                  "text": "Comparison",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "39a824cd-249a-4a44-a5cd-c031b5efb365"
+              },
+              "content": [
+                {
+                  "text": "The depot reports describe a recurring operational routine at each location, alongside city-specific changes in staffing, equipment, capacity or working conditions. The release notes instead describe a staged process: they state that every release passes through three gates, and give details for build and deploy.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "945549ee-a7da-4f85-af14-948d955ba272",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Depot organisation",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "9b774894-9a24-4055-9bb2-126a1a34d78b"
+              },
+              "content": [
+                {
+                  "text": "Across the city reports, shift leads review loading bays, sorting belts and the returns desk each morning. Drivers collect routes from the dispatch office and scan parcels at the gate; customers can track deliveries, and supervisors prepare weekly delay summaries. The reports therefore present depot work as a location-based operation with recurring checks, dispatch and follow-up.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "table",
+              "attrs": {
+                "id": "0deca369-d299-4c8d-89c9-b19b7dbcee51"
+              },
+              "content": [
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "66eef341-26d9-4dee-be7f-8056408207fe"
+                  },
+                  "content": [
+                    {
+                      "type": "tableHeader",
+                      "attrs": {
+                        "id": "9e038cb2-9759-42f0-8ccd-49054ac1f2bd"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "675c3e75-7576-4866-8c64-d0279f56b076"
+                          },
+                          "content": [
+                            {
+                              "text": "Depot",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableHeader",
+                      "attrs": {
+                        "id": "af35ea24-d9a2-4bb3-94a0-9d3ecf7addcc"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "2fc5c687-9f70-418e-bcb0-99dc575b0d11"
+                          },
+                          "content": [
+                            {
+                              "text": "May parcels",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableHeader",
+                      "attrs": {
+                        "id": "4bdc97a7-3b60-4d4f-afc5-cc59e72e5819"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "e58591b3-8ba9-4404-b672-04ea19145e46"
+                          },
+                          "content": [
+                            {
+                              "text": "Reported local change or constraint",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "ebf2b91b-2ecb-4c77-ad64-f5cb4d810286"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "1eb35f8c-c2d5-4f02-99bd-8ca39f7dbea6"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "d090a47f-dedb-496e-87f9-a5f461972d3e"
+                          },
+                          "content": [
+                            {
+                              "text": "Berlin",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "087245f2-7ac9-44f3-b9fd-46266df383b9"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "1ce5ed00-ac12-440e-833a-e396a7d8f287"
+                          },
+                          "content": [
+                            {
+                              "text": "4,200",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "48af81e7-a05b-4aa3-8945-8398fe049ba0"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "390ed13b-42da-4eda-b8fb-5a4d4a391648"
+                          },
+                          "content": [
+                            {
+                              "text": "Staffing increased by six after the spring hiring round.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "e133d72f-001f-4199-a856-f1d382eb0e63"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "4cf03ef3-805f-46d1-b644-7c956840921d"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "dd05e9d3-c13d-4d7c-ba0a-6cc531320fb8"
+                          },
+                          "content": [
+                            {
+                              "text": "Lisbon",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "04e775ad-a831-4793-b2a7-f551093a7d66"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "90b482f9-c218-4edc-8409-6c8670bb0716"
+                          },
+                          "content": [
+                            {
+                              "text": "3,100",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "bb17f284-3400-4084-9fec-6d29b1078f69"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "f884998c-d0db-41b4-bb2a-7399d37b2e9f"
+                          },
+                          "content": [
+                            {
+                              "text": "Closed early twice because of storms.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "6a07e218-ae43-4c0e-9d5a-88fa811df3e9"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "0f108d59-9146-4b57-bc97-9e9043dc44e1"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "b3f3f853-b249-4166-98f6-13d18c7c2bdb"
+                          },
+                          "content": [
+                            {
+                              "text": "Madrid",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "378b3afd-4916-495c-9ba4-f164e26c2294"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "639fbeb9-584a-47ee-9a7e-d780c8959242"
+                          },
+                          "content": [
+                            {
+                              "text": "5,100",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "86bcc398-fb04-4757-a7e0-d8b2a4e28529"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "a14435e9-4630-40ae-afdf-7bef191aeef1"
+                          },
+                          "content": [
+                            {
+                              "text": "Added a third sorting belt in April.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "322a2e60-97d0-4db3-abdb-3d63db33f98c"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "8f7b4011-490e-4efe-99df-ccabbca4c2b5"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "cfa38b46-4f27-4d13-8cef-3afc4736a4ef"
+                          },
+                          "content": [
+                            {
+                              "text": "Vienna",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "f0e43f1a-c2fe-4996-8853-04fb4f112f81"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "97d56cc6-0af5-46b6-9991-b5819d281bb6"
+                          },
+                          "content": [
+                            {
+                              "text": "2,800",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "af4b7809-3fd2-4543-bf54-7e1b3305a5e0"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "92491851-f5f7-4997-adf3-6c0208ba3acc"
+                          },
+                          "content": [
+                            {
+                              "text": "Lost two delivery vans to a recall.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "0af7c430-1e42-43e7-a3b0-aa2dae31393a"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "a636781f-9119-427b-87bc-0fce2bbae5ea"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "53dc0239-eb2b-4746-8987-3d079452df46"
+                          },
+                          "content": [
+                            {
+                              "text": "Oslo",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "388a3198-abd7-42d2-aa90-14d87298e8bc"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "2c2657a7-6415-47df-beb1-225e2fa53a94"
+                          },
+                          "content": [
+                            {
+                              "text": "1,900",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "3990070b-e52b-4e88-b55b-d275df796152"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "d6e6e347-35ab-47d6-97d7-f61f0a8a3d9a"
+                          },
+                          "content": [
+                            {
+                              "text": "Paused night shifts during an ice warning.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "c559e81e-6a41-4c49-8dfc-0e2bf96506a4"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "41f8bf80-845b-418f-903d-109e97cc01da"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "d0b9f555-c138-439d-b040-de296ac56470"
+                          },
+                          "content": [
+                            {
+                              "text": "Prague",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "75e05101-04b4-46dd-a5dd-4db116f44d46"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "0c6069ba-1946-448a-bfb1-1f5e4bd405eb"
+                          },
+                          "content": [
+                            {
+                              "text": "3,600",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "3ea33b7e-0cfe-420d-99bb-df2273bf3579"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "6ae5a7e4-cb59-4d0e-8f44-eac95bea40c3"
+                          },
+                          "content": [
+                            {
+                              "text": "Moved the returns desk to the east bay.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "bfe8e344-b224-44f4-b291-3bc67527d4d8"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "ddf69ca9-fbc0-4eab-a8fc-df9724b799d1"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "3c920722-6ed9-4a58-8e6e-399b91b32487"
+                          },
+                          "content": [
+                            {
+                              "text": "Rome",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "9470c297-9388-41c3-aa33-c3250c11397d"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "2158cb9c-0d25-4b3a-bc2b-37612ac39223"
+                          },
+                          "content": [
+                            {
+                              "text": "4,700",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "45e8b96b-c5a8-4a59-afc2-58499988d83f"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "8a9ec8d3-731f-4946-84f8-06b22a2ace1b"
+                          },
+                          "content": [
+                            {
+                              "text": "Trained twelve temporary packers.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "b0c22c5e-219c-4493-8868-a09f77dec598"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "21655e40-0cf0-4116-a570-f1ccf9ccfea9"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "943e3853-9d78-45e8-bf42-a042bc3d08b0"
+                          },
+                          "content": [
+                            {
+                              "text": "Paris",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "b8c7a329-d03c-4d97-8398-a6bd9f800393"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "856fc104-6cd0-4e57-9e6a-5bacc83b6336"
+                          },
+                          "content": [
+                            {
+                              "text": "6,100",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "598227c0-44b9-428a-b6b4-21f04be4aeff"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "e129bb7e-5b86-4a00-8213-e0e5f6a01a84"
+                          },
+                          "content": [
+                            {
+                              "text": "Opened a second loading dock on the river side.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "51fcb49e-1b9e-4c23-843e-7d0573009bc2",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Release organisation",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "ca1324fe-74b1-4ac9-9aef-826917c91109"
+              },
+              "content": [
+                {
+                  "text": "Releases are organised around gates and assigned stage ownership. The documented build stage, owned by Alice, compiles the sources and runs unit tests. The deploy stage, owned by Bob, restarts workers one at a time.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "table",
+              "attrs": {
+                "id": "9a61fa6d-0424-4f5c-85d2-b3301240a3e5"
+              },
+              "content": [
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "ca236b53-83d5-4142-a2ef-982aa541ecaa"
+                  },
+                  "content": [
+                    {
+                      "type": "tableHeader",
+                      "attrs": {
+                        "id": "3d43f099-135e-4fe0-8406-a9b21d1dde2b"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "fcae969a-2706-4e3e-913a-a76d6da19f09"
+                          },
+                          "content": [
+                            {
+                              "text": "Dimension",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableHeader",
+                      "attrs": {
+                        "id": "fda76296-ceab-4c79-808a-8dddfbd5d663"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "09941773-435c-4627-9ab9-375520b4c727"
+                          },
+                          "content": [
+                            {
+                              "text": "Depots",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableHeader",
+                      "attrs": {
+                        "id": "4cb72377-7def-4de5-af55-1be5ddca837b"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "f31d926d-1ec0-4951-adde-342a928066cf"
+                          },
+                          "content": [
+                            {
+                              "text": "Releases",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "09907228-d38d-417e-a842-5cb1435134c3"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "487b1e90-9854-4ffa-8c81-bc3d6e6e2ff7"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "ed51f310-a635-472b-8835-01c452e33225"
+                          },
+                          "content": [
+                            {
+                              "text": "Organising unit",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "88be332b-2dd1-4bfe-b790-bac494313671"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "3a931eb3-70e1-4ca4-87e6-c01f64587f1c"
+                          },
+                          "content": [
+                            {
+                              "text": "City-specific depots with a recurring local operating routine.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "02e351df-2fcf-42d7-8cad-9fd64e667619"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "658e1a95-d7cc-47c0-a955-d9194c3a1fbc"
+                          },
+                          "content": [
+                            {
+                              "text": "Stages or gates within a release process.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "76619553-bf77-490b-926e-e074efccdb48"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "74f2d51b-e7a2-4179-8c2b-dd946e595970"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "d2640fe6-0ef1-4781-bab6-e7002a362987"
+                          },
+                          "content": [
+                            {
+                              "text": "Routine or sequence",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "e1601607-fea9-49d5-8e6b-9c8ebf87e7b6"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "d35d0a96-f3fe-450e-8c6c-2272490d4852"
+                          },
+                          "content": [
+                            {
+                              "text": "Daily operational checks and dispatch, with weekly delay summaries.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "d7ed7e46-2181-4bcf-a1c6-d687401aed82"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "1c4a86a8-f9a1-412b-9c22-49edb5ab2dd0"
+                          },
+                          "content": [
+                            {
+                              "text": "Build activities followed by a deploy step that restarts workers one at a time.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableRow",
+                  "attrs": {
+                    "id": "6007c596-f7ed-4ce2-9b71-eb7a4e9eeabf"
+                  },
+                  "content": [
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "8f56c706-a61e-4d7d-b763-0f575ae2c82e"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "0c59acb5-fac2-4f36-9aac-bbd11ed373a3"
+                          },
+                          "content": [
+                            {
+                              "text": "Variation or ownership",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "89eb6996-8e1c-4bf6-9779-b2267daaed3d"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "fcbf1421-01fa-45f0-ac83-5f9e61aa4b32"
+                          },
+                          "content": [
+                            {
+                              "text": "Reports record local differences in parcel volumes and operational changes or constraints.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tableCell",
+                      "attrs": {
+                        "id": "cb11ddf9-a01c-4366-8376-bea02aed705d"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "id": "c91ee7d2-cc6f-46af-a0a9-6f15a4f2fa72"
+                          },
+                          "content": [
+                            {
+                              "text": "Build is assigned to Alice and deploy to Bob; the notes say there are three gates but detail only two stages.",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "be077ade-c4e2-4a29-b873-d43c72fd0056"
+              },
+              "content": [
+                {
+                  "text": "In short, the depot material emphasizes consistent routines adapted to local conditions, while the release material emphasizes a gated workflow with named owners and specific build and deploy actions. The available release notes do not identify the third gate, so a complete stage-by-stage comparison is not possible.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "attrs": {
+                "id": "75d3176b-4c72-4a9a-85e1-5489b1ebb337",
+                "level": 2
+              },
+              "content": [
+                {
+                  "text": "Sources",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "attrs": {
+                "id": "66f0f08b-3633-4021-905b-d5d89ff39487"
+              },
+              "content": [
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "70363940-1d42-4f6c-9983-33f72cf33c3c"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "9f793b61-3f99-44f9-b461-39ac6082857a"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "7beccbc4-d391-48d1-b907-4f31f3c70140"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "45c0f172-b20d-423e-b634-ee16b8c8e170"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 2",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "9e7d939d-0628-4a6b-a7f6-99be08d6e973"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "fe9773b0-a363-4ec4-aa0e-26659c5c9568"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 5",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "e4c2f369-7f39-4d40-86cd-69ab3d8bf315"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "c468a235-541d-4c4a-bd56-93e6f43c7515"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 3",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "14dae7c5-dcfd-4776-ae56-c619970c72d2"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "16a847e2-2eae-4bf4-816d-4c77364340e7"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 1",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "35da3eb9-1c0b-4460-a540-998b4b4fe2cc"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "00e10e01-03cd-468f-915e-40ed59834f98"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 6",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "0eaf0178-e8a8-4f00-bbf1-cf72d223f560"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "70525639-f3ee-4ed4-a6e3-59e9f149e598"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 4",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "ca14b009-d790-40b8-8150-6f54541e0111"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "956e8353-5be2-47d2-a4c5-157339e39425"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 7",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "e7df810f-32cb-4167-b53d-2630dd5f9d53"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "926b11ae-639e-4f4a-b58a-8b821d280d38"
+                      },
+                      "content": [
+                        {
+                          "text": "depots.pdf, p. 8",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "665d51b2-839d-4ca1-9228-0d2fd95d892c"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "dc9553a9-b4c2-4d69-bba7-a0c38bb48c04"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process > Deploy",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "listItem",
+                  "attrs": {
+                    "id": "8cb4dc4b-5434-43fb-9253-12149b339b1e"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "id": "d0d46bdc-4b56-498a-9861-f93da0a7bbee"
+                      },
+                      "content": [
+                        {
+                          "text": "release.md, Release process > Build",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "block_citations": [
+          [],
+          [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          [],
+          [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          [
+            5,
+            2,
+            4,
+            7,
+            3,
+            6,
+            8,
+            9
+          ],
+          [],
+          [
+            1,
+            10,
+            11,
+            12
+          ],
+          [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          [
+            1,
+            2,
+            10,
+            11,
+            12
+          ]
+        ],
+        "unsupported_blocks": 0
+      },
+      "instruction": "Draft a comparison of how depots and releases are organised."
+    }
+  ]
+}

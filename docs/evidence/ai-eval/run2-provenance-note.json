@@ -1,0 +1,31 @@
+{
+  "manifest_version": 2,
+  "evaluator_version": "eval-1",
+  "created": {
+    "stage": "after_execution",
+    "meaning": "this manifest was built after the run, from the evidence named per field; the run did not capture it"
+  },
+  "kind": "note",
+  "mode": "real",
+  "run_ended": "2026-11-19T15:34:42Z",
+  "fields": {
+    "manifest_stage": {
+      "value": "The run-2 manifests were written by the harness at COMPLETION, not at start: their code, dataset, prompt and configuration fields describe the state when the run ended.",
+      "provenance": "captured_at_completion"
+    },
+    "start_state_equals_completion_state": {
+      "value": "believed, not machine-verified",
+      "provenance": "reconstructed",
+      "evidence": "the operator log of this session shows no repository edits between launch (15:30:25Z, the manifest's own started_utc) and completion (15:34:42Z); no start-time snapshot of the working tree exists for run 2"
+    },
+    "known_glitch": {
+      "value": "the first entry of code.changed_or_untracked_paths lost its leading 'b' (git status output was stripped); fixed afterwards in manifest.py",
+      "provenance": "captured_at_completion"
+    },
+    "evaluator_version": {
+      "value": "eval-1",
+      "provenance": "reconstructed",
+      "evidence": "run 2 used the harness before the routing-aware reporting; it recorded no per-request routing and no model route"
+    }
+  }
+}

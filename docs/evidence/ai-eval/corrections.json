@@ -1,0 +1,126 @@
+{
+  "created": "2026-11-19, after the runs; derived from the original records, not captured by the runs",
+  "why": "the original reports showed 'Task type classified as expected 100%', which counted the fallback as a correct classification and hid the failed classifier calls, and showed 0 cost for unpriced usage",
+  "runs": {
+    "run1": {
+      "classification_attempts": {
+        "value": 13,
+        "provenance": "reconstructed",
+        "evidence": "every gold item was sent with task_hint=auto (the evaluator at 14e0cf1 sets it)"
+      },
+      "classifier_failures": {
+        "value": {
+          "numerator": 1,
+          "denominator": 13,
+          "value": 0.07692307692307693,
+          "category": "truncated (provider_output_truncated)",
+          "requests": [
+            "diagram-release"
+          ]
+        },
+        "provenance": "reconstructed",
+        "evidence": "the per-case ledger shows failed_calls=1 on exactly these requests, and the recovered/captured run-wide ledger shows the failed rows are classify calls with that code; inferred, not recorded per request"
+      },
+      "valid_model_classifications": {
+        "value": {
+          "numerator": 12,
+          "denominator": 13,
+          "value": 0.9230769230769231
+        },
+        "provenance": "reconstructed",
+        "evidence": "attempts minus the failed classifier calls"
+      },
+      "fallback_requests": {
+        "value": {
+          "numerator": 1,
+          "denominator": 13,
+          "value": 0.07692307692307693,
+          "requests": [
+            "diagram-release"
+          ]
+        },
+        "provenance": "reconstructed",
+        "evidence": "a failed classification means qa by design (app/ai/answer/execute.py at 14e0cf1); these requests still published"
+      },
+      "final_route_accuracy": {
+        "value": {
+          "numerator": 13,
+          "denominator": 13,
+          "value": 1.0
+        },
+        "provenance": "captured_at_completion",
+        "evidence": "task_ok in the original records (the FINAL route, fallback included)"
+      },
+      "model_classification_accuracy": {
+        "value": "unavailable: the route the model itself returned was not recorded by this run",
+        "provenance": "unavailable"
+      },
+      "cost": {
+        "value": "unknown/unconfigured: the ledger's 0 meant 'not priced' (no price settings); the original reports' 0.00000 must not be read as free",
+        "provenance": "reconstructed",
+        "evidence": "price settings unset in the .env"
+      }
+    },
+    "run2": {
+      "classification_attempts": {
+        "value": 13,
+        "provenance": "reconstructed",
+        "evidence": "every gold item was sent with task_hint=auto (the evaluator at 14e0cf1 sets it)"
+      },
+      "classifier_failures": {
+        "value": {
+          "numerator": 2,
+          "denominator": 13,
+          "value": 0.15384615384615385,
+          "category": "truncated (provider_output_truncated)",
+          "requests": [
+            "diagram-release",
+            "diagram-architecture"
+          ]
+        },
+        "provenance": "reconstructed",
+        "evidence": "the per-case ledger shows failed_calls=1 on exactly these requests, and the recovered/captured run-wide ledger shows the failed rows are classify calls with that code; inferred, not recorded per request"
+      },
+      "valid_model_classifications": {
+        "value": {
+          "numerator": 11,
+          "denominator": 13,
+          "value": 0.8461538461538461
+        },
+        "provenance": "reconstructed",
+        "evidence": "attempts minus the failed classifier calls"
+      },
+      "fallback_requests": {
+        "value": {
+          "numerator": 2,
+          "denominator": 13,
+          "value": 0.15384615384615385,
+          "requests": [
+            "diagram-release",
+            "diagram-architecture"
+          ]
+        },
+        "provenance": "reconstructed",
+        "evidence": "a failed classification means qa by design (app/ai/answer/execute.py at 14e0cf1); these requests still published"
+      },
+      "final_route_accuracy": {
+        "value": {
+          "numerator": 13,
+          "denominator": 13,
+          "value": 1.0
+        },
+        "provenance": "captured_at_completion",
+        "evidence": "task_ok in the original records (the FINAL route, fallback included)"
+      },
+      "model_classification_accuracy": {
+        "value": "unavailable: the route the model itself returned was not recorded by this run",
+        "provenance": "unavailable"
+      },
+      "cost": {
+        "value": "unknown/unconfigured: the ledger's 0 meant 'not priced' (no price settings); the original reports' 0.00000 must not be read as free",
+        "provenance": "reconstructed",
+        "evidence": "price settings unset in the .env"
+      }
+    }
+  }
+}

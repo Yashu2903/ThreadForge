@@ -530,3 +530,23 @@ Details, tables and caveats: `docs/ai.md` 22.2-22.6. Evidence files and their pr
   sequentially: all passing.
 * **Not done**: human review of answers and proposals (my own reading, labelled as such, found no unsupported claim and one vacuous proposal);
   Firefox for the new specs; the backend suite (no application code changed).
+
+## Third stage (2026-11-19, later): the classifier truncation, routing and cost reporting, provenance
+
+Full account, tables and caveats: `docs/ai.md` 22.7-22.9. Evidence: `docs/evidence/ai-eval/` (README there).
+
+* **Findings checked first.** Run 2 had already finished (both pytest runs logged exit 0; the "exit 1" the wrapper showed came from my own
+  invalid `tail -1`), so there was nothing to monitor; the browser and recovery checks had been completed earlier and were re-run after the fix.
+* **Root cause**, from the real responses: `max_output_tokens=50` also pays for hidden reasoning; on diagram requests all 50 went to reasoning and
+  nothing visible came back (`incomplete`, `max_output_tokens`). The default effort for `gpt-6-luna` is `medium` and none was sent. Also found:
+  truncated calls were ledgered with 0 tokens although billed; the usage panel read a non-existent field and always showed $0.
+* **Fix**: dedicated classifier budget (512, bounded) and optional classifier-only effort; strict enum with stable failure categories;
+  provider-reported usage kept for truncated calls; a per-request routing record (attempted / model route / failure / fallback / final route);
+  cost status (`none`/`estimated`/`partial`/`unpriced`, null when unpriced); panel fixed. No new retries; the prompt, enum and fallback are unchanged.
+* **Tests**: 45 + 25 + 10 new backend tests and 5 frontend tests; reverting the fixes makes the dependent tests fail. Existing AI suites pass
+  (one single non-reproducing failure noted in 22.9).
+* **Post-fix real runs** (one each): classifier failures 0/13 (was 1 and 2), failed provider calls 0/44, proposal gate 16/16 (still PASS).
+  Final routing accuracy fell to 12/13 because the model classifies `diagram-release` as `summarize` (it was masked by the fallback); that
+  item's retrieval and latency got worse. Not tuned; options are listed in 22.8.
+* **Provenance**: run-1 manifests rebuilt with every field labelled; run 2 documented as completion-time; corrected figures in `corrections.json`.
+* **Not done**: any human review; Firefox for real-inference specs.
