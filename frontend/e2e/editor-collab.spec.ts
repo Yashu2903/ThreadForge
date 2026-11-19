@@ -8,6 +8,8 @@ import { AsUser, roomUrl, seed, signedIn } from "./helpers";
  */
 
 const surface = (page: Page) => page.getByTestId("editor").locator(".tf-editor");
+/** Two animation frames: enough for the editor to have handled the selectionchange of the key just pressed. */
+const settle = (page: Page) => page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
 const status = (page: Page) => page.getByTestId("sync-status");
 /** The document's own text: remote caret name tags are drawn inside the editor but are not text. */
 const textOf = (page: Page) =>
@@ -139,8 +141,13 @@ test.describe("live collaborative editing", () => {
     await expect(surface(page).locator("h2")).toContainText("Plain words");
     await expect(surface(b.page).locator("h2")).toContainText("Plain words");
 
+    // Let the editor take in each key before the next one: it learns of a caret move from a selectionchange that arrives a frame
+    // later, and an Enter sent a millisecond after Control+End then acts on the OLD selection (the heading is not split and the
+    // bullet button below turns the heading itself into a list item). Seen in 4 of 12 and 3 of 12 repeated runs; see docs/ai.md 23.3.
     await page.keyboard.press("Control+End");
+    await settle(page);
     await page.keyboard.press("Enter");
+    await settle(page);
     await page.getByTestId("tb-bullets").click();
     await page.keyboard.type("item one");
     await expect(surface(b.page).locator("ul li")).toContainText("item one");

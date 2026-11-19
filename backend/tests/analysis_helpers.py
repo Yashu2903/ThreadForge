@@ -5,6 +5,7 @@ faked. They stand in for documented provider behaviour; they prove nothing about
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import re
@@ -17,6 +18,45 @@ from tests import analysis_files as af
 from tests.ai_helpers import DIMS, Stub, ai_settings, install
 from tests.doc_helpers import room_with_doc
 from tests.helpers import TRUSTED_ORIGIN, add_member, execute, rows  # noqa: F401
+
+# The Postgres server behind Docker Desktop has a clock that steps BACKWARD by about 125-190 ms every 30 s (measured, docs/ai.md
+# 23.3). A job or request is stamped `run_after = now()` when it is created and claimed only when `run_after <= now()`, so one created
+# just before a step is not due for up to ~190 ms afterwards, and a drain that runs straight away finds nothing. A claim also compares
+# against `now()` as of the START of its transaction, so work that became due a few milliseconds later is missed too. Work that was
+# due when it was created (`run_after = created_at`) and is due now, or within a second, is therefore waited for and claimed again.
+# Work delayed on purpose (a retry backoff, `run_after > created_at`) and cancelled work are NOT, so the tests that assert "nothing
+# to claim yet" still see nothing.
+CLOCK_STEP_GRACE_SECONDS = 1.0
+CLOCK_STEP_RECENT_SECONDS = 0.3  # work that became due this recently may have been missed by a claim that started just before
+CLOCK_STEP_MAX_WAITS = 5
+
+_DUE_AFTER_CLOCK_STEP = """
+SELECT count(*) AS n, coalesce(max(extract(epoch FROM (t.run_after - clock_timestamp()))), 0) AS wait
+  FROM (SELECT run_after FROM analysis_jobs
+         WHERE state = 'queued' AND run_after = created_at AND cancel_requested_at IS NULL
+        UNION ALL
+        SELECT run_after FROM ai_requests
+         WHERE state = 'queued' AND run_after = created_at AND cancel_requested_at IS NULL) t
+ WHERE t.run_after > clock_timestamp() - make_interval(secs => :recent)
+   AND t.run_after < clock_timestamp() + make_interval(secs => :grace)
+"""
+
+
+async def wait_for_clock_step(sm) -> bool:
+    """True after waiting (until the work is due, plus a moment) when fresh work may only have been missed because of the clock."""
+    got = (
+        await rows(
+            sm,
+            _DUE_AFTER_CLOCK_STEP,
+            grace=CLOCK_STEP_GRACE_SECONDS,
+            recent=CLOCK_STEP_RECENT_SECONDS,
+        )
+    )[0]
+    if not got["n"]:
+        return False
+    await asyncio.sleep(max(float(got["wait"] or 0), 0.0) + 0.03)
+    return True
+
 
 TOPICS: list[set[str]] = [
     {"warehouse", "orders", "delivery", "drivers", "packaging", "returns", "shipping"},
@@ -424,6 +464,7 @@ class World:
         from app.services import ai_requests
 
         out: list[str] = []
+        waits = 0
         for _ in range(rounds):
             progressed = False
             changed = await ai_requests.advance_waiting(self.sm, self.cfg)
@@ -446,6 +487,9 @@ class World:
                 out.append("request:" + res)
                 progressed = True
             if not progressed:
+                if waits < CLOCK_STEP_MAX_WAITS and await wait_for_clock_step(self.sm):
+                    waits += 1
+                    continue
                 break
         return out
 
@@ -454,11 +498,15 @@ class World:
         from app.ai.analysis.pipeline import process_next
 
         outcomes = []
+        waits = 0
         for _ in range(limit):
             outcome = await process_next(
                 self.sm, self.cfg, self.store, transports=self.stub.transports()
             )
             if outcome is None:
+                if waits < CLOCK_STEP_MAX_WAITS and await wait_for_clock_step(self.sm):
+                    waits += 1
+                    continue
                 break
             outcomes.append(outcome)
         return outcomes
