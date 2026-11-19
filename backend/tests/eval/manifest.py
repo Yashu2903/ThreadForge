@@ -15,11 +15,15 @@ import json
 import platform
 import subprocess
 import sys
+import uuid
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import text
+
+from app.ai.pricing import Prices, cost_report
+from tests.eval.metrics import failed_calls
 
 REPO = Path(__file__).resolve().parents[3]
 BACKEND = REPO / "backend"
@@ -34,6 +38,8 @@ CONFIG_ALLOWLIST = (
     "ai_llm_max_output_tokens",
     "ai_llm_structured_output",
     "ai_llm_reasoning_effort",
+    "ai_classifier_max_output_tokens",
+    "ai_classifier_reasoning_effort",
     "ai_max_input_tokens",
     "ai_max_output_tokens",
     "ai_max_provider_calls",
@@ -144,20 +150,59 @@ def safe_config(settings: Any) -> dict[str, Any]:
     return cfg
 
 
-def cost_status(settings: Any) -> dict[str, Any]:
-    configured = {name: getattr(settings, name, None) is not None for name in PRICE_FIELDS}
-    known = all(configured.values())
+EVALUATOR_VERSION = "eval-2"
+# eval-1: runs 1 and 2 (routing known only as "task type classified as expected"; cost shown as 0 when unpriced).
+# eval-2: routing outcomes with numerators and denominators, failed provider calls by category, explicit cost status,
+#         and manifests captured in two stages (start, completion).
+
+PROVENANCE = ("captured_at_start", "captured_at_completion", "reconstructed", "unavailable")
+
+
+def cost_summary(settings: Any, ledger: list[dict[str, Any]]) -> dict[str, Any]:
+    """What this run cost, stated with what could and could not be priced. Computed from the run-wide usage ledger ONLY
+    (one source, so nothing is counted twice; per-request aggregates are views of the same rows).
+
+    A ledger cost of 0 is NOT "free": when no rate is configured the cost of a call that used tokens is unknown. Only
+    usage of nothing is a known zero. Tokens are always retained. The providers' responses report tokens, not money, so
+    a provider-reported cost does not exist here."""
+    prices = Prices.of(settings)
+    gen_in = sum(int(r["input_tokens"]) for r in ledger if r["provider"] == "openai")
+    gen_out = sum(int(r["output_tokens"]) for r in ledger if r["provider"] == "openai")
+    embed = sum(int(r["input_tokens"]) for r in ledger if r["provider"] == "google")
+    report = cost_report(prices, llm_in=gen_in, llm_out=gen_out, embed_tokens=embed)
+    micros = report["est_cost_micros"]
+    rates = {
+        "generation_input_micros_per_mtok": prices.llm_input,
+        "generation_output_micros_per_mtok": prices.llm_output,
+        "embedding_text_micros_per_mtok": prices.embed_text,
+    }
     return {
-        "prices_configured": configured,
-        "status": "estimated from the configured prices"
-        if known
-        else "unknown/unconfigured: no price settings",
-        "note": (
-            None
-            if known
-            else "The ledger's est_cost_micros is 0 because nothing could be priced. That is NOT a free run and must not be "
-            "read as one: the true cost is unknown here."
-        ),
+        "status": report["cost_status"],
+        "complete_total": report["cost_status"] in ("estimated", "none"),
+        "est_cost_micros": micros,
+        "est_cost_usd": None if micros is None else micros / 1_000_000,
+        "currency": "USD",
+        "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+        "unpriced_components": report["unpriced_components"],
+        "kind_of_value": {
+            "none": "known zero: nothing was used",
+            "estimated": "estimated from the configured rates below (not provider-reported)",
+            "partial": "PARTIAL: the priced components only; the unpriced components are missing from this figure",
+            "unpriced": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+        }[report["cost_status"]],
+        "rates": {
+            **rates,
+            "source": "the configured rates (AI_*_MICROS_PER_MTOK)",
+            "checked_on": getattr(settings, "ai_prices_checked_on", "") or None,
+        }
+        if any(v is not None for v in rates.values())
+        else None,
+        "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+        "usage_retained": {
+            "generation_input_tokens": gen_in,
+            "generation_output_tokens": gen_out,
+            "embedding_input_tokens": embed,
+        },
     }
 
 
@@ -177,62 +222,168 @@ async def ledger_summary(sessionmaker: Any, since: dt.datetime) -> list[dict[str
         return [dict(r._mapping) for r in got]
 
 
-async def build(
+def retry_and_repair(settings: Any, kind: str) -> dict[str, Any]:
+    return {
+        "retried_provider_codes": [
+            "provider_rate_limited",
+            "provider_unavailable",
+            "provider_timeout",
+        ],
+        "max_attempts_per_call": getattr(settings, "ai_retry_max_attempts", None),
+        "base_delay_seconds": getattr(settings, "ai_retry_base_delay_seconds", None),
+        "max_delay_seconds": getattr(settings, "ai_retry_max_delay_seconds", None),
+        "call_timeout_seconds": getattr(settings, "ai_call_timeout_seconds", None),
+        "truncated_output_retried": False,
+        "repairs": "at most one repair request per proposal (the gate's definition)"
+        if kind == "proposal"
+        else "none for answers: a reply that fails validation fails the request",
+    }
+
+
+def begin(
     *,
     kind: str,
     mode: str,
     settings: Any,
-    sessionmaker: Any,
-    started: dt.datetime,
     dataset: dict[str, Any],
-    records: list[dict[str, Any]],
+    expected_items: int,
+    now: dt.datetime | None = None,
 ) -> dict[str, Any]:
-    ledger = await ledger_summary(sessionmaker, started)
-    finished = dt.datetime.now(dt.UTC)
+    """Stage 1: everything knowable BEFORE the first provider call, captured at the start."""
+    started = now or dt.datetime.now(dt.UTC)
     return {
-        "manifest_version": 1,
+        "manifest_version": 2,
+        "evaluator_version": EVALUATOR_VERSION,
+        "run_id": uuid.uuid4().hex,
         "kind": kind,
         "mode": mode,
         "started_utc": started.isoformat(),
-        "finished_utc": finished.isoformat(),
-        "captured": "during the run, by the harness",
+        "expected_items": expected_items,
+        "captured_at_start": [
+            "run_id",
+            "started_utc",
+            "evaluator_version",
+            "expected_items",
+            "code",
+            "runtime",
+            "dataset",
+            "prompts_and_schemas",
+            "configuration",
+            "retry_and_repair",
+            "models_requested",
+        ],
         "code": git_state(),
         "runtime": {"python": sys.version.split()[0], "platform": platform.platform()},
         "dataset": dataset,
         "prompts_and_schemas": prompts_and_schemas(),
         "configuration": safe_config(settings),
-        "models": {
-            "requested": {
-                "generation": getattr(settings, "ai_llm_model", None),
-                "embedding": getattr(settings, "ai_embed_model", None),
+        "retry_and_repair": retry_and_repair(settings, kind),
+        "models_requested": {
+            "generation": getattr(settings, "ai_llm_model", None),
+            "embedding": getattr(settings, "ai_embed_model", None),
+        },
+    }
+
+
+async def finish(
+    m: dict[str, Any],
+    *,
+    settings: Any,
+    sessionmaker: Any,
+    records: list[dict[str, Any]],
+    results: dict[str, Any] | None = None,
+    now: dt.datetime | None = None,
+) -> dict[str, Any]:
+    """Stage 2: what only exists once the run is over (status, usage, models the provider side recorded, metrics)."""
+    ledger = await ledger_summary(sessionmaker, dt.datetime.fromisoformat(m["started_utc"]))
+    by_provider: dict[str, dict[str, int]] = {}
+    for r in ledger:
+        p = by_provider.setdefault(
+            r["provider"], {"calls": 0, "failed_calls": 0, "input_tokens": 0, "output_tokens": 0}
+        )
+        p["calls"] += int(r["calls"])
+        p["failed_calls"] += int(r["calls"]) if r["status"] != "ok" else 0
+        p["input_tokens"] += int(r["input_tokens"])
+        p["output_tokens"] += int(r["output_tokens"])
+    m.update(
+        {
+            "finished_utc": (now or dt.datetime.now(dt.UTC)).isoformat(),
+            "captured_at_completion": [
+                "finished_utc",
+                "cases",
+                "results",
+                "models_recorded",
+                "usage_ledger_run_wide",
+                "usage_totals",
+                "provider_failures",
+                "cost",
+            ],
+            "models_recorded": sorted({f"{r['provider']}:{r['model']}" for r in ledger}),
+            "usage_ledger_run_wide": ledger,
+            "usage_totals": {
+                "source": "the run-wide usage ledger only (per-case figures are views of the same rows)",
+                "by_provider": by_provider,
             },
-            "recorded_by_the_usage_ledger": sorted(
-                {f"{r['provider']}:{r['model']}" for r in ledger}
-            ),
+            "provider_failures": failed_calls(ledger),
+            "cost": cost_summary(settings, ledger),
+            "results": results or {},
+            "cases": [
+                {
+                    k: r.get(k)
+                    for k in (
+                        "id",
+                        "request_id",
+                        "published",
+                        "outcome",
+                        "first_try_valid",
+                        "repaired",
+                        "latency_s",
+                        "routing",
+                        "expected_route",
+                    )
+                    if k in r
+                }
+                for r in records
+            ],
+        }
+    )
+    return m
+
+
+def labelled(value: Any, provenance: str, evidence: str | None = None) -> dict[str, Any]:
+    """One manifest field with where it came from. `unavailable` fields hold no value, only the reason."""
+    if provenance not in PROVENANCE:
+        raise ValueError(f"unknown provenance {provenance!r}")
+    if provenance == "unavailable":
+        if not (isinstance(value, str) and value.startswith("unavailable")):
+            raise ValueError("an unavailable field must say why: 'unavailable: <reason>'")
+    elif evidence is None and provenance == "reconstructed":
+        raise ValueError("a reconstructed field must state its evidence")
+    out: dict[str, Any] = {"value": value, "provenance": provenance}
+    if evidence is not None:
+        out["evidence"] = evidence
+    return out
+
+
+def reconstructed_manifest(
+    *, kind: str, mode: str, run_ended: str, fields: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """A manifest assembled AFTER a run that did not capture one. It says so, and every field in it is labelled with its
+    provenance (captured / reconstructed with its evidence / unavailable); an unlabelled field is refused."""
+    for name, f in fields.items():
+        if not (isinstance(f, dict) and f.get("provenance") in PROVENANCE):
+            raise ValueError(f"field {name!r} is not labelled with a provenance")
+    return {
+        "manifest_version": 2,
+        "evaluator_version": "eval-1",
+        "created": {
+            "stage": "after_execution",
+            "meaning": "this manifest was built after the run, from the evidence named per field; the run did not capture it",
         },
-        "usage_ledger_run_wide": ledger,
-        "usage_totals": {
-            "calls": sum(int(r["calls"]) for r in ledger),
-            "failed_calls": sum(int(r["calls"]) for r in ledger if r["status"] != "ok"),
-            "input_tokens": sum(int(r["input_tokens"]) for r in ledger),
-            "output_tokens": sum(int(r["output_tokens"]) for r in ledger),
-        },
-        "cost": cost_status(settings),
-        "cases": [
-            {
-                k: r.get(k)
-                for k in (
-                    "id",
-                    "request_id",
-                    "published",
-                    "outcome",
-                    "first_try_valid",
-                    "repaired",
-                    "latency_s",
-                )
-            }
-            for r in records
-        ],
+        "kind": kind,
+        "mode": mode,
+        "run_ended": run_ended,
+        "fields": fields,
     }
 
 

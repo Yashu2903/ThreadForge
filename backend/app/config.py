@@ -50,6 +50,10 @@ def _split_csv(value: object) -> object:
     return value
 
 
+# reasoning efforts the classifier may be set to (a model rejects those it does not support)
+CLASSIFIER_EFFORTS = frozenset({"", "none", "minimal", "low", "medium", "high", "xhigh", "max"})
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=REPO_ROOT / ".env",
@@ -215,6 +219,13 @@ class Settings(BaseSettings):
     ai_llm_max_output_tokens: int = 0
     ai_llm_structured_output: bool = True  # False = parse plus one bounded repair
     ai_llm_reasoning_effort: str = ""  # empty = do not send the parameter
+    # The task classifier (`@AI` auto routing) is a tiny call, but on a reasoning model its
+    # output budget also pays for HIDDEN reasoning (docs/ai.md 22.7). 512 covers the ~130
+    # reasoning tokens measured at the default effort with room to spare, and is still bounded.
+    # The effort is sent for this one call only, and only if set (support differs per model:
+    # gpt-6-luna accepts "none" and rejects "minimal"); empty = leave the global setting alone.
+    ai_classifier_max_output_tokens: int = 512
+    ai_classifier_reasoning_effort: str = ""
     # embedding model
     ai_embed_model: str = ""
     ai_embed_dimensions: int = 0
@@ -924,6 +935,16 @@ class Settings(BaseSettings):
             self.ai_max_output_tokens > self.ai_llm_max_output_tokens
         ):
             problems.append("AI_MAX_OUTPUT_TOKENS must not exceed AI_LLM_MAX_OUTPUT_TOKENS.")
+        if not 16 <= self.ai_classifier_max_output_tokens <= self.ai_max_output_tokens:
+            problems.append(
+                "AI_CLASSIFIER_MAX_OUTPUT_TOKENS must be between 16 and AI_MAX_OUTPUT_TOKENS."
+            )
+        if self.ai_classifier_reasoning_effort not in CLASSIFIER_EFFORTS:
+            problems.append(
+                "AI_CLASSIFIER_REASONING_EFFORT must be empty or one of: "
+                + ", ".join(sorted(CLASSIFIER_EFFORTS - {""}))
+                + "."
+            )
         has_server_keys = bool(
             self.ai_openai_api_key.get_secret_value() and self.ai_google_api_key.get_secret_value()
         )

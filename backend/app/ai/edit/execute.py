@@ -29,8 +29,7 @@ from app.ai.edit import prompts
 from app.ai.edit.check import CheckUnavailable
 from app.ai.edit.generate import Generated, ProposalInvalid, generate_draft, generate_edit
 from app.ai.edit.target import EditTarget, linearize, resolve_edit_target
-from app.ai.pricing import Prices
-from app.ai.types import Usage
+from app.ai.pricing import Prices, cost_report
 from app.logging_config import APP_LOGGER
 from app.services import ai_requests as svc
 
@@ -215,8 +214,11 @@ def _publication(
 ) -> svc.Publication:
     totals = gateway.totals
     prices = Prices.of(settings)
-    cost = prices.llm_cost(Usage(totals["llm_in"], totals["llm_out"])) + prices.embed_text_cost(
-        Usage(totals["embed_tokens"])
+    cost = cost_report(
+        prices,
+        llm_in=totals["llm_in"],
+        llm_out=totals["llm_out"],
+        embed_tokens=totals["embed_tokens"],
     )
     count = len(g.operations) if g.kind == "edit" else len(g.operations["blocks"])
     if g.kind == "edit":
@@ -270,7 +272,7 @@ def _publication(
         answer=answer,
         citations=g.table,
         coverage=coverage,
-        usage={**totals, "est_cost_micros": cost},
+        usage={**totals, **cost},
         models={
             "generation": settings.ai_llm_model,
             "embedding": settings.ai_embed_model,

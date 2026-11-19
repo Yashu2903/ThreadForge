@@ -355,13 +355,25 @@ export function AiSettingsDialog(props: { store: AiStore; snap: AiSnapshot; isOw
   );
 }
 
-function UsageView({ usage }: { usage: Record<string, unknown> }) {
+/** What a room spent. Cost is only shown as a number when it was priced: a call that used tokens but could not be
+ *  priced is UNKNOWN, never $0 (the server says so in `cost_status`: none | estimated | partial | unpriced). */
+export function costSentence(usage: Record<string, unknown>): string {
+  const totals = (usage.totals ?? {}) as Record<string, number>;
+  const status = (usage.cost_status ?? "estimated") as string;
+  const dollars = `$${((totals.cost_micros ?? 0) / 1e6).toFixed(4)}`;
+  if (status === "unpriced") return "cost unknown (no prices are configured, so usage is counted but not priced)";
+  if (status === "partial") return `${dollars} so far, and more that could not be priced (partial, not a total)`;
+  if (status === "none") return "no cost";
+  return `about ${dollars}`;
+}
+
+export function UsageView({ usage }: { usage: Record<string, unknown> }) {
   const totals = (usage.totals ?? {}) as Record<string, number>;
   const warnings = (usage.warnings ?? []) as { scope: string; threshold: number }[];
   return (
     <div className="usage" data-testid="usage">
       <p>
-        Last 30 days: {totals.calls ?? 0} calls, about ${((totals.est_cost_micros ?? 0) / 1e6).toFixed(4)}.
+        Last 30 days: {totals.calls ?? 0} calls, {costSentence(usage)}.
       </p>
       {warnings.length > 0 && (
         <p className="error" role="status">

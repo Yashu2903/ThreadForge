@@ -34,6 +34,7 @@ import hashlib
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx2
@@ -57,8 +58,8 @@ from app.ai.answer.answer import (
     validate_answer,
 )
 from app.ai.edit import execute as edit_execute
-from app.ai.pricing import Prices
-from app.ai.types import TextPart, Usage
+from app.ai.pricing import Prices, cost_report
+from app.ai.types import TextPart
 from app.config import Settings
 from app.errors import AppError
 from app.logging_config import APP_LOGGER
@@ -247,6 +248,50 @@ async def _gate(
         )
 
 
+# The routes the classifier may answer with: ONE definition, the enum of the schema it is held to.
+ROUTES: tuple[str, ...] = tuple(prompts.CLASSIFY_SCHEMA["properties"]["task"]["enum"])
+
+# Stable categories for a failed classification (what the report counts); anything not listed is "provider_failure".
+CLASSIFY_FAILURE = {
+    perr.INCOMPLETE: "truncated",
+    perr.BAD_OUTPUT: "invalid_output",
+    perr.REFUSED: "refused",
+    perr.TIMEOUT: "timeout",
+}
+
+
+@dataclass(frozen=True)
+class Classification:
+    """What the classification step did, kept apart from what the request finally ran as."""
+
+    attempted: bool
+    route: str | None = None  # a VALID route the model returned (never a fallback)
+    failure: str | None = None  # a stable category (CLASSIFY_FAILURE values, "provider_failure")
+    failure_code: str | None = None  # the safe provider/gateway code behind it
+    detail: dict[str, Any] = field(
+        default_factory=dict
+    )  # safe numbers only (tokens, reasoning tokens, reason)
+
+
+def routing_record(hint: str, c: Classification, final_route: str) -> dict[str, Any]:
+    """The routing outcome, one fact per field. A correct final route that came from the fallback is still a
+    classification failure plus a fallback execution; it is never recorded as a model classification."""
+    fallback = c.attempted and c.route is None
+    return {
+        "hint": hint,
+        "classification_attempted": c.attempted,
+        "model_route": c.route,
+        "failure": c.failure,
+        "failure_code": c.failure_code,
+        "fallback_used": fallback,
+        "fallback_reason": c.failure if fallback else None,
+        "final_route": final_route,
+        # the model's valid route was narrowed to what the request's context supports (e.g. compare with one file)
+        "route_adjusted_to_context": c.route is not None and c.route != final_route,
+        "degraded": fallback,
+    }
+
+
 def resolve_task(hint: str, classified: str | None, *, n_sources: int, has_doc: bool) -> str:
     """The processing strategy. It follows what the user chose (the hint), or what the classifier said,
     but only among strategies their context supports: it can never add sources or document content."""
@@ -331,12 +376,24 @@ async def _work(
                 raise _Fail(failure.code, failure.detail) from None
         # ---- 1. classify ----------------------------------------------------------------------------------
         await check("gathering_context")
-        classified: str | None = None
+        classification = Classification(attempted=False)
         if row.task_hint == "auto":
-            classified = await _classify(gateway, row.instruction)
+            classification = await _classify(gateway, row.instruction)
         task = resolve_task(
-            row.task_hint, classified, n_sources=len(sources), has_doc=row.include_document_content
+            row.task_hint,
+            classification.route,
+            n_sources=len(sources),
+            has_doc=row.include_document_content,
         )
+        routing = routing_record(row.task_hint, classification, task)
+        if routing["degraded"]:
+            log.warning(
+                "classification degraded request=%s failure=%s code=%s fallback=%s",
+                request_id,
+                classification.failure,
+                classification.failure_code,
+                task,
+            )
         await svc.set_task_type(sessionmaker, request_id, token, task)
 
         # ---- 2. capture ------------------------------------------------------------------------------------
@@ -358,7 +415,10 @@ async def _work(
         )
 
         # ---- 4. manifest (before generation) ---------------------------------------------------------------
+        # the routing outcome travels with the result (safe fields only) and, with the numbers, in the manifest
+        gathered.coverage = {**gathered.coverage, "routing": routing}
         manifest = _manifest(settings, row, task, sources, gathered, captured, selection)
+        manifest["routing"] = {**routing, "detail": classification.detail}
         await svc.write_manifest(sessionmaker, request_id, row.attempt, manifest)
 
         # ---- 5-6. generate and validate ----------------------------------------------------------------------
@@ -389,7 +449,12 @@ def _has_other_context(row: Any, gathered: strategies.Gathered) -> bool:
     return any(k.startswith(("D", "C")) for k in gathered.evidence.items)
 
 
-async def _classify(gateway: AnalysisGateway, instruction: str) -> str | None:
+async def _classify(gateway: AnalysisGateway, instruction: str) -> Classification:
+    """Ask the model for the task kind. The reply is held to the schema's enum; ANYTHING else is a failed classification
+    with a stable category, and the request falls back to qa (never a failed request). The output budget is the
+    classifier's own setting: on a reasoning model it pays for hidden reasoning too (docs/ai.md 22.7). One attempt
+    here; retries are the call policy's (429, 5xx and timeouts only, up to AI_RETRY_MAX_ATTEMPTS), never added here."""
+    settings = gateway.settings
     try:
         data = await gateway.structured(
             "classify",
@@ -397,10 +462,9 @@ async def _classify(gateway: AnalysisGateway, instruction: str) -> str | None:
             system=prompts.CLASSIFY_SYSTEM,
             schema=prompts.CLASSIFY_SCHEMA,
             schema_name=prompts.CLASSIFY_SCHEMA_NAME,
-            max_output_tokens=50,
+            max_output_tokens=settings.ai_classifier_max_output_tokens,
+            reasoning_effort=settings.ai_classifier_reasoning_effort or None,
         )
-        task = data.get("task") if isinstance(data, dict) else None
-        return task if task in ("qa", "summarize", "compare", "document_review") else None
     except AnalysisAbort as abort:
         if abort.code in (
             "budget_exhausted",
@@ -409,7 +473,20 @@ async def _classify(gateway: AnalysisGateway, instruction: str) -> str | None:
             "analysis_cap_exceeded",
         ):
             raise
-        return None  # a failed classification means qa, never a failed request
+        return Classification(
+            True,
+            failure=CLASSIFY_FAILURE.get(abort.code, "provider_failure"),
+            failure_code=abort.code,
+            detail=abort.detail,
+        )
+    task = data.get("task") if isinstance(data, dict) else None
+    if isinstance(task, str) and task in ROUTES:
+        return Classification(True, route=task)
+    return Classification(
+        True,
+        failure="invalid_output",
+        failure_code="unsupported_route" if isinstance(task, str) else "missing_route",
+    )
 
 
 async def _gather(
@@ -749,8 +826,8 @@ def _publication(
 ):
     t = gateway.totals
     prices = Prices.of(settings)
-    cost = prices.llm_cost(Usage(t["llm_in"], t["llm_out"])) + prices.embed_text_cost(
-        Usage(t["embed_tokens"])
+    cost = cost_report(
+        prices, llm_in=t["llm_in"], llm_out=t["llm_out"], embed_tokens=t["embed_tokens"]
     )
     return svc.Publication(
         task_type=task,
@@ -766,7 +843,7 @@ def _publication(
         },
         citations=v.citations,
         coverage=g.coverage,
-        usage={**t, "est_cost_micros": cost},
+        usage={**t, **cost},
         models={
             "generation": settings.ai_llm_model,
             "embedding": settings.ai_embed_model,

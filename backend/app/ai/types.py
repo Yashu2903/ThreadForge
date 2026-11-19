@@ -78,6 +78,7 @@ class LLMProvider(Protocol):
         schema: dict[str, Any],
         schema_name: str,
         max_output_tokens: int,
+        reasoning_effort: str | None = None,
     ) -> StructuredResult: ...
 
     def count_tokens(self, parts: list[Part]) -> int: ...

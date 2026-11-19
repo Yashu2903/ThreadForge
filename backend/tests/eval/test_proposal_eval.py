@@ -38,9 +38,9 @@ from app.ai.edit.check import available, run_check
 from tests.ai_request_helpers import FakeCollab
 from tests.analysis_helpers import World
 from tests.eval import corpus, manifest
-from tests.eval.metrics import mean, percentile, share
+from tests.eval.metrics import failed_calls, mean, percentile, share
 from tests.eval.proposals import GOLD, PGold
-from tests.eval.test_eval import MODE, build, ledger_of
+from tests.eval.test_eval import MODE, build, cost_lines, failure_lines, ledger_of
 from tests.helpers import rows
 
 RESULTS = Path(__file__).parent / "results"
@@ -205,7 +205,9 @@ def fmt(value: float | None, digits: int = 2) -> str:
     )
 
 
-def build_report(mode: str, records: list[dict[str, Any]]) -> tuple[str, float | None]:
+def build_report(
+    mode: str, records: list[dict[str, Any]], run: dict[str, Any] | None = None
+) -> tuple[str, float | None]:
     stub = mode == "stub"
     first = share([r.get("first_try_valid", False) for r in records])
     final = share([bool(r.get("published")) for r in records])
@@ -260,6 +262,16 @@ def build_report(mode: str, records: list[dict[str, Any]]) -> tuple[str, float |
     for r in pub[:4]:
         lines += sample(r) + [""]
     lines += [
+        "## Provider failures (run-wide usage ledger)",
+        "",
+        *failure_lines(run),
+        "",
+        "## Cost",
+        "",
+        *cost_lines(run),
+        "",
+    ]
+    lines += [
         "## How to read this",
         "",
         '* "Schema-valid" means the reply became typed operations (or a draft) that the shared document engine '
@@ -269,6 +281,8 @@ def build_report(mode: str, records: list[dict[str, Any]]) -> tuple[str, float |
         "* The stub items with a `defect` get a bad first reply on purpose, to show the repair path; the stub "
         "result is therefore a test of the harness and of the repair loop, not of a model.",
         f"* Small gold set ({len(records)} items): treat differences of a few points as noise.",
+        "* **Not assessed here:** whether a proposal is correct or useful. Schema validity means the engine accepted it. "
+        "The 90% rule applies to the schema-valid rate with at most one repair and is unchanged.",
     ]
     return "\n".join(lines) + "\n", final
 
@@ -278,8 +292,24 @@ async def test_evaluate_proposals(make_actor, sessionmaker, tmp_path, redis_pref
 
     if not available(make_settings()):
         pytest.skip("run `npm run build` first")
-    started = dt.datetime.now(dt.UTC)
     world = await build(make_actor, sessionmaker, tmp_path, redis_prefix, ai_proposals_enabled=True)
+    # stage 1 of the manifest: everything knowable before the first provider call, captured now
+    run_manifest = manifest.begin(
+        kind="proposal",
+        mode=MODE,
+        settings=world.cfg,
+        expected_items=len(GOLD),
+        dataset={
+            "items": len(GOLD),
+            "gold_sha256": manifest.sha256_json(list(GOLD)),
+            "proposals_py_sha256": manifest.sha256_file(Path(__file__).parent / "proposals.py"),
+            "corpus_py_sha256": manifest.sha256_file(Path(corpus.__file__)),
+            "sources_sha256": {
+                n: manifest.sha256_bytes(corpus.sources()[n]) for n in ("release.md", "depots.pdf")
+            },
+        },
+    )
+    started = dt.datetime.fromisoformat(run_manifest["started_utc"])
     if world.stub is not None:
         world.stub.classify_as = "qa"
 
@@ -290,30 +320,28 @@ async def test_evaluate_proposals(make_actor, sessionmaker, tmp_path, redis_pref
     assert set(await world.run_worker(limit=60)) == {"succeeded"}
 
     records = [await run_item(world, item, uploaded) for item in GOLD]
-    report, final = build_report(MODE, records)
+    ledger = await manifest.ledger_summary(world.sm, started)
+    run = {"failures": failed_calls(ledger), "cost": manifest.cost_summary(world.cfg, ledger)}
+    report, final = build_report(MODE, records, run)
     RESULTS.mkdir(exist_ok=True)
     stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%d-%H%M%S")
     (RESULTS / f"proposals-{MODE}-{stamp}.json").write_text(
-        json.dumps({"mode": MODE, "records": records}, indent=2, default=str), encoding="utf-8"
+        json.dumps({"mode": MODE, "run": run, "records": records}, indent=2, default=str),
+        encoding="utf-8",
     )
     (RESULTS / f"proposals-{MODE}-results.md").write_text(report, encoding="utf-8")
     print("\n" + report)
-    run_manifest = await manifest.build(
-        kind="proposal",
-        mode=MODE,
+    run_manifest = await manifest.finish(
+        run_manifest,
         settings=world.cfg,
         sessionmaker=world.sm,
-        started=started,
-        dataset={
-            "items": len(GOLD),
-            "gold_sha256": manifest.sha256_json(list(GOLD)),
-            "proposals_py_sha256": manifest.sha256_file(Path(__file__).parent / "proposals.py"),
-            "corpus_py_sha256": manifest.sha256_file(Path(corpus.__file__)),
-            "sources_sha256": {
-                n: manifest.sha256_bytes(corpus.sources()[n]) for n in ("release.md", "depots.pdf")
-            },
-        },
         records=records,
+        results={
+            "gate": {"rule": f">= {GATE:.0%} schema-valid with at most one repair", "value": final},
+            "first_try_valid": sum(1 for r in records if r.get("first_try_valid")),
+            "published": sum(1 for r in records if r.get("published")),
+            "items": len(records),
+        },
     )
     manifest.write(RESULTS / f"proposals-{MODE}-{stamp}.manifest.json", run_manifest)
     assert any(r.get("published") for r in records), "no gold item produced a proposal"

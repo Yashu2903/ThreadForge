@@ -59,10 +59,15 @@ class AnalysisCancelled(Exception):
 
 
 class AnalysisAbort(Exception):
-    def __init__(self, code: str, *, retryable: bool = False) -> None:
+    def __init__(
+        self, code: str, *, retryable: bool = False, detail: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(code)
         self.code = code
         self.retryable = retryable
+        self.detail = (
+            detail or {}
+        )  # safe numbers and short enums from the provider error (never text)
 
 
 class AnalysisGateway:
@@ -100,6 +105,7 @@ class AnalysisGateway:
         # what this run used, for the result's usage record (tokens as reported or estimated)
         self.totals = {
             "llm_calls": 0,
+            "llm_failed_calls": 0,  # failed calls the provider still billed (e.g. a truncated reply)
             "llm_in": 0,
             "llm_out": 0,
             "images": 0,
@@ -196,13 +202,21 @@ class AnalysisGateway:
         except CapExceeded:
             raise AnalysisAbort("analysis_cap_exceeded") from None
         except perr.ProviderError as exc:
+            if isinstance(
+                exc.usage, Usage
+            ):  # a failed call that was billed still counts toward what this run used
+                self.totals["llm_failed_calls"] += 1
+                self.totals["llm_in"] += exc.usage.input_tokens
+                self.totals["llm_out"] += exc.usage.output_tokens
             if exc.code == perr.CANCELLED:
                 raise AnalysisCancelled from None
             if exc.code == perr.KEY_REJECTED:
                 if source == "user":
                     await keys.mark_rejected(self._sm, self._job.charged_user_id, provider)
                 raise AnalysisAbort("key_rejected") from None
-            raise AnalysisAbort(exc.code, retryable=exc.code in RETRYABLE_PROVIDER_CODES) from None
+            raise AnalysisAbort(
+                exc.code, retryable=exc.code in RETRYABLE_PROVIDER_CODES, detail=exc.detail
+            ) from None
 
     # ---- generation (vision) -------------------------------------------------------------------
 
@@ -215,9 +229,11 @@ class AnalysisGateway:
         schema: dict[str, Any],
         schema_name: str,
         max_output_tokens: int,
+        reasoning_effort: str | None = None,
     ) -> Any:
         """One structured-output generation call (text and/or images in `parts`), through the call
-        policy. Returns the parsed JSON."""
+        policy. Returns the parsed JSON. `reasoning_effort` overrides the global setting for this call only
+        (None = leave the global setting alone)."""
         llm = await self._llm_adapter()
         est_in = estimate_parts_tokens(self._settings, parts) + estimate_text_tokens(
             self._settings, system
@@ -242,6 +258,8 @@ class AnalysisGateway:
                 schema=schema,
                 schema_name=schema_name,
                 max_output_tokens=max_output_tokens,
+                # only sent when set, so an adapter that does not know the keyword keeps working
+                **({"reasoning_effort": reasoning_effort} if reasoning_effort is not None else {}),
             ),
             usage_of=track,
             cost_of=self._prices.llm_cost,

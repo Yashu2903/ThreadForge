@@ -13,6 +13,7 @@ short scrubbed excerpt is kept in memory for the safe `detail`.
 from __future__ import annotations
 
 import re
+from typing import Any
 
 # Safe, stable codes (lowercase snake_case, like the rest of the API's error envelope).
 RATE_LIMITED = "provider_rate_limited"
@@ -56,9 +57,15 @@ class ProviderError(Exception):
         status: int | None = None,
         retryable: bool = False,
         retry_after: float | None = None,
+        usage: Any = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message or code)
         self.code = code
+        # what the provider reported it spent on a call that still failed (a truncated reply is billed), if it said;
+        # `detail` holds only safe numbers and short enums (never text): e.g. reasoning_tokens, the incomplete reason
+        self.usage = usage
+        self.detail = detail or {}
         self.status = status
         self.retryable = retryable
         self.retry_after = retry_after

@@ -140,8 +140,17 @@ class MeteredCaller:
                     async with self._limiter.slot(ctx.provider, api_key):
                         result = await fn()
                 except errors.ProviderError as exc:
+                    # a failed call can still have been billed (a truncated reply): record what the provider
+                    # reported, with its estimated cost when priced; otherwise zeros, as before
+                    spent = exc.usage if isinstance(exc.usage, Usage) else Usage()
                     await self._spend.record(
-                        ctx, operation, Usage(), 0, "failed", error_code=exc.code, attempt=attempt
+                        ctx,
+                        operation,
+                        spent,
+                        cost_of(spent) if isinstance(exc.usage, Usage) else 0,
+                        "failed",
+                        error_code=exc.code,
+                        attempt=attempt,
                     )
                     if not exc.retryable or attempt >= self._settings.ai_retry_max_attempts:
                         await self._spend.release(reservation)

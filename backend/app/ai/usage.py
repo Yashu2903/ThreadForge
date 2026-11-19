@@ -26,7 +26,9 @@ _AGG = """
     COALESCE(sum(l.input_tokens), 0) AS input_tokens,
     COALESCE(sum(l.output_tokens), 0) AS output_tokens,
     COALESCE(sum(l.image_count), 0) AS images,
-    COALESCE(sum(l.est_cost_micros), 0) AS cost_micros
+    COALESCE(sum(l.est_cost_micros), 0) AS cost_micros,
+    count(*) FILTER (WHERE l.input_tokens + l.output_tokens > 0) AS token_calls,
+    count(*) FILTER (WHERE l.input_tokens + l.output_tokens > 0 AND l.est_cost_micros = 0) AS unpriced_calls
 """
 
 
@@ -49,6 +51,18 @@ async def usage_for_room(
         .one()
     )
     out["totals"] = {k: int(v) for k, v in total.items()}
+    # A call that used tokens but cost 0 was NOT priced (a priced call always costs at least 1 micro-dollar), so the cost
+    # is unknown, not zero. Only usage of nothing is a known zero.
+    used, unpriced = out["totals"]["token_calls"], out["totals"]["unpriced_calls"]
+    out["cost_status"] = (
+        "none"
+        if used == 0
+        else "unpriced"
+        if unpriced == used
+        else "partial"
+        if unpriced
+        else "estimated"
+    )
     for name, expr in _GROUPS.items():
         order = "1" if name == "by_day" else "cost_micros DESC, calls DESC"
         rows = (

@@ -82,3 +82,44 @@ class Prices:
         if rate is None:
             return 0
         return _ceil_div(usage.input_tokens * rate, MTOK)
+
+
+def cost_report(
+    prices: Prices, *, llm_in: int, llm_out: int, embed_tokens: int
+) -> dict[str, object]:
+    """The cost of this usage, stated with what could and could not be priced. A call that used tokens but could not be
+    priced is UNKNOWN, never zero: only usage of nothing is a known zero.
+
+      cost_status  "none"      nothing was used: a known zero
+                   "estimated" everything used was priced from the configured rates
+                   "partial"   some of it was priced; est_cost_micros is the PRICED PART only, not a total
+                   "unpriced"  something was used and no rate is configured for it; est_cost_micros is None
+    """
+    priced: list[str] = []
+    unpriced: list[str] = []
+    cost = 0
+    if llm_in + llm_out > 0:
+        if prices.llm_known:
+            priced.append("generation")
+            cost += prices.llm_cost(Usage(llm_in, llm_out))
+        else:
+            unpriced.append("generation")
+    if embed_tokens > 0:
+        if prices.embed_text is not None:
+            priced.append("embedding")
+            cost += prices.embed_text_cost(Usage(embed_tokens))
+        else:
+            unpriced.append("embedding")
+    if not priced and not unpriced:
+        status = "none"
+    elif not unpriced:
+        status = "estimated"
+    elif not priced:
+        status = "unpriced"
+    else:
+        status = "partial"
+    return {
+        "est_cost_micros": None if status == "unpriced" else cost,
+        "cost_status": status,
+        "unpriced_components": unpriced,
+    }

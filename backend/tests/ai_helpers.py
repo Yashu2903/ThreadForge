@@ -87,6 +87,11 @@ class Stub:
         self.llm_output_override: Any = None  # replace the text output with this raw string
         self.refuse = False
         self.incomplete = False
+        # truncate only the calls whose schema name is listed (e.g. {"task_kind"}), the way a real reasoning model runs
+        # out of output budget on one kind of call; and what a truncated reply reports (the real API does report usage)
+        self.incomplete_names: set[str] = set()
+        self.incomplete_usage: dict[str, Any] | None = None
+        self.incomplete_output: list[dict[str, Any]] | None = None
         self.break_pair_ranking = False
         self.wrong_dimension = False
 
@@ -137,14 +142,17 @@ class Stub:
                     ],
                 },
             )
-        if self.incomplete:
-            return httpx2.Response(
-                200,
-                json={
-                    "status": "incomplete",
-                    "incomplete_details": {"reason": "max_output_tokens"},
-                },
-            )
+        fmt_name = (((body or {}).get("text") or {}).get("format") or {}).get("name", "")
+        if self.incomplete or fmt_name in self.incomplete_names:
+            incomplete_payload: dict[str, Any] = {
+                "status": "incomplete",
+                "incomplete_details": {"reason": "max_output_tokens"},
+            }
+            if self.incomplete_usage is not None:
+                incomplete_payload["usage"] = self.incomplete_usage
+            if self.incomplete_output is not None:
+                incomplete_payload["output"] = self.incomplete_output
+            return httpx2.Response(200, json=incomplete_payload)
         text = self._llm_text(body)
         payload: dict[str, Any] = {
             "status": "completed",

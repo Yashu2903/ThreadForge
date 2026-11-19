@@ -47,9 +47,11 @@ from tests.eval.corpus import GOLD, Gold
 from tests.eval.metrics import (
     character_accuracy,
     contains,
+    failed_calls,
     mean,
     percentile,
     recall_at_k,
+    routing_metrics,
     share,
 )
 from tests.factories import make_settings
@@ -257,7 +259,11 @@ async def run_item(world: EvalWorld, item: Gold, uploaded: dict[str, dict]) -> d
         "published": True,
         "outcome": "published",
         "task_type": published["task_type"],
+        # the FINAL route matched the expected one. Fallback included: this is NOT a model classification
+        # (see `routing`, which records what the classifier itself did)
         "task_ok": published["task_type"] == EXPECTED_TASK[item.task],
+        "expected_route": EXPECTED_TASK[item.task],
+        "routing": (published.get("coverage") or {}).get("routing"),
         "recall": {f"@{k}": recall_at_k(texts, item.needles, k) for k in KS}
         | {"@evidence": recall_at_k(texts, item.needles, len(texts) or 1)},
         "citation_clean": stats.get("invalid_citations", 0) == 0
@@ -303,7 +309,61 @@ def fmt(value: float | None, pct: bool = False, digits: int = 2) -> str:
     return f"{value * 100:.0f}%" if pct else f"{value:.{digits}f}"
 
 
-def build_report(mode: str, ocr: float | None, analysis: dict, records: list[dict]) -> str:
+def failure_lines(run: dict | None) -> list[str]:
+    if not run:
+        return ["n/a (no run-wide ledger was available)"]
+    f = run["failures"]
+    head = f"Failed provider calls: {ratio(f['calls'])} of all recorded calls."
+    rows_ = [
+        f"| {r['operation']} | {r['error_code']} | {r['calls']} |"
+        for r in f["by_operation_and_code"]
+    ]
+    if not rows_:
+        return [head, "", "None."]
+    return [head, "", "| Operation | Error code | Calls |", "|---|---|---|", *rows_]
+
+
+def cost_lines(run: dict | None) -> list[str]:
+    if not run:
+        return ["n/a"]
+    c = run["cost"]
+    shown = (
+        "unknown"
+        if c["est_cost_micros"] is None
+        else f"{c['est_cost_usd']:.6f} USD ({c['kind_of_value']})"
+    )
+    u = c["usage_retained"]
+    return [
+        f"* Status: **{c['status']}**. Cost: **{shown}**.",
+        f"* Tokens (kept even when pricing is missing): generation {u['generation_input_tokens']} in / "
+        f"{u['generation_output_tokens']} out; embeddings {u['embedding_input_tokens']} in.",
+        "* A ledger or table cost of 0 means not priced, never free. "
+        + c["provider_reported_cost"]
+        + ".",
+        f"* Rates: {c['rates'] or 'none configured'}.",
+    ]
+
+
+def cost_cell(run: dict | None, led: list[dict]) -> str:
+    """Cost per task for the table. Unknown stays unknown: a 0 in the ledger is not a price."""
+    status = ((run or {}).get("cost") or {}).get("status")
+    if status is None:
+        return "n/a"
+    if status == "unpriced":
+        return "unknown (no rates configured)"
+    value = fmt(mean([x["cost_micros"] / 1_000_000 for x in led]), digits=5)
+    return value + (" (partial)" if status == "partial" else "")
+
+
+def ratio(f: dict) -> str:
+    """ "a/b (p%)" for a fraction() dict: the numerator and denominator are always shown."""
+    pct = "n/a" if f["value"] is None else f"{f['value'] * 100:.0f}%"
+    return f"{f['numerator']}/{f['denominator']} ({pct})"
+
+
+def build_report(
+    mode: str, ocr: float | None, analysis: dict, records: list[dict], run: dict | None = None
+) -> str:
     stub = mode == "stub"
     pub = [r for r in records if r.get("published")]
     by_task: dict[str, list[dict]] = defaultdict(list)
@@ -326,6 +386,7 @@ def build_report(mode: str, ocr: float | None, analysis: dict, records: list[dic
         for k in ("@1", "@3", "@5", "@evidence")
     }
     model_note = "stub: NOT a model measurement" if stub else "measured"
+    rm = routing_metrics(records)
     lines = [
         f"# Evaluation results ({'local provider stubs' if stub else 'REAL providers'})",
         "",
@@ -344,8 +405,8 @@ def build_report(mode: str, ocr: float | None, analysis: dict, records: list[dic
         f"| Items with every required phrase in the evidence | {fmt(recall['@evidence'], True)} | same |",
         f"| OCR character accuracy (3 scanned pages) | {fmt(ocr, True)} | measured (real Tesseract, "
         f"{'identical in both modes' if stub else 'with the vision fallback available'}) |",
-        f"| Task type classified as expected | {fmt(share([r.get('task_ok') for r in pub]), True)} | "
-        f"{'stub: the classifier answer is scripted' if stub else 'measured'} |",
+        f"| Final route matched the expected route (fallback included) | {ratio(rm['final_route_accuracy'])} | "
+        f"{'stub: the classifier answer is scripted' if stub else 'measured'}; NOT a model classification, see Routing |",
         f"| Citations without an invalid reference or dropped quote | {fmt(share([r.get('citation_clean') for r in pub]), True)} | {model_note} |",
         f"| Answers that cite the expected source(s) | {fmt(share([r.get('cites_expected_sources') for r in pub]), True)} | {model_note} |",
         f"| Cited text contains the required phrase | {fmt(share([r.get('cited_text_has_needles') for r in pub]), True)} | {model_note} |",
@@ -371,12 +432,36 @@ def build_report(mode: str, ocr: float | None, analysis: dict, records: list[dic
             f"{fmt(mean([x['calls'] for x in led]), digits=1)} | "
             f"{fmt(mean([x['input_tokens'] for x in led]), digits=0)} | "
             f"{fmt(mean([x['output_tokens'] for x in led]), digits=0)} | "
-            f"{fmt(mean([x['cost_micros'] / 1_000_000 for x in led]), digits=5)} | "
+            f"{cost_cell(run, led)} | "
             f"{fmt(percentile(lat, 50))} | {'stub placeholder usage' if stub else 'provider-reported'} |"
         )
     lines += [
         "",
         "(per-item means across the request's own calls; analysis of the sources is listed below)",
+        "",
+        "## Routing (the classifier and the fallback)",
+        "",
+        "| Measure | Value (numerator/denominator) |",
+        "|---|---|",
+        f"| Requests that published | {ratio(rm['published'])} |",
+        f"| Valid model classifications / classifier attempts | {ratio(rm['valid_model_classifications'])} |",
+        f"| Model classification accuracy, of the valid ones | {ratio(rm['model_accuracy_of_valid'])} |",
+        f"| Model classification accuracy, of all attempts (a failure counts as not correct) | {ratio(rm['model_accuracy_of_attempts'])} |",
+        f"| Classifier failures | {ratio(rm['classifier_failures'])}; by category: {rm['classifier_failures_by_category'] or 'none'} |",
+        f"| Requests that ran the fallback | {ratio(rm['fallback_requests'])} ({', '.join(rm['fallback_ids']) or 'none'}) |",
+        f"| Final route correct, fallback included | {ratio(rm['final_route_accuracy'])}, of which reached only by the fallback: {rm['final_correct_by_fallback']} |",
+        f"| Valid model classifications that differ from the expected route | {rm['model_misrouted'] or 'none'} |",
+        "",
+        "A request that is right because of the fallback counts as a classifier failure, a fallback execution and a correct "
+        "final route. It never counts as a model classification.",
+        "",
+        "## Provider failures (run-wide usage ledger)",
+        "",
+        *failure_lines(run),
+        "",
+        "## Cost",
+        "",
+        *cost_lines(run),
         "",
         "## Analysis of the sources",
         "",
@@ -400,14 +485,41 @@ def build_report(mode: str, ocr: float | None, analysis: dict, records: list[dic
         " shows that the validation and publication code handles a well-behaved answer; it says nothing"
         " about how any real model will do. Run `EVAL_PROVIDER=real` for that.",
         "* Small corpus (4 sources, 13 questions, one question per fact): treat differences of a few points as noise.",
+        "",
+        "## What each measure is, and is not",
+        "",
+        "* **Recall@k** counts RETRIEVED PASSAGES (the evidence items sent to the model, chunk-level, ranked by retrieval score; "
+        "not pages). Expected evidence = the gold item's required phrases (`needles`); a phrase is found when it occurs, "
+        "normalised for case and spacing, in one of the top-k passages. Items with no phrases are left out of recall.",
+        "* **Citation checks are mechanical.** 'No invalid reference or dropped quote' is the system's own validation (every cited "
+        "label exists; every quote occurs in its passage). It does NOT require an answer to cite anything. 'Cites the expected "
+        "source' and 'cited text contains the phrase' are string checks.",
+        "* **Denominators.** Quality metrics are over PUBLISHED requests; a request that did not publish is listed under "
+        "'Items that did not publish' and counts against 'Requests that published'. Provider failures that a request survived "
+        "are shown under Provider failures, not folded into any rate.",
+        "* **Not assessed here:** whether an answer is factually supported by its source, or useful. Nothing in this file is a "
+        "human judgement of either. The evaluator has no pass/fail threshold; pytest passing means the harness ran.",
     ]
     return "\n".join(lines) + "\n"
 
 
 @pytest.mark.skipif(MODE not in ("stub", "real"), reason="EVAL_PROVIDER must be stub or real")
 async def test_evaluate(make_actor, sessionmaker, tmp_path, redis_prefix):
-    started = dt.datetime.now(dt.UTC)
     world = await build(make_actor, sessionmaker, tmp_path, redis_prefix)
+    # stage 1 of the manifest: everything knowable before the first provider call, captured now
+    run_manifest = manifest.begin(
+        kind="answer",
+        mode=MODE,
+        settings=world.cfg,
+        expected_items=len(GOLD),
+        dataset={
+            "questions": len(GOLD),
+            "gold_sha256": manifest.sha256_json(list(GOLD)),
+            "corpus_py_sha256": manifest.sha256_file(Path(corpus.__file__)),
+            "sources_sha256": {n: manifest.sha256_bytes(b) for n, b in corpus.sources().items()},
+        },
+    )
+    started = dt.datetime.fromisoformat(run_manifest["started_utc"])
     current: dict[str, Gold | None] = {"item": None}
     if world.stub is not None:
         world.stub.answer_fn = simulated_model(current)
@@ -436,12 +548,20 @@ async def test_evaluate(make_actor, sessionmaker, tmp_path, redis_prefix):
         current["item"] = item
         records.append(await run_item(world, item, uploaded))
 
-    report = build_report(MODE, ocr, analysis_summary, records)
+    ledger = await manifest.ledger_summary(world.sm, started)
+    run = {"failures": failed_calls(ledger), "cost": manifest.cost_summary(world.cfg, ledger)}
+    report = build_report(MODE, ocr, analysis_summary, records, run)
     RESULTS.mkdir(exist_ok=True)
     stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%d-%H%M%S")
     (RESULTS / f"eval-{MODE}-{stamp}.json").write_text(
         json.dumps(
-            {"mode": MODE, "ocr": ocr, "analysis": analysis_summary, "records": records},
+            {
+                "mode": MODE,
+                "ocr": ocr,
+                "analysis": analysis_summary,
+                "run": run,
+                "records": records,
+            },
             indent=2,
             default=str,
         ),
@@ -449,19 +569,13 @@ async def test_evaluate(make_actor, sessionmaker, tmp_path, redis_prefix):
     )
     (RESULTS / f"{MODE}-results.md").write_text(report, encoding="utf-8")
     print("\n" + report)
-    run_manifest = await manifest.build(
-        kind="answer",
-        mode=MODE,
+    # stage 2: what exists only now (usage, failures, cost, metrics)
+    run_manifest = await manifest.finish(
+        run_manifest,
         settings=world.cfg,
         sessionmaker=world.sm,
-        started=started,
-        dataset={
-            "questions": len(GOLD),
-            "gold_sha256": manifest.sha256_json(list(GOLD)),
-            "corpus_py_sha256": manifest.sha256_file(Path(corpus.__file__)),
-            "sources_sha256": {n: manifest.sha256_bytes(b) for n, b in corpus.sources().items()},
-        },
         records=records,
+        results={"routing": routing_metrics(records), "ocr_character_accuracy": ocr},
     )
     manifest.write(RESULTS / f"eval-{MODE}-{stamp}.manifest.json", run_manifest)
 
