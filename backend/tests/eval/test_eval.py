@@ -13,8 +13,9 @@ Two modes, and the difference matters when you read the numbers:
   any model (anything a model decides: citations, diagrams, schema compliance, tokens, cost, network
   latency). The report labels each one.
 * real: no stub; the configured providers are called. Every number is then a measurement of those
-  models. This mode has NOT been run by the author (no credentials were available); the first real run
-  is the owner's to make.
+  models. First run: 2026-11-19 (see docs/ai.md 22.2 and docs/evidence/ai-eval/). This evaluator has no
+  acceptance threshold: its only assertions are that analysis succeeded and that something published.
+  The test code ignores .env files, so load the keys with `uv run --env-file ../.env`.
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ from tests.analysis_helpers import (
     diagram,
 )
 from tests.doc_helpers import room_with_doc
-from tests.eval import corpus
+from tests.eval import corpus, manifest
 from tests.eval.corpus import GOLD, Gold
 from tests.eval.metrics import (
     character_accuracy,
@@ -226,6 +227,7 @@ async def run_item(world: EvalWorld, item: Gold, uploaded: dict[str, dict]) -> d
         }
         return record
     rid = r.json()["id"]
+    record["request_id"] = rid
     outcomes = await world.drain(collab=collab.transport() if collab else None)
     record["latency_s"] = time.perf_counter() - started
     record["outcomes"] = outcomes
@@ -249,6 +251,8 @@ async def run_item(world: EvalWorld, item: Gold, uploaded: dict[str, dict]) -> d
     cited_names = {c.get("source_name") for c in citations}
     coverage = published.get("coverage", {})
     per_source = coverage.get("sources") or []
+    # recorded for reading (the corpus is synthetic): the published answer and its citations. Not used by any score.
+    record["result"] = published
     record |= {
         "published": True,
         "outcome": "published",
@@ -402,6 +406,7 @@ def build_report(mode: str, ocr: float | None, analysis: dict, records: list[dic
 
 @pytest.mark.skipif(MODE not in ("stub", "real"), reason="EVAL_PROVIDER must be stub or real")
 async def test_evaluate(make_actor, sessionmaker, tmp_path, redis_prefix):
+    started = dt.datetime.now(dt.UTC)
     world = await build(make_actor, sessionmaker, tmp_path, redis_prefix)
     current: dict[str, Gold | None] = {"item": None}
     if world.stub is not None:
@@ -444,6 +449,21 @@ async def test_evaluate(make_actor, sessionmaker, tmp_path, redis_prefix):
     )
     (RESULTS / f"{MODE}-results.md").write_text(report, encoding="utf-8")
     print("\n" + report)
+    run_manifest = await manifest.build(
+        kind="answer",
+        mode=MODE,
+        settings=world.cfg,
+        sessionmaker=world.sm,
+        started=started,
+        dataset={
+            "questions": len(GOLD),
+            "gold_sha256": manifest.sha256_json(list(GOLD)),
+            "corpus_py_sha256": manifest.sha256_file(Path(corpus.__file__)),
+            "sources_sha256": {n: manifest.sha256_bytes(b) for n, b in corpus.sources().items()},
+        },
+        records=records,
+    )
+    manifest.write(RESULTS / f"eval-{MODE}-{stamp}.manifest.json", run_manifest)
 
     # the harness itself must have worked: sources analysed and the pipeline answered the gold set
     assert outcomes and set(outcomes) == {"succeeded"}, outcomes

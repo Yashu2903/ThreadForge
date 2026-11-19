@@ -37,7 +37,7 @@ import pytest
 from app.ai.edit.check import available, run_check
 from tests.ai_request_helpers import FakeCollab
 from tests.analysis_helpers import World
-from tests.eval import corpus
+from tests.eval import corpus, manifest
 from tests.eval.metrics import mean, percentile, share
 from tests.eval.proposals import GOLD, PGold
 from tests.eval.test_eval import MODE, build, ledger_of
@@ -140,6 +140,7 @@ async def run_item(world: World, item: PGold, uploaded: dict[str, dict]) -> dict
             "published": False,
         }
     rid = r.json()["id"]
+    record["request_id"] = rid
     await world.drain(collab=fc.transport())
     record["latency_s"] = time.perf_counter() - started
     [req] = await rows(world.sm, "SELECT * FROM ai_requests WHERE id = :i", i=uuid.UUID(rid))
@@ -277,6 +278,7 @@ async def test_evaluate_proposals(make_actor, sessionmaker, tmp_path, redis_pref
 
     if not available(make_settings()):
         pytest.skip("run `npm run build` first")
+    started = dt.datetime.now(dt.UTC)
     world = await build(make_actor, sessionmaker, tmp_path, redis_prefix, ai_proposals_enabled=True)
     if world.stub is not None:
         world.stub.classify_as = "qa"
@@ -296,6 +298,24 @@ async def test_evaluate_proposals(make_actor, sessionmaker, tmp_path, redis_pref
     )
     (RESULTS / f"proposals-{MODE}-results.md").write_text(report, encoding="utf-8")
     print("\n" + report)
+    run_manifest = await manifest.build(
+        kind="proposal",
+        mode=MODE,
+        settings=world.cfg,
+        sessionmaker=world.sm,
+        started=started,
+        dataset={
+            "items": len(GOLD),
+            "gold_sha256": manifest.sha256_json(list(GOLD)),
+            "proposals_py_sha256": manifest.sha256_file(Path(__file__).parent / "proposals.py"),
+            "corpus_py_sha256": manifest.sha256_file(Path(corpus.__file__)),
+            "sources_sha256": {
+                n: manifest.sha256_bytes(corpus.sources()[n]) for n in ("release.md", "depots.pdf")
+            },
+        },
+        records=records,
+    )
+    manifest.write(RESULTS / f"proposals-{MODE}-{stamp}.manifest.json", run_manifest)
     assert any(r.get("published") for r in records), "no gold item produced a proposal"
     if MODE == "real":
         assert final is not None and final >= GATE, "THE GATE FAILED: stop and report to the owner"

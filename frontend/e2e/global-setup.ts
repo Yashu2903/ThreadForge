@@ -1,6 +1,6 @@
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { AI_STUB_PORT, AI_STUB_URL, BACKEND_DIR, COLLAB_URL, collabEnv } from "./env";
+import { AI_STUB_PORT, AI_STUB_URL, BACKEND_DIR, COLLAB_URL, REAL_AI, collabEnv } from "./env";
 import { backendEnv } from "./env";
 
 let dispatcher: ChildProcess | null = null;
@@ -50,13 +50,15 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   collab = spawn("node", ["dist/main.js"], { cwd: COLLAB_DIR, env: collabEnv, stdio: "inherit", windowsHide: true });
   await waitFor(`${COLLAB_URL}/health`, 30_000);
   // The AI provider stand-in and the AI worker (analysis + `@AI` requests), against the e2e database.
-  aiStub = spawn("uv", ["run", "python", "-m", "scripts.e2e_ai_stub", "--port", String(AI_STUB_PORT)], {
-    cwd: BACKEND_DIR,
-    env: backendEnv,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  await waitFor(`${AI_STUB_URL}/v1/models/test-llm`, 30_000, { authorization: "Bearer sk-server-openai-0123456789abcdef" });
+  if (!REAL_AI) {
+    aiStub = spawn("uv", ["run", "python", "-m", "scripts.e2e_ai_stub", "--port", String(AI_STUB_PORT)], {
+      cwd: BACKEND_DIR,
+      env: backendEnv,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    await waitFor(`${AI_STUB_URL}/v1/models/test-llm`, 30_000, { authorization: "Bearer sk-server-openai-0123456789abcdef" });
+  }
   aiWorker = spawn("uv", ["run", "python", "-m", "app.workers.ai_worker"], {
     cwd: BACKEND_DIR,
     env: backendEnv,

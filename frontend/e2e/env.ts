@@ -16,6 +16,19 @@ export const AI_STUB_URL = `http://127.0.0.1:${AI_STUB_PORT}`;
 export const INTERNAL_SECRET = "e2e-internal-secret-0123456789-abcdefghijklmnop";
 export const BACKEND_DIR = new URL("../../backend/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
+/**
+ * E2E_AI=real runs the browser tests against the REAL providers instead of the local stand-in: the keys, model ids and
+ * dimensions come from the repository's .env (gitignored; never printed), no base URL is overridden and no stub is
+ * started. Only specs written for real output (ai-real.spec.ts) belong in that mode: the others assert the stub's fixed text.
+ */
+export const REAL_AI = process.env.E2E_AI === "real";
+if (REAL_AI) {
+  process.loadEnvFile(new URL("../../.env", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+  for (const name of ["AI_OPENAI_API_KEY", "AI_GOOGLE_API_KEY", "AI_LLM_MODEL", "AI_EMBED_MODEL", "AI_EMBED_DIMENSIONS"]) {
+    if (!process.env[name]) throw new Error(`E2E_AI=real needs ${name} in .env`);
+  }
+}
+
 const prefix = process.env.E2E_PREFIX ?? `e2e-${randomBytes(4).toString("hex")}`;
 process.env.E2E_PREFIX = prefix;
 
@@ -45,22 +58,32 @@ export const backendEnv: Record<string, string> = {
   AI_PROPOSALS_ENABLED: "true",
   AI_APPLY_QUIET_SECONDS: "1",
   AI_KEY_POLICY: "server_only",
-  AI_OPENAI_API_KEY: "sk-server-openai-0123456789abcdef",
-  AI_GOOGLE_API_KEY: "AIzaServerGoogleKey0123456789abcdef",
-  AI_OPENAI_BASE_URL: AI_STUB_URL,
-  AI_GOOGLE_BASE_URL: AI_STUB_URL,
-  AI_LLM_MODEL: "test-llm",
-  AI_LLM_CONTEXT_TOKENS: "100000",
-  AI_LLM_MAX_OUTPUT_TOKENS: "4000",
-  AI_EMBED_MODEL: "test-embed",
-  AI_EMBED_DIMENSIONS: "8",
-  AI_EMBED_MAX_INPUT_TOKENS: "8000",
-  AI_MAX_INPUT_TOKENS: "50000",
-  AI_MAX_OUTPUT_TOKENS: "2000",
-  AI_RETRY_BASE_DELAY_SECONDS: "0.05",
-  AI_RETRY_MAX_DELAY_SECONDS: "0.2",
-  AI_WORKER_POLL_SECONDS: "0.5",
-  AI_SELFCHECK_INTERVAL_SECONDS: "3600",
+  ...(REAL_AI
+    ? {
+        // real providers: the keys and models are already in process.env (loaded from .env above) and are inherited
+        AI_MAX_INPUT_TOKENS: "50000",
+        AI_MAX_OUTPUT_TOKENS: "8000",
+        AI_WORKER_POLL_SECONDS: "0.5",
+        AI_SELFCHECK_INTERVAL_SECONDS: "3600",
+      }
+    : {
+        AI_OPENAI_API_KEY: "sk-server-openai-0123456789abcdef",
+        AI_GOOGLE_API_KEY: "AIzaServerGoogleKey0123456789abcdef",
+        AI_OPENAI_BASE_URL: AI_STUB_URL,
+        AI_GOOGLE_BASE_URL: AI_STUB_URL,
+        AI_LLM_MODEL: "test-llm",
+        AI_LLM_CONTEXT_TOKENS: "100000",
+        AI_LLM_MAX_OUTPUT_TOKENS: "4000",
+        AI_EMBED_MODEL: "test-embed",
+        AI_EMBED_DIMENSIONS: "8",
+        AI_EMBED_MAX_INPUT_TOKENS: "8000",
+        AI_MAX_INPUT_TOKENS: "50000",
+        AI_MAX_OUTPUT_TOKENS: "2000",
+        AI_RETRY_BASE_DELAY_SECONDS: "0.05",
+        AI_RETRY_MAX_DELAY_SECONDS: "0.2",
+        AI_WORKER_POLL_SECONDS: "0.5",
+        AI_SELFCHECK_INTERVAL_SECONDS: "3600",
+      }),
 };
 
 /** The collaboration service (Node, Hocuspocus): talks to the API's /internal/collab routes only. */
