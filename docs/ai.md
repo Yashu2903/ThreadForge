@@ -1488,7 +1488,8 @@ has *already received*: no other update can interleave inside it. This design is
 (the lease guarantees that); there are no document epochs and no freezing.
 
 What it cannot see: an edit still sitting **unsent in a browser**, or made **offline**. That edit reaches the server later, and
-if it is inside a block the AI replaced it is dropped (see 19.6). Everything below is built around being exact about that boundary.
+if it is inside a block the AI replaced the server still drops it (see 19.6), but the **browser that typed it keeps a recovery copy**
+and shows it to its owner (19.6, "Recovery"). Everything below is built around being exact about that boundary.
 
 ### 19.2 The protocol (`collab/src/apply.ts`), step by step
 
@@ -1552,23 +1553,56 @@ server-side origin carries `ai-apply` and is not among a manager's tracked origi
 local typing leaves an applied AI block alone (`collab/test/apply.test.ts`); and two real browsers
 (`frontend/e2e/ai-proposals.spec.ts`).
 
-### 19.6 Limits, stated plainly
+### 19.6 Limits, stated plainly, and the recovery of unsent text
 
-* A **base hash protects the targeted blocks** against edits the server has seen. It does **not** protect against edits
-  still unsent in another browser or made **offline**.
-* **An unsent edit inside a block the AI replaced is lost.** Replacing text deletes the block's old text node and
-  inserts the new one (the block element and its id stay). Yjs discards anything a client inserted *inside* a node that
-  was deleted when that client's change finally merges. Measured in `collab/test/apply.test.ts` ("documents what an offline
-  client's UNSENT edit inside a replaced block does"): a person who typed offline at the end of "Bravo", while the AI
-  replaced "Bravo", comes back and every side converges on the AI's text; their typed words are gone, with no warning to
-  them. (This corrects an earlier expectation that the words would survive next to the AI's text: they do not.) The same
-  holds for a block removed by `delete_blocks`.
-* So the real protection is the **base hash + quiet guard + confirm dialog** (everything the server has seen), and the
-  reviewer's own judgement for people who may be offline. Nothing in this design can detect an edit the server never received.
+**What happens (root cause, reproduced).** Replacing text deletes the block's old text node (`collab/src/yapply.ts`,
+`element.delete(0, element.length)`, then inserts the new one); the block element and its id stay. A browser that was
+offline typed **inside** that old node. When its change merges, Yjs integrates the new characters under a parent that is
+already deleted, so they are deleted on arrival and garbage-collected: after convergence the words are in no document on
+any side. Reproduced with two real Yjs documents and explicit delivery steps in `frontend/test/pending-edit-loss.test.ts`,
+and on the real stack in `collab/test/apply.test.ts` ("documents what an offline client's UNSENT edit..."). **The server
+behaviour is unchanged on purpose**: it must not merge an old edit into the new text, because the result would be a
+mixture nobody wrote.
+
+**Recovery (the fix; it is in the browser, not the server).** The browser that typed the text keeps a copy before Yjs
+discards it, and shows it to that person. Nothing is merged back by itself.
+
+| Piece | Where |
+|---|---|
+| Which items are unsent: Yjs items of this browser with a clock at or beyond the last server acknowledgement. The acknowledgement is the provider's `unsyncedChanges === 0`: the provider resets that counter to 1 on every (re)connect and the server answers only after it has **applied** the browser's changes, so 0 means the server holds them | `frontend/src/collab/pending.ts`, `session.ts` |
+| Noticing the loss: a REMOTE transaction that deletes unsent items. Read in `afterTransaction`, which runs **before** garbage collection (the only moment the text can still be read) | `pending.ts`, `session.ts` |
+| Also kept when: the document, room or page is left with unsent text (unmount, switch, `pagehide`, not a back/forward-cache restore); access is lost; the person is made read-only | `session.ts` |
+| Storage: this browser's `localStorage`, per person, never sent anywhere. At most 20 records, 50 blocks each, 20,000 characters per field (cut and marked), kept 14 days. If the browser refuses to store, the records live for the page only and the panel says so | `frontend/src/collab/recovery.ts` |
+| Each record says: who (user), where (room, document id and title), when, why (`replaced_while_pending`, `left_with_unsent_changes`, `access_lost`, `became_read_only`), the affected blocks (id, the unsent characters, the person's own version of the paragraph), and the base: this browser's acknowledged Yjs clock and the proposals the document had applied. There are no document epochs in this design | `recovery.ts` |
+| What the person sees: a panel explaining that the shared document changed while they had unsent work; the text is readable and copyable; **Insert into the document** (only with edit access, only into that document, as new paragraphs after the original block, once); **Discard** asks for a confirmation | `frontend/src/components/RecoveryPanel.tsx` |
+
+Properties: an accepted AI change is never altered; the same characters are never captured twice (repeat reconnects,
+access loss followed by teardown); an edit in a block the AI did not touch merges normally and is not reported; text the
+person typed and deleted themselves, and whitespace-only changes, are not reported; permission loss stops writes (the
+server refuses them) while the person keeps a local copy of text already on their device.
+
+Evidence: `frontend/test/pending-edit-recovery.test.ts` (tracker and session, 21 tests), `recovery-ui.test.tsx` (store, panel,
+editor insertion, 20), `collab/test/pending-recovery.test.ts` (real Hocuspocus, real apply code, PostgreSQL, a service
+restart after a durable apply, several offline browsers, repeated reconnects and Apply, a demoted editor; 6), and two real
+browsers in `frontend/e2e/pending-recovery.spec.ts`. With the capture switched off, four of the integration tests and
+the browser test fail (checked); the other two do not depend on it.
+
+**Still true, stated plainly:**
+
+* A **base hash protects the targeted blocks** against edits the server has seen. It does **not** see edits still unsent in
+  another browser or made **offline**; a hash match is not proof that every browser has sent its edits. The protection for
+  those is the recovery copy above, plus the confirm dialog and the reviewer's judgement.
+* The recovery covers only what the browser **recorded**: its Yjs document in a live page, plus the copy written when the page
+  is left. A crash, a killed tab or process, another tab or device, or a browser that blocks storage after the page
+  closes, is not covered. It keeps typed **text**, not formatting, images, or pending deletions.
+* "Synced" (every connected editor has the change) and "durable" (it is in PostgreSQL with its receipt) are different facts;
+  the recovery depends on neither: it depends on the browser's own acknowledgement.
+* The recovery copy is shown in the room it came from. Someone who never returns to that room does not see it
+  (it expires after 14 days).
 * The quiet guard is **document-level**: while anyone is typing anywhere in the document, an apply waits.
 * The presence warning in the confirm dialog uses presence of the document **open in this browser**; for a proposal
   about another document, the reply reports how many people were connected afterwards.
-* One collaboration instance; no multi-instance scaling; no offline-recovery beyond what is described here.
+* One collaboration instance; no multi-instance scaling.
 * The `ai_applications` marker map is never pruned (one small entry per applied proposal).
 
 ### 19.7 Internal API (`/internal/collab/...`, secret + fenced lease)
@@ -1717,10 +1751,10 @@ then follow the same four stories with real Google logins.
 ### 21.6 Limits (brief, section 7), stated plainly
 
 * A base hash protects the **targeted blocks against edits the server has seen**. It does not see edits still unsent in
-  another browser or made offline. **Measured:** if such an edit is inside a block the AI replaced or deleted, it is
-  **dropped** when it arrives and the person is not told. (The brief expected mixed text; the test in
-  `collab/test/apply.test.ts`, "documents what an offline client's UNSENT edit...", shows the actual behaviour. The
-  confirm dialog says it.)
+  another browser or made offline. **Measured:** if such an edit is inside a block the AI replaced or deleted, the server
+  **drops** it when it arrives (the brief expected mixed text; `collab/test/apply.test.ts` shows the actual behaviour).
+  **Since the verification pass the person who typed it is no longer left without it**: their browser keeps a recovery copy
+  and offers it back (19.6, section 22). The confirm dialog says so.
 * The quiet guard is document-level, not block-level.
 * The warning about connected people uses presence of the document open in this browser.
 * A brief highlight of changed blocks for connected editors was **not built**.
@@ -1742,3 +1776,26 @@ then follow the same four stories with real Google logins.
 * The four unexplained single-run flakes in 21.3.
 * Mermaid rendering is verified in a jsdom editor and one real browser run; other diagram types and very large diagrams
   were not exercised visually.
+
+## 22. Verification and corrective pass (after phase 2)
+
+What changed since section 21, in one place. The detailed record (commands, counts, findings) is the last part of
+`docs/ai-progress.md`.
+
+* **Real-model gate: still UNMEASURED.** No provider credentials exist on this machine (no `.env`, no key variables). The
+  stub figures measure the harness, not a model. When keys exist: `RUN_EVAL=1` first, report, stop below 90% with one repair.
+* **Unsent/offline edit loss (19.6): fixed in the browser.** The server still drops such an edit when it is inside a block the
+  AI replaced; the person who typed it now gets a recovery copy, readable and copyable, put back only on request, discarded
+  only after a confirmation. Covered failure cases and the ones that are not covered are listed in 19.6.
+* **Preexisting frontend rework (room rail, grouped chat, members column): verified and corrected.** One accessibility
+  defect fixed (decorative `#` read as part of heading names). Observations left to the owner are in the progress record.
+* **Browser evidence** uses the local AI stand-in for every AI step; no real model output was shown anywhere.
+
+### 22.1 Reading order for this pass
+
+1. `docs/ai.md` 19.6 (the problem, the recovery, what it does not cover)
+2. `frontend/src/collab/pending.ts`, `recovery.ts`, then `session.ts` (where they are called)
+3. `frontend/src/components/RecoveryPanel.tsx`, `DocumentEditor.tsx` (`insertParagraphs`), `RoomView.tsx`
+4. Tests: `frontend/test/pending-edit-loss.test.ts` (root cause), `pending-edit-recovery.test.ts`, `recovery-ui.test.tsx`,
+   `collab/test/pending-recovery.test.ts`, `frontend/e2e/pending-recovery.spec.ts`, `ai-access.spec.ts`, `room-rail.spec.ts`
+5. `frontend/src/components/RoomRail.tsx` and the diff of `RoomView.tsx`, `ChatPanel.tsx`, `App.tsx`, `styles.css`

@@ -378,3 +378,110 @@ replaced or deleted. The dialog, the comment, the test and the documentation now
 
 **Gate: UNMEASURED** (no provider credentials). **Not built**: the highlight of changed blocks for connected editors.
 **Not verified**: see `docs/ai.md` 21.7.
+
+# Verification and corrective pass (after phase 2, commit `a88516d`)
+
+Started 2026-11-19. Scope: validate the uncommitted frontend work, the real-model evaluation, the unsent/offline edit loss
+(docs/ai.md 19.6), and the two-user workflow. Review/approval and PDF/DOCX export are later milestones.
+
+## Starting working tree
+
+* Branch `main`, HEAD `a88516d`. **Preexisting, uncommitted** (left uncommitted, preserved): `frontend/src/App.tsx`,
+  `frontend/src/RoomView.tsx`, `frontend/src/components/ChatPanel.tsx`, `frontend/src/styles.css`, and the untracked
+  `frontend/src/components/RoomRail.tsx`.
+* No `AGENTS.md` or `CLAUDE.md` exists in the repository.
+
+## Real-model evaluation: BLOCKED (credentials)
+
+* Checked, without printing values: there is no `.env` (only `.env.example`), and neither `AI_OPENAI_API_KEY` nor
+  `AI_GOOGLE_API_KEY` is set in the process environment. `AI_ENABLED` is `false` in the example. Entry point:
+  `backend/tests/eval/` with `RUN_EVAL=1` (see docs/ai.md 21.3). **No provider has been called; nothing was run.**
+* The gate therefore remains **UNMEASURED**. The stub figures (about 62% valid, 94% with one repair) measure the harness,
+  never a model, and are not reported as a gate result.
+* **Exact remaining step**: supply the keys, then run the evaluation first, before any other change, and compare the
+  schema-valid rate with at most one repair against the 90% threshold in the brief.
+
+## Frontend review (preexisting, uncommitted change)
+
+**What it is.** A Discord-style layout rework: `RoomRail.tsx` (new) is a strip of round room icons on the far left (a link
+per room to the existing hash route `#/rooms/<id>`, the current one marked `aria-current="page"`, a home button to the
+list of rooms); `RoomView.tsx` gets the rail, a reorganised sidebar (room title, documents with an `Active` badge, actions,
+files, a user panel) and a members column; `ChatPanel.tsx` groups consecutive messages from one author (within 7 minutes)
+and shows avatars and timestamps; `App.tsx` puts the rail on the rooms page; `styles.css` styles all of it (5 columns, 4
+below 1500px, one column with a horizontal rail below 900px).
+
+**Routing, subscriptions, lifecycle.** Routes are unchanged. `RoomView` is keyed by room id, so switching rooms remounts it
+and every effect cleans up. The only addition that talks to the server is `useRoomList` (one `GET /rooms?limit=100` per
+mount, cancelled on unmount). No new listeners or timers. Verified in a real browser: after switching rooms the old room's
+channel and document sockets are closed and the new ones open (the Vite hot-reload socket is not the app's); returning to
+a room loads its document from the server.
+
+**Defects found and fixed.**
+1. The headings "Doc" and "Chat" had accessible names "#Doc" and "#Chat": the decorative `#` was CSS generated content
+   (`styles.css`, `.title-row h2::before`, `.chat > h2::before`), which is part of the accessible name. Fixed with the CSS
+   alternative-text form `content: "#" / ""` (plain declaration kept first as a fallback). The existing spec
+   `room-layout.spec.ts` ("a removed member loses the room") caught it.
+
+**Observed, not changed (left to the owner).** The room list in the rail is read once per mount, so a room joined or left
+in another tab appears or disappears after the next navigation; a removed member's rail still lists the room until then.
+On a 390px screen the sidebar stacks above the document and pushes the editor about 450px down (it is reachable and nothing
+overflows sideways). The old sidebar's "Signed in as" line and "← Rooms" button were replaced by the user panel and the
+rail's home button; no existing test used them.
+
+**Validation.** `npm run typecheck` clean; `npm run build` clean (the existing bundle-size warning only); `npx vitest run`
+154 passed in 13 files (111 before this pass, 43 new); there is no lint script. Browser (Playwright, Chromium):
+`room-layout` 2/2, `room-rail` 6/6 (new: rail, selected room, socket cleanup, return state, keyboard and focus ring,
+no sideways scrolling at 1600, 1280, 820 and 390px; screenshots reviewed), `editor-collab` 14/14, `ai-chat` 2/2,
+`ai-proposals` 4/4. Firefox: `editor-collab` 13 passed (the image-paste test is skipped by the spec itself on Firefox).
+
+## Unsent/offline edit inside an AI-replaced block
+
+**Root cause** (docs/ai.md 19.6): replacing text deletes the block's old text node; characters a browser typed inside it
+while offline are deleted on arrival and garbage-collected, so after convergence they exist nowhere. The server does the
+right thing by not merging them; nothing kept them for the person.
+
+**Reproduction first**: `frontend/test/pending-edit-loss.test.ts` (two real Yjs documents, explicit delivery steps). The
+`docs/ai.md` warning was kept until the fix was demonstrated on the real path, then replaced.
+
+**Fix** (browser side, no server change): `frontend/src/collab/pending.ts` finds the browser's unacknowledged Yjs items and
+reads the text a remote transaction destroys in `afterTransaction` (before garbage collection); `recovery.ts` is a bounded
+per-user `localStorage` store; `components/RecoveryPanel.tsx` shows it (readable, copyable, Insert only on request, Discard
+after a confirmation); `session.ts`, `DocumentEditor.tsx` and `RoomView.tsx` wire it, also for leaving a document, room or
+page, access loss and demotion. Details, limits and lifecycle: docs/ai.md 19.6. One finding that shaped the design: the
+Hocuspocus provider resets `unsyncedChanges` to 1 on every connect, and the server answers only after applying the
+client's changes, so reaching 0 is a sound "acknowledged" signal.
+
+**Evidence.** `frontend/test/pending-edit-recovery.test.ts` 21, `recovery-ui.test.tsx` 20; `collab/test/pending-recovery.test.ts`
+6 against real Hocuspocus, the real apply code and PostgreSQL (offline edit in the replaced block, repeated reconnects and a
+repeated Apply, an unaffected block, several offline browsers, a service restart after a durable apply, a demoted editor);
+`frontend/e2e/pending-recovery.spec.ts` 2 in two real browsers (the "offline" browser's socket is controlled with
+`routeWebSocket`, no sleeps): the AI's text is intact on both, only the typist is told, Insert puts it back once and both
+browsers converge, it survives a reload, Discard needs a confirmation. Capture switched off: the four dependent integration
+tests and the browser test fail (checked), so they are not passing by accident. Full collab suite: 94 passed in 9 files.
+One test needed updating on purpose: `proposals-ui.test.tsx` asserted the old confirm-dialog sentence ("it is lost when it
+arrives"); it now asserts the new one.
+
+**Changes beyond the three above**: `collab/test/harness.ts` `connect` takes an optional existing `document` (needed to
+reconnect an offline document to a restarted service).
+
+## Two-user workflow (real services, local AI stand-in)
+
+Services real: FastAPI, PostgreSQL (pgvector), Redis, the collaboration service, the AI worker, two Chromium sessions. AI
+providers: the local stand-in `backend/scripts/e2e_ai_stub.py` for **every** AI step. **No real model was called.**
+
+| Step | Covered by |
+|---|---|
+| 1-2 two accounts open one document; upload sources, wait for ready | `ai-chat.spec.ts`, `ai-proposals.spec.ts` |
+| 3-5 choose sources, explicit `@AI`, progress, cited answer; viewers read-only | `ai-chat.spec.ts` |
+| 6-8 propose an edit, preview, apply, both browsers converge, undo does not undo the AI | `ai-proposals.spec.ts` |
+| 9 target changed after proposal: conflict, nothing changed, Regenerate | `ai-proposals.spec.ts` |
+| 10 offline replacement and the preserved recovery content | `pending-recovery.spec.ts` (new) |
+| 11 write access removed: AI button disabled with a reason, apply and regenerate refused (403), proposal still pending, document unchanged, the owner can still apply it | `ai-access.spec.ts` (new) |
+| 12 room navigation and chat with the new layout | `room-rail.spec.ts` (new), `room-layout.spec.ts` |
+
+## Remaining blockers
+
+* **Real-model evaluation: blocked, no credentials.** The gate is UNMEASURED. Nothing in this pass changes that.
+* Not run, with reason: the backend suite (15 batches) and `packages/*` tests, because no backend or package code changed;
+  Firefox for the new specs (the Firefox project is configured for `editor-*` specs only).
+* Not covered by the recovery: text the browser never recorded (a crash, a killed tab, another tab or device).

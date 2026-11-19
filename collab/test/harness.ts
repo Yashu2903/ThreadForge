@@ -62,7 +62,7 @@ export function connect(
   server: CollabServer,
   user: Pick<TestUser, "cookie"> | null,
   docId: string,
-  opts: { origin?: string | null; name?: string; path?: string; headers?: Record<string, string> } = {},
+  opts: { origin?: string | null; name?: string; path?: string; headers?: Record<string, string>; document?: Y.Doc } = {},
 ): Client {
   const origin = opts.origin === undefined ? ORIGIN : opts.origin;
   class AuthedSocket extends WebSocket {
@@ -74,7 +74,7 @@ export function connect(
       super(url, protocols, { headers });
     }
   }
-  const ydoc = new Y.Doc();
+  const ydoc = opts.document ?? new Y.Doc(); // a test may bring a document that already holds offline edits
   const closes: Client["closes"] = [];
   const denied: string[] = [];
   const stateless: string[] = [];
