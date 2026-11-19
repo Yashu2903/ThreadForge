@@ -2,6 +2,7 @@ import type { Editor } from "@tiptap/core";
 import { type PMJson, blockHash, textHash } from "@threadforge/editor-schema";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Api } from "./api";
+import { recordFrom, recoveryStore } from "./collab/recovery";
 import { CollabSession, collabUrl } from "./collab/session";
 import type { MemberName } from "./collab/identity";
 import { uploadImage } from "./documents/upload";
@@ -23,6 +24,26 @@ export interface LiveHandle {
   range: () => Promise<RangeSelection | null>;
   /** how many OTHER people are connected to this document right now (from presence/awareness) */
   peers: () => number;
+  /** can the editor take text right now (it exists and this person may edit)? */
+  canInsert: () => boolean;
+  /** put plain text into the document as new paragraphs after the block with this id (at the end when it is gone) */
+  insertText: (text: string, afterBlockId: string | null) => boolean;
+}
+
+/** Insert `text` as new paragraphs after the top-level block `afterBlockId` (at the end if that block no longer exists).
+ *  One ProseMirror transaction, so one undo step. Used by the recovery panel: the text goes in because a person asked. */
+export function insertParagraphs(editor: Editor | null, text: string, afterBlockId: string | null): boolean {
+  if (!editor || !editor.isEditable) return false;
+  const lines = text.replace(/^\s+/, "").split("\n");
+  if (lines.every((l) => l.trim() === "")) return false;
+  let position = editor.state.doc.content.size;
+  if (afterBlockId) {
+    editor.state.doc.forEach((node, offset) => {
+      if (node.attrs?.id === afterBlockId) position = offset + node.nodeSize;
+    });
+  }
+  const content = lines.map((line) => (line === "" ? { type: "paragraph" } : { type: "paragraph", content: [{ type: "text", text: line }] }));
+  return editor.chain().insertContentAt(position, content).run();
 }
 
 /** A character range inside one block, counted in UTF-16 code units of the block's text (docs/ai.md 17.4):
@@ -115,6 +136,9 @@ export function DocumentEditor(props: {
       url: collabUrl(doc.collab_path),
       documentName: doc.document_name,
       canEdit: doc.can_edit && props.roleCanEdit && !props.mobile,
+      // text the server never received is kept on this device, for this person, in this room (docs/ai.md 19.6)
+      onRecover: (capture) =>
+        recoveryStore.add(recordFrom(capture, { userId: props.userId, roomId, documentId: doc.id, documentTitle: doc.title })),
     });
     setSession(created);
     props.onLive({
@@ -124,6 +148,8 @@ export function DocumentEditor(props: {
       selection: () => readBlockSelection(editorRef.current),
       range: () => readRangeSelection(editorRef.current),
       peers: () => Math.max(0, (created.provider.awareness?.getStates().size ?? 1) - 1),
+      canInsert: () => !!editorRef.current?.isEditable,
+      insertText: (text, afterBlockId) => insertParagraphs(editorRef.current, text, afterBlockId),
     });
     return () => {
       props.onLive(null);

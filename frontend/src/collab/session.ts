@@ -14,7 +14,23 @@
  */
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import * as Y from "yjs";
+import { type PendingPiece, PendingTracker } from "./pending";
+import type { RecoveryReason } from "./recovery";
 import { RETRY_DELAY_MS, type RawState, type SyncStatus, TERMINAL_CODES, TERMINAL_DENIALS, deriveStatus } from "./status";
+
+/** Text this browser typed that the server had not acknowledged, handed to whoever keeps recovery copies. */
+export interface RecoveryCapture {
+  reason: RecoveryReason;
+  pieces: PendingPiece[];
+  /** `<client id>:<first clock>-<last clock>`: identifies these exact characters */
+  captureId: string;
+  acknowledgedClock: number;
+  /** the AI proposals the document had applied (its `ai_applications` marker map), when the capture was made */
+  appliedProposals: string[];
+}
+
+/** The root Y.Map in which the collaboration service records applied proposals (collab/src/yapply.ts MARKER_MAP). */
+const APPLIED_MARKERS = "ai_applications";
 
 export interface CollabOptions {
   /** ws:// or wss:// URL of the collaboration endpoint, e.g. wss://app.example.com/collab */
@@ -24,6 +40,8 @@ export interface CollabOptions {
   canEdit: boolean;
   /** tests inject a WebSocket implementation that sends cookies/Origin; browsers use their own */
   WebSocketPolyfill?: unknown;
+  /** called (synchronously, before the text is garbage collected or the session ends) with unsent text worth keeping */
+  onRecover?: (capture: RecoveryCapture) => void;
 }
 
 export interface CollabSnapshot extends SyncStatus {
@@ -54,8 +72,15 @@ export class CollabSession {
   private destroyed = false;
   private version = 0;
   private lastSynced = false;
+  private readonly pending: PendingTracker;
 
   constructor(readonly options: CollabOptions) {
+    this.pending = new PendingTracker(this.ydoc);
+    // A merge that deletes text this browser has not had acknowledged (the AI replaced the block it was typed in)
+    // is noticed here: `afterTransaction` runs before Yjs garbage-collects the deleted characters.
+    this.ydoc.on("afterTransaction", this.onTransaction);
+    // Closing or reloading the tab with text the server has not received: keep a copy (not on bfcache restores)
+    if (typeof window !== "undefined") window.addEventListener("pagehide", this.onPageHide);
     this.raw = {
       connection: "connecting",
       synced: false,
@@ -85,13 +110,18 @@ export class CollabSession {
         try {
           if ((JSON.parse(payload) as { type?: unknown }).type === "read_only") {
             this.demoted = true;
+            this.capture("became_read_only", this.pending.alive()); // the server will not accept what is still unsent
             this.patch({ scope: "readonly" });
           }
         } catch {
           /* not for us */
         }
       },
-      onUnsyncedChanges: ({ number }: { number: number }) => this.patch({ unsynced: number }),
+      onUnsyncedChanges: ({ number }: { number: number }) => {
+        // 0 means the server has applied and acknowledged everything this browser created so far
+        if (number === 0) this.pending.acknowledge();
+        this.patch({ unsynced: number });
+      },
       onClose: ({ event }: { event: { code: number } }) => {
         this.lastCloseCode = event.code;
         if (TERMINAL_CODES.includes(event.code)) this.terminal();
@@ -148,6 +178,7 @@ export class CollabSession {
   /** Stop reconnecting after the server ended our access. Local text is kept. */
   private terminal(): void {
     if (this.destroyed) return;
+    this.capture("access_lost", this.pending.alive()); // before anything can replace or free this document
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = null;
     this.raw = { ...this.raw, accessLost: true };
@@ -180,9 +211,47 @@ export class CollabSession {
     for (const l of this.listeners) l();
   }
 
+  private onTransaction = (tr: Y.Transaction): void => {
+    if (tr.local || this.destroyed) return; // only changes that came from the server can delete unacknowledged text
+    this.capture("replaced_while_pending", this.pending.lostIn(tr));
+  };
+
+  private onPageHide = (event: Event): void => {
+    if ((event as PageTransitionEvent).persisted) return; // the page may come back with its document intact
+    this.captureLeaving();
+  };
+
+  /** Leaving (document or room switch, unmount, tab close): keep what the server may not have. While the connection is
+   *  live and synced, updates already handed to the socket are delivered before it closes, so nothing is kept for them. */
+  private captureLeaving(): void {
+    if (this.raw.connection === "connected" && this.raw.synced && !this.raw.accessLost) return;
+    this.capture("left_with_unsent_changes", this.pending.alive());
+  }
+
+  private capture(reason: RecoveryReason, pieces: PendingPiece[]): void {
+    if (pieces.length === 0 || !this.options.onRecover) return;
+    const clocks = pieces.flatMap((p) => p.clocks);
+    let appliedProposals: string[] = [];
+    try {
+      appliedProposals = [...this.ydoc.getMap(APPLIED_MARKERS).keys()];
+    } catch {
+      /* a document that has no marker map */
+    }
+    this.options.onRecover({
+      reason,
+      pieces,
+      captureId: `${this.ydoc.clientID}:${Math.min(...clocks)}-${Math.max(...clocks)}`,
+      acknowledgedClock: this.pending.acknowledgedClock,
+      appliedProposals,
+    });
+  }
+
   destroy(): void {
     if (this.destroyed) return;
+    this.captureLeaving(); // before the document is freed
     this.destroyed = true;
+    if (typeof window !== "undefined") window.removeEventListener("pagehide", this.onPageHide);
+    this.ydoc.off("afterTransaction", this.onTransaction);
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.listeners.clear();
     try {

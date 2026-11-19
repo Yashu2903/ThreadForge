@@ -7,6 +7,7 @@ import { ProposalCard } from "../ai/Proposal";
 import type { AiSnapshot, AiStore } from "../ai/store";
 import type { BlockSelection, RangeSelection } from "../DocumentEditor";
 import { useClientState } from "../useRoom";
+import { colourFor, initialOf } from "./RoomRail";
 
 export interface ChatAi {
   api: Api;
@@ -63,12 +64,35 @@ export function ChatPanel(props: { client: RoomClient; userId: string; ai: ChatA
         {state.status === "live" ? "Live" : state.status === "terminal" ? "Disconnected" : "Connecting…"}
       </p>
       <div className="messages" role="log" aria-live="polite" aria-label="Messages">
-        {messages.map((m) => {
+        {messages.map((m, index) => {
           const kind = m.kind ?? "user";
           const selectable = canAsk && kind === "user" && !m.is_deleted;
+          // Discord-style grouping: a follow-up from the same person within 7 minutes continues the block
+          const prev = index > 0 ? messages[index - 1] : undefined;
+          const grouped =
+            !!prev &&
+            kind === "user" &&
+            (prev.kind ?? "user") === "user" &&
+            !prev.is_deleted &&
+            !m.is_deleted &&
+            prev.author_id === m.author_id &&
+            Date.parse(m.created_at) - Date.parse(prev.created_at) < 7 * 60 * 1000;
           return (
-            <div key={m.id} className={`message ${kind}`} data-kind={kind}>
+            <div key={m.id} className={`message ${kind}${grouped ? " grouped" : ""}`} data-kind={kind}>
+              {!grouped && (
+                <span
+                  className={`avatar${kind === "user" ? "" : " ai-avatar"}`}
+                  style={kind === "user" ? { background: colourFor(m.author_id) } : undefined}
+                  data-initial={kind === "user" ? initialOf(m.author_display_name) : "AI"}
+                  aria-hidden="true"
+                />
+              )}
               <strong>{m.is_deleted ? "" : m.author_display_name}</strong>
+              {!grouped && (
+                <time className="stamp" dateTime={m.created_at} title={new Date(m.created_at).toLocaleString()}>
+                  {formatStamp(m.created_at)}
+                </time>
+              )}
               {kind === "ai_answer" && m.ai_request_id && !m.is_deleted ? (
                 <AnswerMessage ai={ai} requestId={m.ai_request_id} fallback={m.body ?? ""} roomId={props.client.state.room?.id ?? ""} />
               ) : (
@@ -122,6 +146,17 @@ export function ChatPanel(props: { client: RoomClient; userId: string; ai: ChatA
       />
     </aside>
   );
+}
+
+/** "3:04 PM" for today, "Yesterday at 3:04 PM", else the date (Discord's message timestamps). */
+function formatStamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86_400_000);
+  if (days === 0) return `Today at ${time}`;
+  if (days === 1) return `Yesterday at ${time}`;
+  return `${d.toLocaleDateString()} ${time}`;
 }
 
 function RequestMessage({ ai, requestId }: { ai: ChatAi; requestId: string }) {

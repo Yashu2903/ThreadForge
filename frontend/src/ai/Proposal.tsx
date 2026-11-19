@@ -199,7 +199,7 @@ function Actions(props: { p: ProposalInfo; store: AiStore; openDocumentId: strin
               : ""}
           </p>
           <p className="muted small">
-            A check protects the blocks this proposal targets. It cannot see edits still sitting unsent in someone's browser or made offline: if such an edit is inside a block this proposal replaces or deletes, it is lost when it arrives.
+            A check protects the blocks this proposal targets. It cannot see edits still sitting unsent in someone's browser or made offline. If such an edit is inside a block this proposal replaces or deletes, it is not merged into the new text: the person who typed it is shown a copy to keep or put back, if their browser still has it.
           </p>
           <button type="button" className="primary" disabled={busy} onClick={() => void apply()}>
             Apply now

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Api, ApiError } from "./api";
 import { RoomView } from "./RoomView";
+import { RoomRail } from "./components/RoomRail";
 import type { Me, Page, RoomSummary } from "./types";
 
 /** Hash routes (#/ and #/rooms/<id>) so no page path can collide with an API prefix on the same origin. */
@@ -76,7 +77,9 @@ function RoomsPage({ api, me }: { api: Api; me: Me }) {
   }
 
   return (
-    <main className="rooms-page">
+    <div className="home-layout">
+      <RoomRail rooms={rooms ?? []} onHome={() => (window.location.hash = "#/")} />
+      <main className="rooms-page">
       <h1>Your rooms</h1>
       <p className="muted">Signed in as {me.display_name}</p>
       {error && (
@@ -101,6 +104,7 @@ function RoomsPage({ api, me }: { api: Api; me: Me }) {
           Create room
         </button>
       </form>
-    </main>
+      </main>
+    </div>
   );
 }

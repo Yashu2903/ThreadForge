@@ -3,6 +3,9 @@ import { type Api, ApiError } from "./api";
 import { AiSettingsDialog, SourcePanel } from "./ai/Panels";
 import { ChatPanel } from "./components/ChatPanel";
 import { OpenDialog } from "./components/OpenDialog";
+import { RecoveryPanel } from "./components/RecoveryPanel";
+import { RoomRail, colourFor, initialOf, useRoomList } from "./components/RoomRail";
+import type { RecoveryRecord } from "./collab/recovery";
 import { StartDialog } from "./components/StartDialog";
 import type { Capabilities, DocumentFull, Me } from "./types";
 import { DocumentEditor, type LiveHandle } from "./DocumentEditor";
@@ -44,6 +47,7 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
   const [recovered, setRecovered] = useState<string | null>(null);
   const mobile = useIsMobile();
+  const rooms = useRoomList(api);
 
   const role = state.role;
   const isOwner = role === "owner";
@@ -81,8 +85,20 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
    *  everything, ask (there is no offline storage: leaving loses those changes). */
   function leaveOpenDocument(): boolean {
     if (atRisk <= 0) return true;
-    return window.confirm("Your last changes are not on the server yet. Leave this document and lose them?");
+    return window.confirm(
+      "Your last changes are not on the server yet. If you leave this document they will not be saved to it. " +
+        "A copy of the unsent text is kept on this device and shown in this room, where you can copy it or put it back. Leave this document?",
+    );
   }
+
+  const titles = new Map(docs.list.items.map((d) => [d.id, d.title] as const));
+  /** the recovery copy may be put back only into the document that is open, and only by someone who can edit it */
+  const canInsert = (r: RecoveryRecord) => r.documentId === docs.open?.id && liveRef.current?.docId === r.documentId && !!liveRef.current.canInsert();
+  const insertRecovered = (r: RecoveryRecord) => {
+    const live = liveRef.current;
+    if (!live || live.docId !== r.documentId || !live.canInsert()) return false;
+    return r.blocks.map((b) => live.insertText(b.inserted, b.blockId)).every(Boolean);
+  };
 
   function openGuarded(id: string) {
     if (store.openId === id) return;
@@ -123,6 +139,8 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
             {recovered && <textarea readOnly rows={8} value={recovered === "Copied to the clipboard." ? "" : recovered} placeholder={recovered} aria-label="Your unsaved text" />}
           </section>
         )}
+        {/* the text this device kept (read-only here: access to the document is gone) */}
+        <RecoveryPanel userId={me.id} roomId={roomId} titles={new Map()} canInsert={() => false} onInsert={() => false} />
         <button onClick={props.onBack}>Back to your rooms</button>
       </main>
     );
@@ -172,39 +190,48 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
 
   return (
     <div className="room-layout">
+      <RoomRail rooms={rooms} currentId={roomId} onHome={props.onBack} />
       <nav className="sidebar" aria-label="Room navigation">
-        <button className="link" onClick={props.onBack}>
-          ← Rooms
-        </button>
-        <h1 title={state.room?.name}>{state.room?.name ?? "Loading…"}</h1>
-        <p className="muted">
-          {me.display_name} · {role ?? "…"}
-        </p>
-        <h2>Documents</h2>
-        {isOwner && (
-          <div className="stack">
-            <button className="primary" onClick={() => setDialog("start")}>
-              Start document
-            </button>
-          </div>
-        )}
-        <button onClick={() => setDialog("open")}>Open document</button>
-        <SourcePanel store={ai} snap={aiSnap} role={role} documentId={docs.open?.id ?? null} userId={me.id} />
-        <button onClick={() => setAiDialog(true)}>AI settings</button>
-        <ul className="doc-nav" aria-label="Documents in this room">
-          {docs.list.items.map((doc) => (
-            <li key={doc.id}>
-              <button
-                className={doc.id === open?.id ? "selected" : ""}
-                aria-current={doc.id === open?.id ? "true" : undefined}
-                onClick={() => void openGuarded(doc.id)}
-              >
-                {doc.title}
+        <h1 className="room-title" title={state.room?.name}>
+          {state.room?.name ?? "Loading…"}
+        </h1>
+        <div className="sidebar-scroll">
+          <h2 className="category">Documents</h2>
+          <ul className="doc-nav" aria-label="Documents in this room">
+            {docs.list.items.map((doc) => (
+              <li key={doc.id}>
+                <button
+                  className={doc.id === open?.id ? "selected" : ""}
+                  aria-current={doc.id === open?.id ? "true" : undefined}
+                  onClick={() => void openGuarded(doc.id)}
+                >
+                  <span className="hash" aria-hidden="true">
+                    #
+                  </span>
+                  {doc.title}
+                </button>
+                {doc.is_active && <span className="badge">Active</span>}
+              </li>
+            ))}
+          </ul>
+          <div className="sidebar-actions">
+            {isOwner && (
+              <button className="primary" onClick={() => setDialog("start")}>
+                Start document
               </button>
-              {doc.is_active && <span className="badge">Active</span>}
-            </li>
-          ))}
-        </ul>
+            )}
+            <button onClick={() => setDialog("open")}>Open document</button>
+            <button onClick={() => setAiDialog(true)}>AI settings</button>
+          </div>
+          <SourcePanel store={ai} snap={aiSnap} role={role} documentId={docs.open?.id ?? null} userId={me.id} />
+        </div>
+        <div className="user-panel">
+          <span className="avatar" style={{ background: colourFor(me.id) }} data-initial={initialOf(me.display_name)} aria-hidden="true" />
+          <span className="user-text">
+            <strong>{me.display_name}</strong>
+            <small className="muted">{role ?? "…"}</small>
+          </span>
+        </div>
       </nav>
 
       <main className="document-area" aria-label="Document">
@@ -213,6 +240,7 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
             {notice}
           </p>
         )}
+        <RecoveryPanel userId={me.id} roomId={roomId} titles={titles} canInsert={canInsert} onInsert={insertRecovered} />
         {!open && (
           <section className="empty">
             <h2>{docs.list.items.length === 0 ? "No document yet" : "No document open"}</h2>
@@ -261,7 +289,7 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
                         Stay here
                       </button>
                       <button type="button" onClick={switchNow} data-testid="switch-anyway">
-                        Switch anyway and lose those changes
+                        Switch anyway (a copy of those changes is kept here)
                       </button>
                     </div>
                   </div>
@@ -300,6 +328,28 @@ export function RoomView(props: { api: Api; me: Me; roomId: string; onBack: () =
           isOwner,
         }}
       />
+      <aside className="members" aria-label="Members">
+        <h2 className="category">Members — {state.members.length}</h2>
+        {(["owner", "editor", "viewer"] as const).map((r) => {
+          const group = state.members.filter((m) => m.role === r);
+          if (group.length === 0) return null;
+          return (
+            <div key={r} className="member-group">
+              <h3 className="category">
+                {r === "owner" ? "Owner" : r === "editor" ? "Editors" : "Viewers"} — {group.length}
+              </h3>
+              <ul>
+                {group.map((m) => (
+                  <li key={m.user_id}>
+                    <span className="avatar" style={{ background: colourFor(m.user_id) }} data-initial={initialOf(m.display_name)} aria-hidden="true" />
+                    <span className="member-name">{m.display_name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </aside>
       {aiDialog && <AiSettingsDialog store={ai} snap={aiSnap} isOwner={isOwner} onClose={() => setAiDialog(false)} />}
 
       {dialog === "start" && <StartDialog api={api} roomId={roomId} onCreated={created} onClose={() => setDialog(null)} />}
