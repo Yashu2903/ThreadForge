@@ -1,0 +1,247 @@
+{
+  "manifest_version": 1,
+  "kind": "answer",
+  "mode": "real",
+  "captured": "after the run (reconstructed): this run predates the harness's own manifest capture",
+  "finished_utc_from_results_file_name": "2026-11-19T15:27:48Z",
+  "pytest_duration_seconds": 100,
+  "started_utc": "2026-11-19T15:26:05Z (the time the launch snapshot was taken, immediately before the run command)",
+  "code": {
+    "commit": "14e0cf12aa8765426877fc7f5bf867eebbb1d8f6",
+    "branch": "verification-pass-recovery",
+    "provenance": "reconstructed after the run",
+    "working_tree": "tracked files equal the commit. Evidence: (answer run) a `git status` snapshot taken at 2026-11-19T15:26:05Z, before launch, listed only docs/ai.md and docs/ai-progress.md as modified; (proposal run, 15:20:29Z) the same snapshot plus the first edit to docs/ai.md at 15:21:53Z, after the run. Documentation does not affect either run. The prompt, schema, dataset and configuration files below are byte-identical to the commit (`git diff HEAD` empty) and date from 2026-11-09."
+  },
+  "dataset": {
+    "questions": 13,
+    "gold_sha256": "d0fae81b26d71c4dec7de2536f9374880d7aaf48e6ccbc5297873099612eec43",
+    "corpus_py_sha256": "b2eeb89e4eb4fc56a54f125a4a28a88b0146c63685fa74374db3871d13fdd918",
+    "sources_sha256": {
+      "depots.pdf": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf",
+      "march-scan.pdf": "b95c166aed3af9c8c7762db8a7c15ced8b8847e04defac6ebc0675e9118a89d8",
+      "handbook.docx": "9688213aaec9829fad4f35cc77b40772ad2fba2614bcc921ab0e191e4ce96d80",
+      "release.md": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41"
+    },
+    "provenance": "computed after the run from files identical to the commit"
+  },
+  "prompts_and_schemas": {
+    "answer_prompt_template_version": "answer-v1",
+    "edit_prompt_template_version": "edit-v1",
+    "parser_version": "extract-v1",
+    "classify_schema_sha256": "2b15a848d3cfae4b10ea074fb5c80ae97737d319197fcbde2c85e436539d3ce4",
+    "file_sha256": {
+      "answer_prompts": "a579675a3ce41f1e4e72a0fa6da7c086a430d00e590b2b65223517069c6f5599",
+      "answer_schema_and_validation": "53f6890a667ec0ba54a490f81cdc46620b5f8743deb630a03bef84ca7db3e47c",
+      "edit_prompts": "cd721b5453144c276acd311742a6301d7432498697b0c81758696e191de64c5c",
+      "edit_schema": "f723484f72249dbddbd8e8f4ffda62507f0ce7dad0ea5d82245c1512f48cd7c8"
+    },
+    "provenance": "computed after the run from files identical to the commit"
+  },
+  "configuration": {
+    "ai_llm_model": "gpt-6-luna",
+    "ai_embed_model": "gemini-embedding-2",
+    "ai_embed_dimensions": 1536,
+    "ai_embed_max_input_tokens": 8192,
+    "ai_llm_context_tokens": 1050000,
+    "ai_llm_max_output_tokens": 128000,
+    "ai_llm_structured_output": true,
+    "ai_llm_reasoning_effort": "",
+    "ai_max_input_tokens": 200000,
+    "ai_max_output_tokens": 8000,
+    "ai_max_provider_calls": 40,
+    "ai_call_timeout_seconds": 120.0,
+    "ai_retry_max_attempts": 4,
+    "ai_key_concurrency": 4,
+    "ai_key_policy": "server_only",
+    "ai_proposals_enabled": false,
+    "ai_retrieval_lexical_k": 20,
+    "ai_retrieval_vector_k": 20,
+    "ai_retrieval_rrf_k": 60,
+    "ai_retrieval_evidence_tokens": 24000,
+    "ai_retrieval_max_distance": 0.6,
+    "ai_chunk_target_tokens": 400,
+    "ai_chunk_max_tokens": 900,
+    "ai_chunk_overlap_tokens": 40,
+    "ai_openai_base_url": "https://api.openai.com",
+    "ai_google_base_url": "https://generativelanguage.googleapis.com",
+    "ai_prices_checked_on": "",
+    "provenance": "computed after the run from the settings the run used: the repository .env (last written 2026-11-19T15:17:10Z, before the run) plus the harness overrides (ai_enabled=true)"
+  },
+  "cost": {
+    "prices_configured": {
+      "ai_llm_input_micros_per_mtok": false,
+      "ai_llm_output_micros_per_mtok": false,
+      "ai_embed_text_micros_per_mtok": false,
+      "ai_embed_image_micros_per_mtok": false
+    },
+    "status": "unknown/unconfigured: no price settings",
+    "note": "The ledger's est_cost_micros is 0 because nothing could be priced. That is NOT a free run and must not be read as one: the true cost is unknown here."
+  },
+  "models": {
+    "requested": {
+      "generation": "gpt-6-luna",
+      "embedding": "gemini-embedding-2"
+    },
+    "recorded_by_the_usage_ledger": [
+      "google:gemini-embedding-2",
+      "openai:gpt-6-luna"
+    ],
+    "provenance": "recovered after the run from the test database's usage ledger, rows created 15:26:17Z-15:27:45Z, which match the run window"
+  },
+  "usage_ledger_run_wide": [
+    {
+      "operation": "answer",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 13,
+      "input_tokens": 18700,
+      "output_tokens": 2341
+    },
+    {
+      "operation": "classify",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 12,
+      "input_tokens": 1640,
+      "output_tokens": 210
+    },
+    {
+      "operation": "classify",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "failed",
+      "error_code": "provider_output_truncated",
+      "calls": 1,
+      "input_tokens": 0,
+      "output_tokens": 0
+    },
+    {
+      "operation": "embed_text",
+      "provider": "google",
+      "model": "gemini-embedding-2",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 16,
+      "input_tokens": 4386,
+      "output_tokens": 0
+    },
+    {
+      "operation": "map",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 1,
+      "input_tokens": 226,
+      "output_tokens": 79
+    },
+    {
+      "operation": "vision_describe",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 1,
+      "input_tokens": 603,
+      "output_tokens": 129
+    }
+  ],
+  "usage_totals": {
+    "run_wide_calls": 44,
+    "run_wide_failed_calls": 1,
+    "request_attributed": {
+      "calls": 38,
+      "answer_calls": 13,
+      "input_tokens": 20897,
+      "output_tokens": 2630,
+      "failed_calls": 1
+    },
+    "provenance": "request_attributed: summed from the per-case ledger in the results JSON; run_wide: from the recovered ledger rows above"
+  },
+  "request_ids": "unavailable: not recorded by the harness at the time",
+  "answers_and_citations": "unavailable: the published answer text was not recorded by run 1 (only metrics); run 2 records it",
+  "cases": [
+    {
+      "id": "qa-berlin",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.448041399999056
+    },
+    {
+      "id": "qa-lisbon-storms",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.041442799993092
+    },
+    {
+      "id": "qa-scan-orders",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.915862499998184
+    },
+    {
+      "id": "qa-scan-delays",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 5.2137258000147995
+    },
+    {
+      "id": "qa-md-owner",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.115689700003713
+    },
+    {
+      "id": "qa-md-restart",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.5352794000064023
+    },
+    {
+      "id": "qa-two-sources",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 5.388606299995445
+    },
+    {
+      "id": "figure-handbook",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 5.313615100021707
+    },
+    {
+      "id": "summarize-release",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 8.036230800003977
+    },
+    {
+      "id": "compare-depots-release",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 11.383245800010627
+    },
+    {
+      "id": "review-launch-plan",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 5.987125000014203
+    },
+    {
+      "id": "diagram-release",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 11.128199900005711
+    },
+    {
+      "id": "diagram-architecture",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 8.107906000019284
+    }
+  ]
+}

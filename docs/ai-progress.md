@@ -391,7 +391,9 @@ Started 2026-11-19. Scope: validate the uncommitted frontend work, the real-mode
   `frontend/src/components/RoomRail.tsx`.
 * No `AGENTS.md` or `CLAUDE.md` exists in the repository.
 
-## Real-model evaluation: BLOCKED (credentials)
+## Real-model evaluation: first BLOCKED (credentials), then run and PASSED
+
+The section below was written before keys existed and is kept as it was; the result is at the end of this section.
 
 * Checked, without printing values: there is no `.env` (only `.env.example`), and neither `AI_OPENAI_API_KEY` nor
   `AI_GOOGLE_API_KEY` is set in the process environment. `AI_ENABLED` is `false` in the example. Entry point:
@@ -400,6 +402,29 @@ Started 2026-11-19. Scope: validate the uncommitted frontend work, the real-mode
   never a model, and are not reported as a gate result.
 * **Exact remaining step**: supply the keys, then run the evaluation first, before any other change, and compare the
   schema-valid rate with at most one repair against the 90% threshold in the brief.
+
+**Real proposal evaluation, 2026-11-19 15:20 UTC: PASS.**
+
+| Item | Value |
+|---|---|
+| Command | `cd backend && RUN_EVAL=1 EVAL_PROVIDER=real uv run --env-file ../.env python -m pytest tests/eval/test_proposal_eval.py -s -x` (1 passed, 143 s) |
+| Providers and models | OpenAI `gpt-6-luna` (generation), Google `gemini-embedding-2` at 1536 dimensions (embeddings). A preflight call to each (key check, one structured reply, one embedding) returned the same model ids and the configured dimensions. The run's ledger does not record a model id per call |
+| Gold set | 16 items (13 edits, 3 drafts), unchanged; 16 attempted, 16 completed, 16 published |
+| Schema-valid without repair | 15 of 16 = 93.75% (the report rounds to 94%) |
+| **Schema-valid with at most one repair** | **16 of 16 = 100%** against the 90% line. One repair was used (`edit-end-summary`, first reply `wrong_operation_count`) |
+| Provider failures, timeouts, retries that failed | 0 failed calls. The success-only and the end-to-end rate are therefore the same (16/16): the denominator question does not arise in this run |
+| Resolving (base hashes, anchors, replay) | 16 of 16 |
+| Citation validity | 100% for the proposals that cite sources (the system's check that each quoted span is in its source) |
+| Calls and usage | 24 provider calls (17 generation), 25,434 input and 9,205 output tokens in total; latency p50 6.11 s, p95 22.42 s |
+| Cost | not reported: no price settings are configured, so the ledger records 0 |
+| Prompt and schema versions | not recorded in the report |
+| Evidence | `backend/tests/eval/results/proposals-real-results.md` and `proposals-real-20261119-152029.json` (no keys; model output on the synthetic corpus). **Local files only**: that folder is gitignored (only `stub-results.md` was ever force-added), so the real report is not in the repository unless it is added the same way. The stub results beside them are labelled stub |
+
+What this does **not** show: it is one run on 16 items, so a few points of difference are noise. Six of the 16 gold items
+carry a defect that only the stub injects on purpose (to exercise the repair loop); the real model does not receive those
+defects, so the repair path ran for real only once. Citation validity is a mechanical check, not a judgement that a
+proposal is useful; **proposal usefulness has not been measured** (nothing here grades it). The answer evaluation
+(`tests/eval/test_eval.py`, 13 questions, retrieval recall and answer citations) has **not** been run in real mode.
 
 ## Frontend review (preexisting, uncommitted change)
 
@@ -481,7 +506,27 @@ providers: the local stand-in `backend/scripts/e2e_ai_stub.py` for **every** AI 
 
 ## Remaining blockers
 
-* **Real-model evaluation: blocked, no credentials.** The gate is UNMEASURED. Nothing in this pass changes that.
+* **Real-model evaluation: run and PASSED** (proposal gate, twice). The answer evaluation has also been run (twice, see below). Not done: any human assessment of factual support or usefulness.
 * Not run, with reason: the backend suite (15 batches) and `packages/*` tests, because no backend or package code changed;
   Firefox for the new specs (the Firefox project is configured for `editor-*` specs only).
 * Not covered by the recovery: text the browser never recorded (a crash, a killed tab, another tab or device).
+
+## Second stage: answer evaluation, evidence, real-browser verification, recovery
+
+Details, tables and caveats: `docs/ai.md` 22.2-22.6. Evidence files and their provenance: `docs/evidence/ai-eval/` (README there).
+
+* **Answer evaluation, real, twice**: pytest exit 0 both times (100 s, 98 s). The evaluator has **no acceptance threshold** (it only asserts that
+  analysis succeeded and that at least one question published), so exit 0 means the harness worked. 13/13 published; recall@1/@3/@5
+  85%/100%/100%; every citation check 100%; OCR 92%; latency p50 5.3 s / 5.1 s. Not shown by the report: 1 (run 1) and 2 (run 2) failed
+  classifier calls, `provider_output_truncated` at `max_output_tokens=50`, all on the diagram requests; the fallback (qa) matched the
+  expected strategy, so nothing visibly broke. Not fixed (diagnosis only).
+* **Proposal gate, run 2**: 100% with one repair again (94% without); a different item needed the repair.
+* **Reproducibility**: `backend/tests/eval/manifest.py` + hooks in both evaluators (record only; no scoring change). Run 2 manifests are
+  captured; run 1's are reconstructed and labelled. Cost stays **unknown/unconfigured** (no prices; the ledger's 0 is not a measurement).
+* **Real inference through the browser** (`frontend/e2e/ai-real.spec.ts`, `E2E_AI=real`): passed; ledger shows `openai/gpt-6-luna` and
+  `google/gemini-embedding-2`, no stub. Chosen-source question cited the right file; proposal previewed, applied, seen by a second browser;
+  viewer refused; second proposal `conflicted / block_changed`.
+* **Recovery with a real model** (`ai-real-recovery.spec.ts`): passed. Stub-mode recovery specs and the real-server integration test re-run
+  sequentially: all passing.
+* **Not done**: human review of answers and proposals (my own reading, labelled as such, found no unsupported claim and one vacuous proposal);
+  Firefox for the new specs; the backend suite (no application code changed).

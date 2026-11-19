@@ -1,0 +1,138 @@
+{
+  "started": "2026-11-19T15:38:23.882Z",
+  "requests": [
+    {
+      "request_id": "ec548b12-19e9-47be-9ee1-ab65301542eb",
+      "task_hint": "auto"
+    },
+    {
+      "request_id": "e728be30-96de-4f4c-a73d-b540c69b80ab",
+      "task_hint": "ask"
+    },
+    {
+      "request_id": "62261bae-26b2-43e8-9057-d8f704a316b7",
+      "task_hint": "ask"
+    }
+  ],
+  "proposals": [
+    {
+      "proposal_id": "73e8cd98-9be3-433d-9ad4-d2c8cc650af7"
+    },
+    {
+      "proposal_id": "9128eb2c-4aee-4a27-b5cc-c841e351db80"
+    }
+  ],
+  "answer": {
+    "cited_expected_source": true,
+    "fact_in_answer": true,
+    "unchosen_source_cited": false
+  },
+  "applied": {
+    "first_proposal_applied": true,
+    "visible_in_second_browser": true,
+    "visible_to_viewer": true
+  },
+  "viewer": {
+    "apply_status": 403,
+    "ai_request_status": 403
+  },
+  "conflict": {
+    "detected": true,
+    "document_unchanged_by_proposal": true
+  },
+  "finished": "2026-11-19T15:39:09.723Z",
+  "room_id": "1cdead35-404d-4d8d-b382-3b1adb7ed86d",
+  "captured": "during the run by the spec (identifiers, browser-observed results); database facts below were read from the e2e database immediately after the run",
+  "spec": "frontend/e2e/ai-real.spec.ts (E2E_AI=real)",
+  "real_provider_check": {
+    "stub_started": false,
+    "stub_port_8190_listeners_after_run": 0,
+    "base_urls": "not overridden (defaults: api.openai.com, generativelanguage.googleapis.com)",
+    "usage_ledger_rows_for_the_run": [
+      {
+        "operation": "answer",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "status": "ok",
+        "calls": 3,
+        "input_tokens": 3449,
+        "output_tokens": 538
+      },
+      {
+        "operation": "classify",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "status": "ok",
+        "calls": 1,
+        "input_tokens": 137,
+        "output_tokens": 13
+      },
+      {
+        "operation": "embed_text",
+        "provider": "google",
+        "model": "gemini-embedding-2",
+        "status": "ok",
+        "calls": 5,
+        "input_tokens": 212,
+        "output_tokens": 0
+      },
+      {
+        "operation": "self_check",
+        "provider": "google",
+        "model": "gemini-embedding-2",
+        "status": "ok",
+        "calls": 3,
+        "input_tokens": 559,
+        "output_tokens": 0
+      },
+      {
+        "operation": "self_check",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "status": "ok",
+        "calls": 3,
+        "input_tokens": 171,
+        "output_tokens": 57
+      }
+    ],
+    "cost": "unknown/unconfigured: no price settings (not zero)"
+  },
+  "final_states_from_database": {
+    "requests": [
+      {
+        "id": "ec548b12-19e9-47be-9ee1-ab65301542eb",
+        "state": "succeeded",
+        "task_hint": "auto",
+        "what": "@AI question with only ops.md chosen"
+      },
+      {
+        "id": "e728be30-96de-4f4c-a73d-b540c69b80ab",
+        "state": "succeeded",
+        "task_hint": "ask",
+        "what": "edit proposal 1 (fill in the March figure)"
+      },
+      {
+        "id": "62261bae-26b2-43e8-9057-d8f704a316b7",
+        "state": "succeeded",
+        "task_hint": "ask",
+        "what": "edit proposal 2 (Lisbon vans), target changed before Apply"
+      }
+    ],
+    "proposals": [
+      {
+        "id": "73e8cd98-9be3-433d-9ad4-d2c8cc650af7",
+        "kind": "edit",
+        "state": "applied",
+        "resolution_code": "applied",
+        "receipt": "ai_proposal_applications row, resulting_counter 2, 32-byte receipt hash"
+      },
+      {
+        "id": "9128eb2c-4aee-4a27-b5cc-c841e351db80",
+        "kind": "edit",
+        "state": "conflicted",
+        "resolution_code": "block_changed"
+      }
+    ]
+  },
+  "note": "Answer and proposal TEXT is not stored here; the assertions are on content patterns (the fact, the cited source, the changed document)."
+}

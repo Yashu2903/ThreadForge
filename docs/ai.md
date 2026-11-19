@@ -1460,7 +1460,7 @@ pipeline and write `tests/eval/results/proposals-<mode>-results.md`: schema-vali
 repair**, the share of proposals whose base hashes, anchors and replay resolve against the captured document,
 citation validity, and a sample of previews. Real mode asserts the 90 % line (it fails the run below it).
 
-**Result: UNMEASURED.** No provider credentials exist here, so only the stub mode ran. Its numbers (62 % valid
+**Result at the time: UNMEASURED (measured since: PASS on 2026-11-19, see 22.2).** No provider credentials existed then, so only the stub mode ran. Its numbers (62 % valid
 without repair, 94 % with one repair, 100 % resolving, over a *scripted* stand-in with deliberate defects in 6 of
 16 items) show that the harness, the repair loop and the engine work; they are **not** a measurement of any model and
 cannot pass or fail the gate. The owner chose to have phase 2 built first and supply keys afterwards, so checkpoints
@@ -1676,7 +1676,7 @@ refused with a *conflict* (not silently overwritten) when the targeted blocks ch
 a first-class block (`diagram`, Mermaid text). A draft becomes a document only when the **room owner** publishes it.
 Off by default: `AI_PROPOSALS_ENABLED=false`.
 
-### 21.2 The evaluation gate (brief, section 0): **UNMEASURED**
+### 21.2 The evaluation gate (brief, section 0): **UNMEASURED when phase 2 was built; measured later: PASS (22.2)**
 
 The brief says to stop after checkpoint 2 and report if the schema-valid rate **with one repair** is below 90 % on the
 gold set "with the configured model". **No real model has ever been called** (no credentials exist in this environment;
@@ -1782,8 +1782,10 @@ then follow the same four stories with real Google logins.
 What changed since section 21, in one place. The detailed record (commands, counts, findings) is the last part of
 `docs/ai-progress.md`.
 
-* **Real-model gate: still UNMEASURED.** No provider credentials exist on this machine (no `.env`, no key variables). The
-  stub figures measure the harness, not a model. When keys exist: `RUN_EVAL=1` first, report, stop below 90% with one repair.
+* **Real-model gate: PASS (22.2), twice.** 100% schema-valid with one repair (94% without) on the 16 gold items, in two runs. The real
+  answer evaluation was also run twice (13/13 published; its own thresholds: none), with a classifier-truncation finding (22.2).
+  The workflow through the normal interface and the offline-edit recovery were verified with real inference (22.3, 22.5).
+  **No human assessment** of factual support or usefulness has been done (22.4).
 * **Unsent/offline edit loss (19.6): fixed in the browser.** The server still drops such an edit when it is inside a block the
   AI replaced; the person who typed it now gets a recovery copy, readable and copyable, put back only on request, discarded
   only after a confirmation. Covered failure cases and the ones that are not covered are listed in 19.6.
@@ -1799,3 +1801,112 @@ What changed since section 21, in one place. The detailed record (commands, coun
 4. Tests: `frontend/test/pending-edit-loss.test.ts` (root cause), `pending-edit-recovery.test.ts`, `recovery-ui.test.tsx`,
    `collab/test/pending-recovery.test.ts`, `frontend/e2e/pending-recovery.spec.ts`, `ai-access.spec.ts`, `room-rail.spec.ts`
 5. `frontend/src/components/RoomRail.tsx` and the diff of `RoomView.tsx`, `ChatPanel.tsx`, `App.tsx`, `styles.css`
+
+### 22.2 The real evaluations (2026-11-19)
+
+Providers: OpenAI `gpt-6-luna` and Google `gemini-embedding-2` (1536 dimensions). Everything below is in
+`docs/evidence/ai-eval/` (README there: what was captured during a run and what was reconstructed). Two runs of each
+evaluation were made; **both are reported**. Cost is **unknown/unconfigured** (no price settings): a ledger `0` is "could not be
+priced", never "free". The test and evaluation code ignores `.env` files: run with `uv run --env-file ../.env`.
+
+**Proposal evaluation (the gate): PASS in both runs.**
+
+| | Run 1 (15:20Z) | Run 2 (15:30Z) |
+|---|---|---|
+| Items attempted / completed / published | 16 / 16 / 16 | 16 / 16 / 16 |
+| Schema-valid without repair | 15 of 16 (94%) | 15 of 16 (94%) |
+| **Schema-valid with at most one repair** (the gate, line 90%) | **16 of 16 (100%)** | **16 of 16 (100%)** |
+| Item that needed the repair | `edit-end-summary` (`wrong_operation_count`) | `edit-diagram` (`diagram_html_not_allowed`) |
+| Resolving (hashes, anchors, replay) | 16 of 16 | 16 of 16 |
+| Failed provider calls | 0 | 0 |
+| Calls / tokens (per-request ledger) | 24 calls (17 generation), 25,434 in / 9,205 out | 24 calls (17 generation), 25,568 in / 10,093 out |
+| Latency p50 / p95 | 6.11 s / 22.42 s | 6.63 s / 26.55 s |
+
+The failure-denominator question does not arise: nothing failed. Which item needs the repair changes from run to run; the rate
+did not. Six of the 16 gold items carry a defect that only the stub injects (to exercise the repair loop); the real model never
+receives it, so the repair path ran for real once per run. Citation validity was 100% where a proposal cites sources.
+
+**Answer evaluation (13 questions, 4 synthetic sources). Existing thresholds: none.** The evaluator's only assertions are that
+every source-analysis job succeeded and that at least one question published, so pytest exit 0 (both runs, 100 s and 98 s) means
+"the harness worked", **not** "the answers were good". Every metric below is reported as measured, not gated.
+
+| Metric (as the evaluator defines it) | Run 1 | Run 2 |
+|---|---|---|
+| Requests that published an answer | 13/13 | 13/13 |
+| Retrieval recall@1 / @3 / @5 (mean share of required phrases found in the top k passages) | 85% / 100% / 100% | 85% / 100% / 100% |
+| Evidence recall (anywhere in the evidence sent to the model) | 100% | 100% |
+| OCR character accuracy (3 scanned pages) | 92% | 92% |
+| Citations with no invalid reference and no dropped quote (the system's own validation) | 100% | 100% |
+| Answers that cite the expected source(s) / cited text contains the required phrase | 100% / 100% | 100% / 100% |
+| Schema-valid without a repair call | 100% | 100% |
+| Diagrams published / that parse as Mermaid; figure questions citing a figure; full section coverage | 100% each | 100% each |
+| Latency p50 / p95 | 5.31 s / 11.38 s | 5.07 s / 10.51 s |
+| Calls and tokens attributed to the 13 requests | 38 calls, 20,897 in / 2,630 out | 38 calls, 20,769 in / 2,714 out |
+| Failed provider calls (run-wide ledger) | **1** | **2** |
+
+The recall@1 shortfall is the same two questions both times: `qa-two-sources` (two required phrases from two sources cannot both be
+the single top passage: 0.5) and `diagram-release` (0.0 at 1, 1.0 at 3).
+
+**A failure the report does not show.** The failed calls are the **task classifier**, `provider_output_truncated`: it is capped at
+`max_output_tokens=50` (`app/ai/answer/execute.py`, `_classify`) and the model's reply did not fit. They happened only on the diagram
+requests (1 of 2 in run 1, 2 of 2 in run 2, none of the 22 other requests). By design a failed classification means "qa" and the
+request still publishes; for a diagram request that equals the expected strategy, so nothing visibly broke and "task classified as
+expected: 100%" could not reveal it. Left unchanged (the code under evaluation was not modified). It would matter for a summarise or
+compare request phrased in a way that also overruns the cap: it would silently be answered as a question. Recommended next steps: raise
+the cap or retry once on `provider_output_truncated`, and add the failed-call count to the report.
+
+**Reproducibility.** Run 2 of each evaluation wrote a manifest (`backend/tests/eval/manifest.py`): commit and working-tree state,
+dataset fingerprints, prompt template versions (`answer-v1`, `edit-v1`, parser `extract-v1`) and prompt and schema file hashes, the
+allowlisted configuration, requested and ledger-recorded models, the run-wide usage ledger, request ids, per-case results, and the
+published answers with their citations. Run 1 predates that; its manifests are reconstructed, labelled, and mark what could not be
+recovered as `unavailable`. The harness records only; no question, expected phrase, score or threshold was changed.
+
+### 22.3 The workflow through the normal interface with real inference
+
+`frontend/e2e/ai-real.spec.ts` (`E2E_AI=real`: keys from `.env`, no stand-in started, no base URL overridden; the usage ledger shows
+`openai / gpt-6-luna` and `google / gemini-embedding-2` calls with provider-reported tokens, all `ok`, and nothing listened on the
+stand-in's port). Three authenticated browsers (owner, editor, viewer), one run, passed:
+
+* two files uploaded through the interface, only `ops.md` ticked; `@AI` asked a question; the answer contained the fact and cited
+  `ops.md`, and did not cite the unchosen `fleet.md` (request `ec548b12-…`, `succeeded`);
+* an edit proposal (request `e728be30-…`, proposal `73e8cd98-…`) previewed, applied (`applied`, receipt written), and visible in the
+  second browser and to the viewer;
+* the viewer's replay of the owner's own request payload and an apply attempt were both refused (403);
+* a second proposal (request `62261bae-…`, proposal `9128eb2c-…`) whose target the second browser edited before Apply ended
+  `conflicted / block_changed`, with the document unchanged by it.
+
+The assertions are on content (the fact, the cited source, the changed document), not the model's wording. It took three attempts: two
+mistakes in the spec itself (the viewer's badge reads "Read-only"; the file input takes one file at a time), fixed before the run
+that passed. One browser engine (Chromium), one run. The pairing of requests to proposals above is by creation order: the e2e database
+was emptied by the next browser run before the link could be queried again.
+
+### 22.4 What each result establishes (and does not)
+
+| Kind of result | What it is | What it is not |
+|---|---|---|
+| **Proposal schema validity** | The model's reply became typed operations that the shared document engine accepted against the captured document (22.2) | Not a judgement that the edit is correct or useful |
+| **Retrieval recall, answer-citation checks** | String containment: required phrases among retrieved passages, in the cited excerpt, expected source named; the system's quote validation | Not a check that the answer says what the source says |
+| **Mechanical citation validity** | No invalid reference, no dropped quote (the system's own check) | Not semantic support |
+| **Human assessment of factual support and usefulness** | **None was performed.** | |
+| *Assistant's reading (not a human assessment)* | I read all 13 run-2 answers against their cited passages and the 16 run-2 proposal previews against their instructions and sources (the three drafts only as far as their first blocks). All 13 answers were supported by the passages they cite (including a correct "the third gate is not described" gap and an OCR caution); the depot table and build/deploy content matched the sources; the reviewed document holds exactly one risk and the answer listed it. One usefulness weakness: `edit-end-summary` produced a valid but vacuous closing paragraph | A person should review a sample: this reading was done by the same system family that produced the output |
+| **Real-browser verification** | 22.3 (real providers, normal interface, three sessions) and 22.5 | One engine, one run each |
+| **Offline-edit recovery** | 22.5 and 19.6 | Text the browser never recorded is not covered |
+
+### 22.5 Offline-edit recovery, verified end to end
+
+Earlier recovery checks used the stub as the AI. The remaining gap, a **real** model's replacement, is closed by
+`frontend/e2e/ai-real-recovery.spec.ts`: a second browser offline (socket barrier) types inside a paragraph; the owner has the real
+model rewrite it and applies it; the second browser reconnects. The model's text is intact in both browsers, the offline words are in
+neither document, only the typist is told, and **Insert into the document** puts them back once and both converge (ledger: one
+`gpt-6-luna` answer call, 1,313 in / 252 out). Re-run after all other edits, sequentially: the real-server integration test
+(`collab/test/pending-recovery.test.ts`, 6, real Hocuspocus, apply code and PostgreSQL), and the stub-mode browser specs
+`pending-recovery` (2: capture and insert, reload and discard), `ai-access` (1) and `ai-proposals` (4), all passing, which also
+confirms the stub default is unchanged by the real-mode switch.
+
+### 22.6 Remaining limitations
+
+* The classifier truncation above (3 failed calls in 26 requests, all diagram requests); cost unknown; no human review of answers or proposals.
+* Two runs of each evaluation on small sets (16 and 13 items): a few points of difference are noise. The gold set contains stub-only defects.
+* Real inference was exercised in Chromium only; Firefox runs only the stub-mode editor specs.
+* Run 1's evidence is reconstructed (see the evidence README). The backend test suite was not re-run: no application code changed (only `backend/tests/eval/` and its new manifest module); collection, the metric tests and lint were re-checked.
+* Text the browser never recorded (a crash, a killed tab, another tab or device) is still not recoverable (19.6).

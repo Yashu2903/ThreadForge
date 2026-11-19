@@ -1,0 +1,1918 @@
+{
+  "mode": "real",
+  "ocr": 0.9191063174114021,
+  "analysis": {
+    "depots.pdf": {
+      "state": "ready",
+      "chunk_count": 8,
+      "figure_count": 0,
+      "warnings": []
+    },
+    "march-scan.pdf": {
+      "state": "ready",
+      "chunk_count": 2,
+      "figure_count": 0,
+      "warnings": []
+    },
+    "handbook.docx": {
+      "state": "ready",
+      "chunk_count": 6,
+      "figure_count": 1,
+      "warnings": []
+    },
+    "release.md": {
+      "state": "ready",
+      "chunk_count": 4,
+      "figure_count": 0,
+      "warnings": []
+    }
+  },
+  "records": [
+    {
+      "id": "qa-berlin",
+      "task": "qa",
+      "http_status": 201,
+      "request_id": "efa73d1c-34cc-48b8-ab3a-f0884e0a0926",
+      "latency_s": 5.067002399999183,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "efa73d1c-34cc-48b8-ab3a-f0884e0a0926",
+        "reply_message_id": "a3a73d2d-6fd2-4340-ac46-d95d6d669d49",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The Berlin depot handled 4,200 parcels in May.",
+              "type": "paragraph",
+              "citations": [
+                1
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [
+              "The Berlin depot handled 4200 parcels in May."
+            ],
+            "excerpt": "Berlin depot report for May. The Berlin depot handled 4200 parcels in May. Staffing at the Berlin depot rose by six people after the spring hiring round. Shift leads at the Berlin depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Berlin d",
+            "locator": {
+              "page_end": 1,
+              "page_start": 1,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "3fe920ba-feed-421c-b7bf-3c263f486549"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "depots.pdf",
+              "figures_total": 0,
+              "passages_used": 8,
+              "sections_read": 1,
+              "sections_total": 1,
+              "figures_examined": 0,
+              "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:24.837789Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2469,
+        "output_tokens": 88,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-lisbon-storms",
+      "task": "qa",
+      "http_status": 201,
+      "request_id": "6a3579d7-1f46-4f60-9777-63edee420c56",
+      "latency_s": 4.246331800008193,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "6a3579d7-1f46-4f60-9777-63edee420c56",
+        "reply_message_id": "090e2ea7-70e7-451c-bd60-8b0bcc493c26",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The Lisbon depot closed early twice because of storms.",
+              "type": "paragraph",
+              "citations": [
+                1
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [
+              "The Lisbon depot closed early twice because of storms."
+            ],
+            "excerpt": "in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week.\nLisbon depot report for May. The Lisbon depot handled 3100 parcels in May. The Lisbon depot closed early twice because of storms. Shift leads at the Lisbon depot reviewed loading bays, sortin",
+            "locator": {
+              "page_end": 2,
+              "page_start": 2,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "34f7b1c3-cfcc-4497-9acf-27a180519376"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "depots.pdf",
+              "figures_total": 0,
+              "passages_used": 8,
+              "sections_read": 1,
+              "sections_total": 1,
+              "figures_examined": 0,
+              "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:29.218816Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2460,
+        "output_tokens": 85,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-scan-orders",
+      "task": "qa",
+      "http_status": 201,
+      "request_id": "06b745d3-9cb6-4533-8032-86dbc418ec87",
+      "latency_s": 4.6197240999899805,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "06b745d3-9cb6-4533-8032-86dbc418ec87",
+        "reply_message_id": "5d3c9138-42e4-4676-beb5-169ccc76b170",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The warehouse processed twelve thousand orders in March.",
+              "type": "paragraph",
+              "citations": [
+                1
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [],
+            "excerpt": "Quarterly operations review for the northern region\nThe warehouse processed twelve thousand orders in March.\nDelivery delays were caused by a shortage of drivers.\nManagement approved additional hiring for the summer season. Customer satisfaction improved after the new tracking system launched. Retur",
+            "locator": {
+              "page_end": 2,
+              "page_start": 1,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "8b7bd2a7-8ce7-4bf6-a883-29b9b0fb14c7"
+            ],
+            "extraction": "tesseract",
+            "source_name": "march-scan.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": true,
+            "source_version_id": "4c438e17-ffbd-4ba7-9c4d-2482d9e25313"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "march-scan.pdf",
+              "figures_total": 0,
+              "passages_used": 2,
+              "sections_read": 1,
+              "sections_total": 1,
+              "figures_examined": 0,
+              "source_version_id": "4c438e17-ffbd-4ba7-9c4d-2482d9e25313"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:33.976500Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1171,
+        "output_tokens": 75,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-scan-delays",
+      "task": "qa",
+      "http_status": 201,
+      "request_id": "a14df03b-6f9c-44db-94f8-e0baba61b596",
+      "latency_s": 5.215258100011852,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "a14df03b-6f9c-44db-94f8-e0baba61b596",
+        "reply_message_id": "dd093a70-cc1b-4b85-a150-94355f582ce3",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The review says delivery delays were caused by a shortage of drivers.",
+              "type": "paragraph",
+              "citations": [
+                1
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [],
+            "excerpt": "Quarterly operations review for the northern region\nThe warehouse processed twelve thousand orders in March.\nDelivery delays were caused by a shortage of drivers.\nManagement approved additional hiring for the summer season. Customer satisfaction improved after the new tracking system launched. Retur",
+            "locator": {
+              "page_end": 2,
+              "page_start": 1,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "8b7bd2a7-8ce7-4bf6-a883-29b9b0fb14c7"
+            ],
+            "extraction": "tesseract",
+            "source_name": "march-scan.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": true,
+            "source_version_id": "4c438e17-ffbd-4ba7-9c4d-2482d9e25313"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "march-scan.pdf",
+              "figures_total": 0,
+              "passages_used": 2,
+              "sections_read": 1,
+              "sections_total": 1,
+              "figures_examined": 0,
+              "source_version_id": "4c438e17-ffbd-4ba7-9c4d-2482d9e25313"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:39.171134Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1153,
+        "output_tokens": 79,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-md-owner",
+      "task": "qa",
+      "http_status": 201,
+      "request_id": "c137546f-7c3c-4d6a-b4e2-372ae747ad4c",
+      "latency_s": 5.068103400000837,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "c137546f-7c3c-4d6a-b4e2-372ae747ad4c",
+        "reply_message_id": "9983a045-ed48-445e-aad7-d1e6cb9116c2",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "Bob owns the deploy step.",
+              "type": "paragraph",
+              "citations": [
+                1
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [
+              "Deploy | Bob"
+            ],
+            "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ]
+            },
+            "chunk_ids": [
+              "c6d25a92-e816-4fd7-95be-2922529ae3bc"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "release.md",
+              "figures_total": 0,
+              "passages_used": 4,
+              "sections_read": 3,
+              "sections_total": 3,
+              "figures_examined": 0,
+              "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:44.329123Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 980,
+        "output_tokens": 87,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-md-restart",
+      "task": "qa",
+      "http_status": 201,
+      "request_id": "a97d0f92-fbd3-4ec8-80c5-25d8c24105fb",
+      "latency_s": 5.0215638000227045,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "a97d0f92-fbd3-4ec8-80c5-25d8c24105fb",
+        "reply_message_id": "dedc2b4a-e4a7-47b2-abd4-7d5af0543164",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The deploy step restarts the workers one at a time.",
+              "type": "paragraph",
+              "citations": [
+                1
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [
+              "The deploy step restarts the workers one at a time."
+            ],
+            "excerpt": "The deploy step restarts the workers one at a time.",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ]
+            },
+            "chunk_ids": [
+              "5904f3a9-3fae-438c-a333-53efb56a0b13"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "release.md",
+              "figures_total": 0,
+              "passages_used": 4,
+              "sections_read": 3,
+              "sections_total": 3,
+              "figures_examined": 0,
+              "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:49.467887Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 982,
+        "output_tokens": 153,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-two-sources",
+      "task": "qa",
+      "http_status": 201,
+      "request_id": "c1d4df97-84af-4cf9-aa93-fe8b80d050e2",
+      "latency_s": 5.519477599998936,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "c1d4df97-84af-4cf9-aa93-fe8b80d050e2",
+        "reply_message_id": "c53e5895-3c5e-4bce-b171-9631f5841451",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 2,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "type": "bullet_list",
+              "items": [
+                {
+                  "text": "The Lisbon depot handled 3,100 parcels in May; the evidence does not give its parcel count for March.",
+                  "citations": [
+                    1
+                  ],
+                  "unsupported": false
+                },
+                {
+                  "text": "The warehouse processed 12,000 orders in March (the figure is from machine-read OCR and may contain errors).",
+                  "citations": [
+                    2
+                  ],
+                  "unsupported": false
+                }
+              ]
+            }
+          ],
+          "evidence_gaps": [
+            "The evidence does not state how many parcels the Lisbon depot handled in March."
+          ]
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P2",
+            "quotes": [
+              "The Lisbon depot handled 3100 parcels in May."
+            ],
+            "excerpt": "in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week.\nLisbon depot report for May. The Lisbon depot handled 3100 parcels in May. The Lisbon depot closed early twice because of storms. Shift leads at the Lisbon depot reviewed loading bays, sortin",
+            "locator": {
+              "page_end": 2,
+              "page_start": 2,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "34f7b1c3-cfcc-4497-9acf-27a180519376"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 2,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [],
+            "excerpt": "Quarterly operations review for the northern region\nThe warehouse processed twelve thousand orders in March.\nDelivery delays were caused by a shortage of drivers.\nManagement approved additional hiring for the summer season. Customer satisfaction improved after the new tracking system launched. Retur",
+            "locator": {
+              "page_end": 2,
+              "page_start": 1,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "8b7bd2a7-8ce7-4bf6-a883-29b9b0fb14c7"
+            ],
+            "extraction": "tesseract",
+            "source_name": "march-scan.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": true,
+            "source_version_id": "4c438e17-ffbd-4ba7-9c4d-2482d9e25313"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "depots.pdf",
+              "figures_total": 0,
+              "passages_used": 8,
+              "sections_read": 1,
+              "sections_total": 1,
+              "figures_examined": 0,
+              "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+            },
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "march-scan.pdf",
+              "figures_total": 0,
+              "passages_used": 2,
+              "sections_read": 1,
+              "sections_total": 1,
+              "figures_examined": 0,
+              "source_version_id": "4c438e17-ffbd-4ba7-9c4d-2482d9e25313"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:55.119780Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 0.5,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2799,
+        "output_tokens": 256,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "figure-handbook",
+      "task": "figure",
+      "http_status": 201,
+      "request_id": "63a2bd2c-d027-434c-807a-06ac62a85d80",
+      "latency_s": 4.570889800001169,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "63a2bd2c-d027-434c-807a-06ac62a85d80",
+        "reply_message_id": "59a802fd-9e5d-48ed-9c16-0c6fa58f279c",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The architecture diagram shows four components in sequence: Client \u2192 API \u2192 Worker \u2192 Database, connected by lines.",
+              "type": "paragraph",
+              "citations": [
+                1
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [],
+            "excerpt": "Figure 1, diagram: A horizontal diagram shows four light-blue rectangular boxes connected in sequence by black lines: Client, API, Worker, and Database.\nText in the figure: Client API Worker Database\nElements: Client; API; Worker; Database\nConnections: Client -> API; API -> Worker; Worker -> Databas",
+            "locator": {
+              "heading_path": [
+                "Section 2 overview",
+                "Details"
+              ],
+              "figure_number": 1
+            },
+            "chunk_ids": [
+              "80f5045f-42fe-42ba-be55-b6b51b3b2d30"
+            ],
+            "extraction": "vision",
+            "source_name": "handbook.docx",
+            "low_agreement": false,
+            "figure_chunk_id": "80f5045f-42fe-42ba-be55-b6b51b3b2d30",
+            "machine_generated": true,
+            "source_version_id": "4ff1afde-cfc7-450d-bc40-3ec9717690d8"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "handbook.docx",
+              "figures_total": 1,
+              "passages_used": 6,
+              "sections_read": 4,
+              "sections_total": 5,
+              "figures_examined": 1,
+              "source_version_id": "4ff1afde-cfc7-450d-bc40-3ec9717690d8"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:33:59.818657Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": true,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1619,
+        "output_tokens": 105,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "summarize-release",
+      "task": "summarize",
+      "http_status": 201,
+      "request_id": "96c7aeab-aa71-40c6-bb36-f98c4b616336",
+      "latency_s": 10.114574900013395,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "96c7aeab-aa71-40c6-bb36-f98c4b616336",
+        "reply_message_id": "665ca58c-3cc6-4704-8779-727f09f95db5",
+        "task_type": "summarize",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The release process has three gates, but the material describes only Build and Deploy. Build compiles the sources and runs the unit tests; Alice owns Build. Bob owns Deploy, which restarts the workers one at a time.",
+              "type": "paragraph",
+              "citations": [
+                1,
+                2,
+                3
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": [
+            "The third gate is not named or described."
+          ]
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "section",
+            "label": "S1",
+            "quotes": [],
+            "excerpt": "Every release goes through three gates.",
+            "locator": {
+              "section_key": "Release process",
+              "heading_path": [
+                "Release process"
+              ]
+            },
+            "chunk_ids": [
+              "eb2e2c77-3bca-43fa-9e2e-9d65626a5242"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          },
+          {
+            "n": 2,
+            "kind": "section",
+            "label": "S2",
+            "quotes": [],
+            "excerpt": "The Build gate compiles the sources and runs the unit tests.",
+            "locator": {
+              "section_key": "Release process > Build",
+              "heading_path": [
+                "Release process",
+                "Build"
+              ]
+            },
+            "chunk_ids": [
+              "5b20a405-2d09-4f6a-95fa-0833470329a5"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          },
+          {
+            "n": 3,
+            "kind": "section",
+            "label": "S3",
+            "quotes": [],
+            "excerpt": "Alice owns Build and Bob owns Deploy. The Deploy step restarts the workers one at a time.",
+            "locator": {
+              "section_key": "Release process > Deploy",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ]
+            },
+            "chunk_ids": [
+              "c6d25a92-e816-4fd7-95be-2922529ae3bc",
+              "5904f3a9-3fae-438c-a333-53efb56a0b13"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          }
+        ],
+        "coverage": {
+          "task": "summarize",
+          "sources": [
+            {
+              "mode": "full",
+              "version_no": 1,
+              "source_name": "release.md",
+              "figures_total": 0,
+              "sections_read": 3,
+              "sections_total": 3,
+              "figures_examined": 0,
+              "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:34:09.901217Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "summarize",
+      "task_ok": true,
+      "recall": {
+        "@1": null,
+        "@3": null,
+        "@5": null,
+        "@evidence": null
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": null,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": true,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1195,
+        "output_tokens": 398,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "compare-depots-release",
+      "task": "compare",
+      "http_status": 201,
+      "request_id": "8b375a44-3ec9-4e26-af60-f607f3773485",
+      "latency_s": 10.509748900018167,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "8b375a44-3ec9-4e26-af60-f607f3773485",
+        "reply_message_id": "c2f98da8-3559-4593-bb19-7d1780bd8fc1",
+        "task_type": "compare",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 3,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "text": "The depot report describes day-to-day operations through distinct roles and recurring routines: shift leads inspect operational areas each morning, drivers collect routes and scan parcels, and supervisors write weekly delay summaries. These routines recur across the listed depots, alongside local changes or disruptions such as staffing changes, equipment changes, or weather impacts.",
+              "type": "paragraph",
+              "citations": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "unsupported": false
+            },
+            {
+              "text": "The release process organizes work into three gates. It identifies Alice as the Build owner and Bob as the Deploy owner; Build includes compiling sources and running unit tests, while Deploy restarts workers one at a time.",
+              "type": "paragraph",
+              "citations": [
+                9,
+                10,
+                11,
+                12
+              ],
+              "unsupported": false
+            },
+            {
+              "text": "Both files present work as structured and assigned, but at different levels: the depot report emphasizes recurring operational roles and routines, while the release process emphasizes staged release work, named stage owners, and a controlled deployment sequence. The depot report does not describe release gates or build steps; the release process does not describe depot-style daily inspections, route collection, or weekly delay summaries.",
+              "type": "paragraph",
+              "citations": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "unsupported": false
+            }
+          ],
+          "evidence_gaps": [
+            "The release process says there are three gates, but the evidence only details Build and Deploy; it does not identify or explain the third gate."
+          ]
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [],
+            "excerpt": "in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week.\nLisbon depot report for May. The Lisbon depot handled 3100 parcels in May. The Lisbon depot closed early twice because of storms. Shift leads at the Lisbon depot reviewed loading bays, sortin",
+            "locator": {
+              "page_end": 2,
+              "page_start": 2,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "34f7b1c3-cfcc-4497-9acf-27a180519376"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 2,
+            "kind": "passage",
+            "label": "P2",
+            "quotes": [],
+            "excerpt": "in the tracking system, and the Lisbon supervisors wrote a short summary of delays at the end of every week.\nMadrid depot report for May. The Madrid depot handled 5100 parcels in May. The Madrid depot added a third sorting belt in April. Shift leads at the Madrid depot reviewed loading bays, sorting",
+            "locator": {
+              "page_end": 3,
+              "page_start": 3,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "67758001-bfba-4ff5-9a16-51f65dd46d78"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 3,
+            "kind": "passage",
+            "label": "P3",
+            "quotes": [],
+            "excerpt": "in the tracking system, and the Vienna supervisors wrote a short summary of delays at the end of every week.\nOslo depot report for May. The Oslo depot handled 1900 parcels in May. The Oslo depot paused night shifts during the ice warning. Shift leads at the Oslo depot reviewed loading bays, sorting ",
+            "locator": {
+              "page_end": 5,
+              "page_start": 5,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "379528a9-396c-4b3d-b732-00a684dec7eb"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 4,
+            "kind": "passage",
+            "label": "P4",
+            "quotes": [],
+            "excerpt": "in the tracking system, and the Madrid supervisors wrote a short summary of delays at the end of every week.\nVienna depot report for May. The Vienna depot handled 2800 parcels in May. The Vienna depot lost two delivery vans to a recall. Shift leads at the Vienna depot reviewed loading bays, sorting ",
+            "locator": {
+              "page_end": 4,
+              "page_start": 4,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "8a8bfe2b-e67f-4d2d-a14c-2665bac7f81e"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 5,
+            "kind": "passage",
+            "label": "P5",
+            "quotes": [],
+            "excerpt": "Berlin depot report for May. The Berlin depot handled 4200 parcels in May. Staffing at the Berlin depot rose by six people after the spring hiring round. Shift leads at the Berlin depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Berlin d",
+            "locator": {
+              "page_end": 1,
+              "page_start": 1,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "3fe920ba-feed-421c-b7bf-3c263f486549"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 6,
+            "kind": "passage",
+            "label": "P6",
+            "quotes": [],
+            "excerpt": "in the tracking system, and the Prague supervisors wrote a short summary of delays at the end of every week.\nRome depot report for May. The Rome depot handled 4700 parcels in May. The Rome depot trained twelve temporary packers. Shift leads at the Rome depot reviewed loading bays, sorting belts and ",
+            "locator": {
+              "page_end": 7,
+              "page_start": 7,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "72dea23a-fe4c-4fb7-a499-5b1ae82751ab"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 7,
+            "kind": "passage",
+            "label": "P7",
+            "quotes": [],
+            "excerpt": "in the tracking system, and the Oslo supervisors wrote a short summary of delays at the end of every week.\nPrague depot report for May. The Prague depot handled 3600 parcels in May. The Prague depot moved its returns desk to the east bay. Shift leads at the Prague depot reviewed loading bays, sortin",
+            "locator": {
+              "page_end": 6,
+              "page_start": 6,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "c263968e-7b3b-4120-bc4c-891f62a4a3b0"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 8,
+            "kind": "passage",
+            "label": "P8",
+            "quotes": [],
+            "excerpt": "in the tracking system, and the Rome supervisors wrote a short summary of delays at the end of every week.\nParis depot report for May. The Paris depot handled 6100 parcels in May. The Paris depot opened a second loading dock on the river side. Shift leads at the Paris depot reviewed loading bays, so",
+            "locator": {
+              "page_end": 8,
+              "page_start": 8,
+              "heading_path": []
+            },
+            "chunk_ids": [
+              "f4dbdbb2-9918-4de2-a323-d66007f0438d"
+            ],
+            "extraction": "text_layer",
+            "source_name": "depots.pdf",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+          },
+          {
+            "n": 9,
+            "kind": "passage",
+            "label": "P9",
+            "quotes": [],
+            "excerpt": "Release process\nEvery release goes through three gates.",
+            "locator": {
+              "heading_path": [
+                "Release process"
+              ]
+            },
+            "chunk_ids": [
+              "eb2e2c77-3bca-43fa-9e2e-9d65626a5242"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          },
+          {
+            "n": 10,
+            "kind": "passage",
+            "label": "P10",
+            "quotes": [],
+            "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ]
+            },
+            "chunk_ids": [
+              "c6d25a92-e816-4fd7-95be-2922529ae3bc"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          },
+          {
+            "n": 11,
+            "kind": "passage",
+            "label": "P11",
+            "quotes": [],
+            "excerpt": "The deploy step restarts the workers one at a time.",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ]
+            },
+            "chunk_ids": [
+              "5904f3a9-3fae-438c-a333-53efb56a0b13"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          },
+          {
+            "n": 12,
+            "kind": "passage",
+            "label": "P12",
+            "quotes": [],
+            "excerpt": "Build\n- compile the sources\n- run the unit tests",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Build"
+              ]
+            },
+            "chunk_ids": [
+              "5b20a405-2d09-4f6a-95fa-0833470329a5"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          }
+        ],
+        "coverage": {
+          "task": "compare",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "depots.pdf",
+              "figures_total": 0,
+              "passages_used": 8,
+              "sections_read": 1,
+              "sections_total": 1,
+              "figures_examined": 0,
+              "source_version_id": "5c5b8fca-2e76-4e89-ae7a-01a8feda7cb2"
+            },
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "release.md",
+              "figures_total": 0,
+              "passages_used": 4,
+              "sections_read": 3,
+              "sections_total": 3,
+              "figures_examined": 0,
+              "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:34:20.575094Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "compare",
+      "task_ok": true,
+      "recall": {
+        "@1": null,
+        "@3": null,
+        "@5": null,
+        "@evidence": null
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": null,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": true,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2647,
+        "output_tokens": 768,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "review-launch-plan",
+      "task": "review",
+      "http_status": 201,
+      "request_id": "9c5f4ba2-a96b-485f-ba06-d5d54a72a7c6",
+      "latency_s": 4.636870900023496,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "9c5f4ba2-a96b-485f-ba06-d5d54a72a7c6",
+        "reply_message_id": "5c51de95-c126-4054-9511-975e1e280674",
+        "task_type": "document_review",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "type": "bullet_list",
+              "items": [
+                {
+                  "text": "Vendor delays could slip the schedule.",
+                  "citations": [
+                    1
+                  ],
+                  "unsupported": false
+                }
+              ]
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "document",
+            "label": "D5",
+            "quotes": [
+              "Vendor delays could slip the schedule."
+            ],
+            "excerpt": "Vendor delays could slip the schedule.",
+            "locator": {
+              "block_id": "9d890001-1f87-5207-bd66-eef9afb5428e",
+              "block_type": "paragraph"
+            },
+            "chunk_ids": [],
+            "extraction": "plain",
+            "source_name": "the open document",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": null
+          }
+        ],
+        "coverage": {
+          "task": "document_review",
+          "document": {
+            "mode": "full",
+            "scope": "whole",
+            "document_id": "aafc5674-d37c-452e-9bf2-eb5e09a27bfc",
+            "blocks_total": 5,
+            "blocks_included": 5,
+            "captured_update_counter": 7
+          },
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:34:25.323608Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "document_review",
+      "task_ok": true,
+      "recall": {
+        "@1": null,
+        "@3": null,
+        "@5": null,
+        "@evidence": null
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": null,
+      "cited_text_has_needles": null,
+      "figure_cited": null,
+      "document_cited": true,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 956,
+        "output_tokens": 232,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "diagram-release",
+      "task": "diagram",
+      "http_status": 201,
+      "request_id": "b01201ba-2b91-4afa-a871-9fa0f23c407d",
+      "latency_s": 8.319364599999972,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "b01201ba-2b91-4afa-a871-9fa0f23c407d",
+        "reply_message_id": "67da1439-11a3-45e1-988a-d6e869b87116",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "type": "diagram",
+              "title": "",
+              "mermaid": "flowchart TD\n    A[Build] --> B[Compile the sources]\n    B --> C[Run the unit tests]\n    C --> D[Deploy]\n    D --> E[Restart workers one at a time]",
+              "citations": [
+                1,
+                2,
+                3
+              ],
+              "unsupported": false,
+              "render_error": null,
+              "render_status": "ok"
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [],
+            "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ]
+            },
+            "chunk_ids": [
+              "c6d25a92-e816-4fd7-95be-2922529ae3bc"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          },
+          {
+            "n": 2,
+            "kind": "passage",
+            "label": "P2",
+            "quotes": [],
+            "excerpt": "Build\n- compile the sources\n- run the unit tests",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Build"
+              ]
+            },
+            "chunk_ids": [
+              "5b20a405-2d09-4f6a-95fa-0833470329a5"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          },
+          {
+            "n": 3,
+            "kind": "passage",
+            "label": "P3",
+            "quotes": [],
+            "excerpt": "The deploy step restarts the workers one at a time.",
+            "locator": {
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ]
+            },
+            "chunk_ids": [
+              "5904f3a9-3fae-438c-a333-53efb56a0b13"
+            ],
+            "extraction": "plain",
+            "source_name": "release.md",
+            "low_agreement": false,
+            "figure_chunk_id": null,
+            "machine_generated": false,
+            "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "release.md",
+              "figures_total": 0,
+              "passages_used": 4,
+              "sections_read": 3,
+              "sections_total": 3,
+              "figures_examined": 0,
+              "source_version_id": "ea138377-e11c-4b1f-a95e-28ddb7c7b7ec"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:34:33.827365Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 0.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": true,
+      "diagram_renders": true,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 857,
+        "output_tokens": 247,
+        "cost_micros": 0,
+        "failed_calls": 1
+      }
+    },
+    {
+      "id": "diagram-architecture",
+      "task": "diagram",
+      "http_status": 201,
+      "request_id": "55029abc-6389-4bc8-9949-d496a7d03e3b",
+      "latency_s": 7.777050899981987,
+      "outcomes": [
+        "request:published"
+      ],
+      "result": {
+        "request_id": "55029abc-6389-4bc8-9949-d496a7d03e3b",
+        "reply_message_id": "07ab8bec-275a-4b2b-b2f1-e4bd03bc3562",
+        "task_type": "qa",
+        "proposal_id": null,
+        "redacted": false,
+        "answer": {
+          "stats": {
+            "claims": 1,
+            "unsupported": 0,
+            "dropped_quotes": 0,
+            "invalid_citations": 0
+          },
+          "blocks": [
+            {
+              "type": "diagram",
+              "title": "",
+              "mermaid": "flowchart LR\n  Client --> API --> Worker --> Database",
+              "citations": [
+                1
+              ],
+              "unsupported": false,
+              "render_error": null,
+              "render_status": "ok"
+            }
+          ],
+          "evidence_gaps": []
+        },
+        "citations": [
+          {
+            "n": 1,
+            "kind": "passage",
+            "label": "P1",
+            "quotes": [],
+            "excerpt": "Figure 1, diagram: A horizontal diagram shows four light-blue rectangular boxes connected in sequence by black lines: Client, API, Worker, and Database.\nText in the figure: Client API Worker Database\nElements: Client; API; Worker; Database\nConnections: Client -> API; API -> Worker; Worker -> Databas",
+            "locator": {
+              "heading_path": [
+                "Section 2 overview",
+                "Details"
+              ],
+              "figure_number": 1
+            },
+            "chunk_ids": [
+              "80f5045f-42fe-42ba-be55-b6b51b3b2d30"
+            ],
+            "extraction": "vision",
+            "source_name": "handbook.docx",
+            "low_agreement": false,
+            "figure_chunk_id": "80f5045f-42fe-42ba-be55-b6b51b3b2d30",
+            "machine_generated": true,
+            "source_version_id": "4ff1afde-cfc7-450d-bc40-3ec9717690d8"
+          }
+        ],
+        "coverage": {
+          "task": "qa",
+          "sources": [
+            {
+              "mode": "retrieval",
+              "version_no": 1,
+              "source_name": "handbook.docx",
+              "figures_total": 1,
+              "passages_used": 6,
+              "sections_read": 4,
+              "sections_total": 5,
+              "figures_examined": 1,
+              "source_version_id": "4ff1afde-cfc7-450d-bc40-3ec9717690d8"
+            }
+          ],
+          "chat_messages_included": 0
+        },
+        "models": {
+          "prompt": "answer-v1",
+          "embedding": "gemini-embedding-2",
+          "generation": "gpt-6-luna"
+        },
+        "created_at": "2026-11-19T15:34:41.585311Z",
+        "citation_text_visible": true
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": true,
+      "document_cited": null,
+      "diagram_published": true,
+      "diagram_renders": true,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1481,
+        "output_tokens": 141,
+        "cost_micros": 0,
+        "failed_calls": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,513 @@
+{
+  "mode": "real",
+  "ocr": 0.9191063174114021,
+  "analysis": {
+    "depots.pdf": {
+      "state": "ready",
+      "chunk_count": 8,
+      "figure_count": 0,
+      "warnings": []
+    },
+    "march-scan.pdf": {
+      "state": "ready",
+      "chunk_count": 2,
+      "figure_count": 0,
+      "warnings": []
+    },
+    "handbook.docx": {
+      "state": "ready",
+      "chunk_count": 6,
+      "figure_count": 1,
+      "warnings": []
+    },
+    "release.md": {
+      "state": "ready",
+      "chunk_count": 4,
+      "figure_count": 0,
+      "warnings": []
+    }
+  },
+  "records": [
+    {
+      "id": "qa-berlin",
+      "task": "qa",
+      "http_status": 201,
+      "latency_s": 4.448041399999056,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2475,
+        "output_tokens": 110,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-lisbon-storms",
+      "task": "qa",
+      "http_status": 201,
+      "latency_s": 4.041442799993092,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2456,
+        "output_tokens": 93,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-scan-orders",
+      "task": "qa",
+      "http_status": 201,
+      "latency_s": 3.915862499998184,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1169,
+        "output_tokens": 75,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-scan-delays",
+      "task": "qa",
+      "http_status": 201,
+      "latency_s": 5.2137258000147995,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1151,
+        "output_tokens": 90,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-md-owner",
+      "task": "qa",
+      "http_status": 201,
+      "latency_s": 4.115689700003713,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 974,
+        "output_tokens": 89,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-md-restart",
+      "task": "qa",
+      "http_status": 201,
+      "latency_s": 3.5352794000064023,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 988,
+        "output_tokens": 109,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "qa-two-sources",
+      "task": "qa",
+      "http_status": 201,
+      "latency_s": 5.388606299995445,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 0.5,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2791,
+        "output_tokens": 219,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "figure-handbook",
+      "task": "figure",
+      "http_status": 201,
+      "latency_s": 5.313615100021707,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": true,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1624,
+        "output_tokens": 161,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "summarize-release",
+      "task": "summarize",
+      "http_status": 201,
+      "latency_s": 8.036230800003977,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "summarize",
+      "task_ok": true,
+      "recall": {
+        "@1": null,
+        "@3": null,
+        "@5": null,
+        "@evidence": null
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": null,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": true,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1189,
+        "output_tokens": 287,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "compare-depots-release",
+      "task": "compare",
+      "http_status": 201,
+      "latency_s": 11.383245800010627,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "compare",
+      "task_ok": true,
+      "recall": {
+        "@1": null,
+        "@3": null,
+        "@5": null,
+        "@evidence": null
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": null,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": true,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 2653,
+        "output_tokens": 687,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "review-launch-plan",
+      "task": "review",
+      "http_status": 201,
+      "latency_s": 5.987125000014203,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "document_review",
+      "task_ok": true,
+      "recall": {
+        "@1": null,
+        "@3": null,
+        "@5": null,
+        "@evidence": null
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": null,
+      "cited_text_has_needles": null,
+      "figure_cited": null,
+      "document_cited": true,
+      "diagram_published": null,
+      "diagram_renders": null,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 952,
+        "output_tokens": 210,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    },
+    {
+      "id": "diagram-release",
+      "task": "diagram",
+      "http_status": 201,
+      "latency_s": 11.128199900005711,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 0.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": null,
+      "document_cited": null,
+      "diagram_published": true,
+      "diagram_renders": true,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 859,
+        "output_tokens": 307,
+        "cost_micros": 0,
+        "failed_calls": 1
+      }
+    },
+    {
+      "id": "diagram-architecture",
+      "task": "diagram",
+      "http_status": 201,
+      "latency_s": 8.107906000019284,
+      "outcomes": [
+        "request:published"
+      ],
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "task_ok": true,
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0,
+        "@evidence": 1.0
+      },
+      "citation_clean": true,
+      "answer_calls": 1,
+      "no_repair": true,
+      "cites_expected_sources": true,
+      "cited_text_has_needles": true,
+      "figure_cited": true,
+      "document_cited": null,
+      "diagram_published": true,
+      "diagram_renders": true,
+      "coverage_full": null,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1616,
+        "output_tokens": 193,
+        "cost_micros": 0,
+        "failed_calls": 0
+      }
+    }
+  ]
+}
