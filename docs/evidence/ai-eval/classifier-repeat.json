@@ -1,0 +1,2802 @@
+{
+  "kind": "classifier-repeat",
+  "evaluator": "classifier_repeat v1 (diagnostic, not acceptance)",
+  "start_stage": {
+    "started_utc": "2026-11-19T20:26:14.266526+00:00",
+    "git": {
+      "commit": "70fb7d1620706a3131a2fc68754ea52940e185b0",
+      "branch": "verification-pass-recovery",
+      "working_tree_clean": false,
+      "changed_or_untracked_paths": [
+        "backend/tests/eval/diagnostics/"
+      ],
+      "tracked_code_diff_sha256": "no tracked changes outside docs"
+    },
+    "config": {
+      "ai_llm_model": "gpt-6-luna",
+      "ai_embed_model": "gemini-embedding-2",
+      "ai_embed_dimensions": 1536,
+      "ai_embed_max_input_tokens": 8192,
+      "ai_llm_context_tokens": 1050000,
+      "ai_llm_max_output_tokens": 128000,
+      "ai_llm_structured_output": true,
+      "ai_llm_reasoning_effort": "",
+      "ai_classifier_max_output_tokens": 512,
+      "ai_classifier_reasoning_effort": "",
+      "ai_max_input_tokens": 200000,
+      "ai_max_output_tokens": 8000,
+      "ai_max_provider_calls": 40,
+      "ai_call_timeout_seconds": 120.0,
+      "ai_retry_max_attempts": 4,
+      "ai_key_concurrency": 4,
+      "ai_key_policy": "server_only",
+      "ai_proposals_enabled": false,
+      "ai_retrieval_lexical_k": 20,
+      "ai_retrieval_vector_k": 20,
+      "ai_retrieval_rrf_k": 60,
+      "ai_retrieval_evidence_tokens": 24000,
+      "ai_retrieval_max_distance": 0.6,
+      "ai_chunk_target_tokens": 400,
+      "ai_chunk_max_tokens": 900,
+      "ai_chunk_overlap_tokens": 40,
+      "ai_openai_base_url": "https://api.openai.com",
+      "ai_google_base_url": "https://generativelanguage.googleapis.com",
+      "ai_prices_checked_on": ""
+    },
+    "prompt_and_schema_hashes": {
+      "answer_prompt_template_version": "answer-v1",
+      "edit_prompt_template_version": "edit-v1",
+      "parser_version": "extract-v1",
+      "classify_schema_sha256": "2b15a848d3cfae4b10ea074fb5c80ae97737d319197fcbde2c85e436539d3ce4",
+      "file_sha256": {
+        "answer_prompts": "a579675a3ce41f1e4e72a0fa6da7c086a430d00e590b2b65223517069c6f5599",
+        "answer_schema_and_validation": "53f6890a667ec0ba54a490f81cdc46620b5f8743deb630a03bef84ca7db3e47c",
+        "edit_prompts": "cd721b5453144c276acd311742a6301d7432498697b0c81758696e191de64c5c",
+        "edit_schema": "f723484f72249dbddbd8e8f4ffda62507f0ce7dad0ea5d82245c1512f48cd7c8"
+      }
+    },
+    "variants_sha256": "67cc85488908cb785ac6e9bb2ca48e65b1bbd07b0552192bbd5a0a7df1b0aa4a",
+    "arms": {
+      "default": {
+        "reasoning_effort_sent": null
+      },
+      "none": {
+        "reasoning_effort_sent": "none"
+      }
+    },
+    "repeats": 5,
+    "instructions": 18,
+    "planned_calls": 180,
+    "call_cap": 200,
+    "classifier_output_budget": 512
+  },
+  "completed_utc": "2026-11-19T20:27:19.223679+00:00",
+  "items": [
+    {
+      "id": "qa-berlin",
+      "source": "gold",
+      "instruction": "How many parcels did the Berlin depot handle in May?",
+      "expected": "qa"
+    },
+    {
+      "id": "qa-md-owner",
+      "source": "gold",
+      "instruction": "Who owns the deploy step?",
+      "expected": "qa"
+    },
+    {
+      "id": "figure-handbook",
+      "source": "gold",
+      "instruction": "What does the architecture diagram in the handbook show?",
+      "expected": "qa"
+    },
+    {
+      "id": "summarize-release",
+      "source": "gold",
+      "instruction": "Summarize the release process.",
+      "expected": "summarize"
+    },
+    {
+      "id": "compare-depots-release",
+      "source": "gold",
+      "instruction": "Compare what the depot report and the release process say about how work is organised.",
+      "expected": "compare"
+    },
+    {
+      "id": "review-launch-plan",
+      "source": "gold",
+      "instruction": "Review this document and list its risks.",
+      "expected": "document_review"
+    },
+    {
+      "id": "diagram-release",
+      "source": "gold",
+      "instruction": "Draw a flowchart of the build and deploy steps.",
+      "expected": "qa"
+    },
+    {
+      "id": "diagram-architecture",
+      "source": "gold",
+      "instruction": "Draw the architecture shown in the handbook diagram.",
+      "expected": "qa"
+    },
+    {
+      "id": "var-qa-owner",
+      "source": "variant",
+      "instruction": "Who is responsible for the deploy step in the release notes?",
+      "expected": "qa"
+    },
+    {
+      "id": "var-qa-count",
+      "source": "variant",
+      "instruction": "How many parcels did the Lisbon depot handle?",
+      "expected": "qa"
+    },
+    {
+      "id": "var-sum-overview",
+      "source": "variant",
+      "instruction": "Give me a short overview of the release notes.",
+      "expected": "summarize"
+    },
+    {
+      "id": "var-sum-bullets",
+      "source": "variant",
+      "instruction": "Summarize the depot report in three bullet points.",
+      "expected": "summarize"
+    },
+    {
+      "id": "var-cmp-differences",
+      "source": "variant",
+      "instruction": "What are the differences between the depot report and the release process?",
+      "expected": "compare"
+    },
+    {
+      "id": "var-rev-proofread",
+      "source": "variant",
+      "instruction": "Proofread this document and point out anything unclear.",
+      "expected": "document_review"
+    },
+    {
+      "id": "var-rev-critique",
+      "source": "variant",
+      "instruction": "Critique the plan I have open and tell me what is weak.",
+      "expected": "document_review"
+    },
+    {
+      "id": "var-dia-deploy",
+      "source": "variant",
+      "instruction": "Show the deployment steps as a flow diagram.",
+      "expected": "qa"
+    },
+    {
+      "id": "var-dia-release",
+      "source": "variant",
+      "instruction": "Make a flowchart of how a release goes out.",
+      "expected": "qa"
+    },
+    {
+      "id": "var-dia-system",
+      "source": "variant",
+      "instruction": "Sketch a diagram of the system described in the handbook.",
+      "expected": "qa"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "compare-depots-release",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 28,
+      "seconds": 1.02
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 0.84
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 1.93
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 1.03
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 29,
+      "seconds": 0.92
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 1.19
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 1.03
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 0.84
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 1.06
+    },
+    {
+      "id": "compare-depots-release",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 143,
+      "out": 13,
+      "seconds": 0.9
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 106,
+      "seconds": 1.82
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.82
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 61,
+      "seconds": 1.25
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.9
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.87
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.87
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.85
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.87
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.25
+    },
+    {
+      "id": "diagram-architecture",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.95
+    },
+    {
+      "id": "diagram-release",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 101,
+      "seconds": 1.76
+    },
+    {
+      "id": "diagram-release",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 107,
+      "seconds": 1.74
+    },
+    {
+      "id": "diagram-release",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 76,
+      "seconds": 1.6
+    },
+    {
+      "id": "diagram-release",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 89,
+      "seconds": 2.07
+    },
+    {
+      "id": "diagram-release",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 84,
+      "seconds": 1.51
+    },
+    {
+      "id": "diagram-release",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.88
+    },
+    {
+      "id": "diagram-release",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.87
+    },
+    {
+      "id": "diagram-release",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.05
+    },
+    {
+      "id": "diagram-release",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.87
+    },
+    {
+      "id": "diagram-release",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.86
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 1.21
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 29,
+      "seconds": 1.34
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 0.86
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 0.89
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 0.95
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 1.56
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 0.91
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 0.88
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 1.5
+    },
+    {
+      "id": "figure-handbook",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 13,
+      "seconds": 1.42
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.23
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.85
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.96
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.72
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.76
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.32
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.07
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.94
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.06
+    },
+    {
+      "id": "qa-berlin",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.92
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 1.31
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 0.87
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 1.01
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 32,
+      "seconds": 1.55
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 0.9
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 0.97
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 2.01
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 0.93
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 0.95
+    },
+    {
+      "id": "qa-md-owner",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 133,
+      "out": 13,
+      "seconds": 1.09
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 0.75
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 0.82
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 0.85
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 1.0
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 1.67
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 1.08
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 1.09
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 0.92
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 1.23
+    },
+    {
+      "id": "review-launch-plan",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 135,
+      "out": 14,
+      "seconds": 0.95
+    },
+    {
+      "id": "summarize-release",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 1.27
+    },
+    {
+      "id": "summarize-release",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 0.79
+    },
+    {
+      "id": "summarize-release",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 0.93
+    },
+    {
+      "id": "summarize-release",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 0.93
+    },
+    {
+      "id": "summarize-release",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 0.85
+    },
+    {
+      "id": "summarize-release",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 0.98
+    },
+    {
+      "id": "summarize-release",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 0.86
+    },
+    {
+      "id": "summarize-release",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 1.12
+    },
+    {
+      "id": "summarize-release",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 1.49
+    },
+    {
+      "id": "summarize-release",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 134,
+      "out": 15,
+      "seconds": 1.08
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 0.81
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 0.84
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 0.88
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 0.95
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 1.19
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 1.09
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 1.18
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 1.19
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 1.04
+    },
+    {
+      "id": "var-cmp-differences",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "compare",
+      "route": "compare",
+      "invalid": false,
+      "failure": null,
+      "in": 140,
+      "out": 13,
+      "seconds": 1.13
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 89,
+      "seconds": 1.44
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.87
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.79
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 114,
+      "seconds": 1.63
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.71
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.89
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.98
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.23
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.93
+    },
+    {
+      "id": "var-dia-deploy",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.94
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.11
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.7
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.06
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.93
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.77
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.94
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.93
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.03
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.97
+    },
+    {
+      "id": "var-dia-release",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.01
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 64,
+      "seconds": 1.43
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 58,
+      "seconds": 1.61
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.18
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.71
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 87,
+      "seconds": 1.69
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.98
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.27
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 1.02
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.83
+    },
+    {
+      "id": "var-dia-system",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 13,
+      "seconds": 0.94
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.78
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.48
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.01
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.83
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 26,
+      "seconds": 1.07
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.66
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.26
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.05
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 0.96
+    },
+    {
+      "id": "var-qa-count",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 136,
+      "out": 13,
+      "seconds": 1.0
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 0.99
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 0.9
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 1.02
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 0.88
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 1.16
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 0.92
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 0.95
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 1.09
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 1.14
+    },
+    {
+      "id": "var-qa-owner",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "qa",
+      "route": "qa",
+      "invalid": false,
+      "failure": null,
+      "in": 139,
+      "out": 13,
+      "seconds": 0.93
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 1.01
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 0.86
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 1.08
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 1.41
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 0.89
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 1.01
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 1.01
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 1.2
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 0.9
+    },
+    {
+      "id": "var-rev-critique",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 141,
+      "out": 14,
+      "seconds": 1.59
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.79
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.85
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.81
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.81
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.72
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 1.06
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.92
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 1.21
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.96
+    },
+    {
+      "id": "var-rev-proofread",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "document_review",
+      "route": "document_review",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 14,
+      "seconds": 0.88
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 0.7
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 0.77
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 1.12
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 0.82
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 1.6
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 0.95
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 0.9
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 1.52
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 1.02
+    },
+    {
+      "id": "var-sum-bullets",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 138,
+      "out": 15,
+      "seconds": 0.89
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "default",
+      "attempt": 1,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 0.84
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "default",
+      "attempt": 2,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 0.99
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "default",
+      "attempt": 3,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 1.22
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "default",
+      "attempt": 4,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 0.95
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "default",
+      "attempt": 5,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 0.97
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "none",
+      "attempt": 1,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 0.83
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "none",
+      "attempt": 2,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 0.94
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "none",
+      "attempt": 3,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 1.05
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "none",
+      "attempt": 4,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 1.61
+    },
+    {
+      "id": "var-sum-overview",
+      "arm": "none",
+      "attempt": 5,
+      "expected": "summarize",
+      "route": "summarize",
+      "invalid": false,
+      "failure": null,
+      "in": 137,
+      "out": 15,
+      "seconds": 0.9
+    }
+  ],
+  "summary": {
+    "per_item": {
+      "qa-berlin": {
+        "expected": "qa",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "qa-md-owner": {
+        "expected": "qa",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "figure-handbook": {
+        "expected": "qa",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "summarize-release": {
+        "expected": "summarize",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "summarize": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "summarize": 5
+          }
+        }
+      },
+      "compare-depots-release": {
+        "expected": "compare",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "compare": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "compare": 5
+          }
+        }
+      },
+      "review-launch-plan": {
+        "expected": "document_review",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "document_review": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "document_review": 5
+          }
+        }
+      },
+      "diagram-release": {
+        "expected": "qa",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 1,
+          "failures": 0,
+          "routes": {
+            "summarize": 4,
+            "qa": 1
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "diagram-architecture": {
+        "expected": "qa",
+        "source": "gold",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "var-qa-owner": {
+        "expected": "qa",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "var-qa-count": {
+        "expected": "qa",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "var-sum-overview": {
+        "expected": "summarize",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "summarize": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "summarize": 5
+          }
+        }
+      },
+      "var-sum-bullets": {
+        "expected": "summarize",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "summarize": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "summarize": 5
+          }
+        }
+      },
+      "var-cmp-differences": {
+        "expected": "compare",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "compare": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "compare": 5
+          }
+        }
+      },
+      "var-rev-proofread": {
+        "expected": "document_review",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "document_review": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "document_review": 5
+          }
+        }
+      },
+      "var-rev-critique": {
+        "expected": "document_review",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "document_review": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "document_review": 5
+          }
+        }
+      },
+      "var-dia-deploy": {
+        "expected": "qa",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 4,
+          "failures": 0,
+          "routes": {
+            "qa": 4,
+            "summarize": 1
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "var-dia-release": {
+        "expected": "qa",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      },
+      "var-dia-system": {
+        "expected": "qa",
+        "source": "variant",
+        "default": {
+          "attempts": 5,
+          "correct": 4,
+          "failures": 0,
+          "routes": {
+            "qa": 4,
+            "summarize": 1
+          }
+        },
+        "none": {
+          "attempts": 5,
+          "correct": 5,
+          "failures": 0,
+          "routes": {
+            "qa": 5
+          }
+        }
+      }
+    },
+    "per_route": {
+      "compare": {
+        "default": {
+          "attempts": 10,
+          "correct": 10,
+          "failures": 0
+        },
+        "none": {
+          "attempts": 10,
+          "correct": 10,
+          "failures": 0
+        }
+      },
+      "document_review": {
+        "default": {
+          "attempts": 15,
+          "correct": 15,
+          "failures": 0
+        },
+        "none": {
+          "attempts": 15,
+          "correct": 15,
+          "failures": 0
+        }
+      },
+      "qa": {
+        "default": {
+          "attempts": 50,
+          "correct": 44,
+          "failures": 0
+        },
+        "none": {
+          "attempts": 50,
+          "correct": 50,
+          "failures": 0
+        }
+      },
+      "summarize": {
+        "default": {
+          "attempts": 15,
+          "correct": 15,
+          "failures": 0
+        },
+        "none": {
+          "attempts": 15,
+          "correct": 15,
+          "failures": 0
+        }
+      }
+    },
+    "per_arm": {
+      "default": {
+        "attempts": 90,
+        "input_tokens": 12370,
+        "output_tokens_incl_hidden_reasoning": 2174,
+        "mean_output_tokens": 24.2,
+        "median_seconds": 0.95,
+        "max_seconds": 2.07,
+        "cost": {
+          "est_cost_micros": null,
+          "cost_status": "unpriced",
+          "unpriced_components": [
+            "generation"
+          ]
+        }
+      },
+      "none": {
+        "attempts": 90,
+        "input_tokens": 12370,
+        "output_tokens_incl_hidden_reasoning": 1215,
+        "mean_output_tokens": 13.5,
+        "median_seconds": 1.0,
+        "max_seconds": 2.01,
+        "cost": {
+          "est_cost_micros": null,
+          "cost_status": "unpriced",
+          "unpriced_components": [
+            "generation"
+          ]
+        }
+      }
+    },
+    "rule": {
+      "rule2_diagram_release_all_correct_under_none": true,
+      "rule3_no_route_worse_and_no_failures": true,
+      "rule4_gold_items_worse_under_none": [],
+      "rule4_ok": true,
+      "rules_2_to_4_hold": true
+    }
+  }
+}

@@ -1,0 +1,333 @@
+{
+  "lifecycle": {
+    "original": "test_a_file_with_no_extractable_text_fails_instead_of_becoming_an_empty_index failed once in a 151-test batch; passed alone and 37/37 on a re-run of its file; the assertion text was not kept",
+    "reproduction_runs": {
+      "first_script": [
+        {
+          "label": "alone-01",
+          "returncode": 0,
+          "seconds": 6.8,
+          "tail": "1 passed in 3.13s"
+        },
+        {
+          "label": "alone-02",
+          "returncode": 0,
+          "seconds": 6.7,
+          "tail": "1 passed in 3.13s"
+        },
+        {
+          "label": "alone-03",
+          "returncode": 0,
+          "seconds": 6.6,
+          "tail": "1 passed in 3.08s"
+        },
+        {
+          "label": "alone-04",
+          "returncode": 0,
+          "seconds": 6.8,
+          "tail": "1 passed in 3.26s"
+        },
+        {
+          "label": "alone-05",
+          "returncode": 0,
+          "seconds": 6.6,
+          "tail": "1 passed in 3.13s"
+        },
+        {
+          "label": "alone-06",
+          "returncode": 0,
+          "seconds": 6.7,
+          "tail": "1 passed in 2.96s"
+        },
+        {
+          "label": "alone-07",
+          "returncode": 0,
+          "seconds": 6.6,
+          "tail": "1 passed in 2.99s"
+        },
+        {
+          "label": "alone-08",
+          "returncode": 0,
+          "seconds": 8.7,
+          "tail": "1 passed in 4.79s"
+        },
+        {
+          "label": "alone-09",
+          "returncode": 0,
+          "seconds": 10.9,
+          "tail": "1 passed in 5.90s"
+        },
+        {
+          "label": "alone-10",
+          "returncode": 0,
+          "seconds": 9.2,
+          "tail": "1 passed in 4.50s"
+        },
+        {
+          "label": "alone-11",
+          "returncode": 0,
+          "seconds": 9.0,
+          "tail": "1 passed in 3.33s"
+        },
+        {
+          "label": "alone-12",
+          "returncode": 0,
+          "seconds": 7.1,
+          "tail": "1 passed in 3.55s"
+        },
+        {
+          "label": "alone-13",
+          "returncode": 0,
+          "seconds": 7.4,
+          "tail": "1 passed in 3.37s"
+        },
+        {
+          "label": "alone-14",
+          "returncode": 0,
+          "seconds": 7.4,
+          "tail": "1 passed in 3.31s"
+        },
+        {
+          "label": "alone-15",
+          "returncode": 0,
+          "seconds": 8.6,
+          "tail": "1 passed in 4.51s"
+        },
+        {
+          "label": "file-1",
+          "returncode": 0,
+          "seconds": 77.1,
+          "tail": "37 passed in 72.38s (0:01:12)"
+        },
+        {
+          "label": "file-2",
+          "returncode": 1,
+          "seconds": 76.6,
+          "tail": "1 failed, 36 passed in 71.66s (0:01:11)"
+        },
+        {
+          "label": "file-under-load-1",
+          "returncode": 0,
+          "seconds": 211.8,
+          "tail": "37 passed in 197.13s (0:03:17)"
+        },
+        {
+          "label": "file-under-load-2",
+          "returncode": 1,
+          "seconds": 203.9,
+          "tail": "1 failed, 34 passed, 2 errors in 191.38s (0:03:11)"
+        }
+      ],
+      "first_script_note": "file-under-load-2 failed with 'relation users does not exist' because a second pytest session overlapped it: INVALID, not counted",
+      "probe_loop_1": [
+        {
+          "run": 1,
+          "rc": 1,
+          "seconds": 98,
+          "tail": "1 failed, 35 passed, 1 error in 85.71s (0:01:25)",
+          "failed": [
+            "FAILED tests/test_analysis_lifecycle.py::test_the_figure_cap_is_stated_in_the_result"
+          ]
+        },
+        {
+          "run": 2,
+          "rc": 0,
+          "seconds": 73,
+          "tail": "37 passed in 68.43s (0:01:08)",
+          "failed": []
+        },
+        {
+          "run": 3,
+          "rc": 0,
+          "seconds": 71,
+          "tail": "37 passed in 66.75s (0:01:06)",
+          "failed": []
+        },
+        {
+          "run": 4,
+          "rc": 0,
+          "seconds": 70,
+          "tail": "37 passed in 66.24s (0:01:06)",
+          "failed": []
+        },
+        {
+          "run": 5,
+          "rc": 0,
+          "seconds": 71,
+          "tail": "37 passed in 66.88s (0:01:06)",
+          "failed": []
+        },
+        {
+          "run": 6,
+          "rc": 0,
+          "seconds": 74,
+          "tail": "37 passed in 70.35s (0:01:10)",
+          "failed": []
+        },
+        {
+          "run": 7,
+          "rc": 0,
+          "seconds": 69,
+          "tail": "37 passed in 64.96s (0:01:04)",
+          "failed": []
+        },
+        {
+          "run": 8,
+          "rc": 0,
+          "seconds": 71,
+          "tail": "37 passed in 66.60s (0:01:06)",
+          "failed": []
+        },
+        {
+          "run": 9,
+          "rc": 0,
+          "seconds": 74,
+          "tail": "37 passed in 69.94s (0:01:09)",
+          "failed": []
+        },
+        {
+          "run": 10,
+          "rc": 0,
+          "seconds": 73,
+          "tail": "37 passed in 68.87s (0:01:08)",
+          "failed": []
+        }
+      ],
+      "probe_loop_1_note": "run 1 failed with 'relation analysis_jobs does not exist' (overlap with the first script's last run): INVALID, not counted",
+      "probe_loop_2": [
+        {
+          "run": 1,
+          "rc": 0,
+          "seconds": 80,
+          "tail": "37 passed in 75.03s (0:01:15)",
+          "failed": []
+        },
+        {
+          "run": 2,
+          "rc": 0,
+          "seconds": 78,
+          "tail": "37 passed in 73.51s (0:01:13)",
+          "failed": []
+        },
+        {
+          "run": 3,
+          "rc": 0,
+          "seconds": 72,
+          "tail": "37 passed in 67.41s (0:01:07)",
+          "failed": []
+        },
+        {
+          "run": 4,
+          "rc": 0,
+          "seconds": 76,
+          "tail": "37 passed in 72.26s (0:01:12)",
+          "failed": []
+        },
+        {
+          "run": 5,
+          "rc": 0,
+          "seconds": 85,
+          "tail": "37 passed in 79.92s (0:01:19)",
+          "failed": []
+        },
+        {
+          "run": 6,
+          "rc": 0,
+          "seconds": 70,
+          "tail": "37 passed in 66.16s (0:01:06)",
+          "failed": []
+        },
+        {
+          "run": 7,
+          "rc": 0,
+          "seconds": 67,
+          "tail": "37 passed in 63.50s (0:01:03)",
+          "failed": []
+        },
+        {
+          "run": 8,
+          "rc": 1,
+          "seconds": 65,
+          "tail": "1 failed, 36 passed in 60.51s (0:01:00)",
+          "failed": [
+            "FAILED tests/test_analysis_lifecycle.py::test_the_vision_model_unavailable_means_scanned_pages_are_gaps"
+          ]
+        }
+      ]
+    },
+    "clean_whole_file_runs": 20,
+    "clean_whole_file_failures": 2,
+    "single_test_runs": 15,
+    "single_test_failures": 0,
+    "failing_signature": "assert [] == [...] on world.run_worker() (three different tests of the same file, one of them the original)",
+    "snapshot_at_a_failure_(test_the_vision_model_unavailable_means_scanned_pages_are_gaps)": {
+      "test": "tests/test_analysis_lifecycle.py::test_the_vision_model_unavailable_means_scanned_pages_are_gaps",
+      "drain_seconds": 0.017,
+      "jobs": [
+        {
+          "id": "0181f027-453d-4de6-8244-d521296f9527",
+          "room_id": "c00ec26e-61bf-4012-aa5d-ca933990eefa",
+          "state": "queued",
+          "attempts": "0",
+          "max_attempts": "3",
+          "cancel_requested_at": "None",
+          "run_after": "2026-11-19 21:31:55.428148+00:00",
+          "created_at": "2026-11-19 21:31:55.428148+00:00",
+          "lease_expires_at": "None",
+          "db_now": "2026-11-19 21:31:55.346807+00:00",
+          "db_clock": "2026-11-19 21:31:55.349470+00:00",
+          "due": "False"
+        }
+      ],
+      "versions": [
+        {
+          "id": "8e3dd39e-7e02-44b1-8cc4-e0a786c2defb",
+          "analysis_state": "queued",
+          "error_code": "None",
+          "current_generation_id": "None"
+        }
+      ],
+      "locks_on_jobs": [],
+      "claimable_now": []
+    },
+    "clock_probe_240s": {
+      "what": "clock_timestamp() polled on one connection every ~2 ms against the host clock; read-only",
+      "backward_steps": 8,
+      "offset_changes_ms_at_seconds": {
+        "14.92": -152.2,
+        "44.80": -133.2,
+        "74.61": -186.3,
+        "104.46": -146.1,
+        "134.33": -141.2,
+        "164.21": -126.0,
+        "194.07": -145.7,
+        "223.91": -150.8
+      },
+      "reading": "the Postgres server clock (the VM behind Docker Desktop) steps back about every 30 s by 126-186 ms"
+    }
+  },
+  "editor_toolbar": {
+    "original": "toolbar test failed once in a sequence; passed alone and 14/14 on a re-run of its file; the error was not kept",
+    "repeat_12_unfixed": {
+      "passed": 8,
+      "failed": 4,
+      "failure": "line 158: locator('h2').click waits for a heading that is no longer there (60 s test timeout)"
+    },
+    "repeat_12_with_a_focus_wait_(wrong_guess)": {
+      "passed": 9,
+      "failed": 3,
+      "failure": "same, line 161"
+    },
+    "repeat_12_instrumented_copy_(HTML logged after each key)": {
+      "passed": 12,
+      "failed": 0
+    },
+    "repeat_12_with_settle_after_Control+End_and_Enter": {
+      "passed": 12,
+      "failed": 0
+    },
+    "whole_spec_after_the_change": "14 passed",
+    "failure_state": "one bullet-list item with bold text 'Plain wordsitem one' and the table; the heading was not split from a new paragraph and the bullet button turned the heading itself into a list item",
+    "trace": "Control+End and Enter sent about 1 ms apart straight after the heading assertions"
+  }
+}

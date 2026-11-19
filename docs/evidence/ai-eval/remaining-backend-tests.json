@@ -1,0 +1,516 @@
+{
+  "what": "Backend test files of batches 10-15 of the 15-batch plan of scripts/run_suite_in_batches.py, one file per process, one process at a time, with a memory guard (start only with >= 700 MB available, kill the process tree below 200 MB).",
+  "plan_rule": "files sorted by size, assigned greedily to the least-loaded batch; rebuilt from the same rule; its batch sizes 5,5,6,6,5,6,6,6,6 match the log of the first run of batches 1-9",
+  "batches_1_to_9_from_the_first_run": {
+    "files": 51,
+    "passed": 1257,
+    "skipped": 3,
+    "failed": 0
+  },
+  "batches_10_to_15": {
+    "files": 33,
+    "first_pass": {
+      "tests/test_room_events.py": {
+        "status": "passed",
+        "tail": "43 passed in 31.07s",
+        "seconds": 36,
+        "min_available_mb_seen": 1814
+      },
+      "tests/test_rooms_api.py": {
+        "status": "passed",
+        "tail": "64 passed in 39.65s",
+        "seconds": 44,
+        "min_available_mb_seen": 1713
+      },
+      "tests/test_ws_access.py": {
+        "status": "passed",
+        "tail": "12 passed in 23.73s",
+        "seconds": 28,
+        "min_available_mb_seen": 1628
+      },
+      "tests/test_analysis_vision.py": {
+        "status": "passed",
+        "tail": "49 passed in 1.21s",
+        "seconds": 6,
+        "min_available_mb_seen": 1663
+      },
+      "tests/test_room_events_api.py": {
+        "status": "passed",
+        "tail": "18 passed in 16.28s",
+        "seconds": 20,
+        "min_available_mb_seen": 1604
+      },
+      "tests/test_ai_proposals_actions.py": {
+        "status": "passed",
+        "tail": "24 passed in 60.84s (0:01:00)",
+        "seconds": 66,
+        "min_available_mb_seen": 1590
+      },
+      "tests/test_eval_reporting.py": {
+        "status": "passed",
+        "tail": "25 passed in 3.45s",
+        "seconds": 8,
+        "min_available_mb_seen": 1504
+      },
+      "tests/test_retrieval.py": {
+        "status": "failed",
+        "tail": "2 failed, 11 passed, 8 errors in 53.98s",
+        "seconds": 60,
+        "min_available_mb_seen": 1204
+      },
+      "tests/test_constraints.py": {
+        "status": "passed",
+        "tail": "28 passed in 12.23s",
+        "seconds": 16,
+        "min_available_mb_seen": 1546
+      },
+      "tests/test_ws_stress.py": {
+        "status": "passed",
+        "tail": "1 passed in 14.34s",
+        "seconds": 20,
+        "min_available_mb_seen": 1355
+      },
+      "tests/test_manual_part3_sequence.py": {
+        "status": "passed",
+        "tail": "2 passed in 26.45s",
+        "seconds": 32,
+        "min_available_mb_seen": 1357
+      },
+      "tests/test_analysis_lifecycle.py": {
+        "status": "passed",
+        "tail": "37 passed in 65.97s (0:01:05)",
+        "seconds": 70,
+        "min_available_mb_seen": 1098
+      },
+      "tests/test_ai_classifier.py": {
+        "status": "passed",
+        "tail": "45 passed in 18.15s",
+        "seconds": 22,
+        "min_available_mb_seen": 1233
+      },
+      "tests/test_messages_races.py": {
+        "status": "passed",
+        "tail": "20 passed in 39.60s",
+        "seconds": 44,
+        "min_available_mb_seen": 1050
+      },
+      "tests/test_sources_cleanup.py": {
+        "status": "passed",
+        "tail": "10 passed in 21.73s",
+        "seconds": 26,
+        "min_available_mb_seen": 1096
+      },
+      "tests/test_sources_files.py": {
+        "status": "passed",
+        "tail": "48 passed in 1.19s",
+        "seconds": 6,
+        "min_available_mb_seen": 1158
+      },
+      "tests/test_ai_migration.py": {
+        "status": "passed",
+        "tail": "2 passed in 7.32s",
+        "seconds": 12,
+        "min_available_mb_seen": 1132
+      },
+      "tests/test_ai_core.py": {
+        "status": "passed",
+        "tail": "41 passed in 11.83s",
+        "seconds": 16,
+        "min_available_mb_seen": 1107
+      },
+      "tests/test_documents_api.py": {
+        "status": "passed",
+        "tail": "35 passed in 39.61s",
+        "seconds": 44,
+        "min_available_mb_seen": 487
+      },
+      "tests/test_realtime_failures.py": {
+        "status": "passed",
+        "tail": "8 passed in 19.77s",
+        "seconds": 24,
+        "min_available_mb_seen": 440
+      },
+      "tests/test_room_constraints.py": {
+        "status": "passed",
+        "tail": "19 passed in 9.64s",
+        "seconds": 14,
+        "min_available_mb_seen": 554
+      },
+      "tests/test_manual_part4_sequence.py": {
+        "status": "passed",
+        "tail": "3 passed in 16.67s",
+        "seconds": 22,
+        "min_available_mb_seen": 524
+      },
+      "tests/test_login_flow.py": {
+        "status": "passed",
+        "tail": "44 passed in 25.42s",
+        "seconds": 30,
+        "min_available_mb_seen": 626
+      },
+      "tests/test_invitations_api.py": {
+        "status": "passed",
+        "tail": "49 passed in 38.24s",
+        "seconds": 42,
+        "min_available_mb_seen": 605
+      },
+      "tests/test_client_e2e.py": {
+        "status": "passed",
+        "tail": "8 passed in 26.66s",
+        "seconds": 32,
+        "min_available_mb_seen": 523
+      },
+      "tests/test_ai_requests_flow.py": {
+        "status": "passed",
+        "tail": "12 passed in 39.19s",
+        "seconds": 44,
+        "min_available_mb_seen": 460
+      },
+      "tests/test_ai_cost_status.py": {
+        "status": "passed",
+        "tail": "10 passed in 12.55s",
+        "seconds": 18,
+        "min_available_mb_seen": 554
+      },
+      "tests/test_messages_send.py": {
+        "status": "passed",
+        "tail": "68 passed in 57.06s",
+        "seconds": 62,
+        "min_available_mb_seen": 344
+      },
+      "tests/test_messages_edit_delete.py": {
+        "status": "passed",
+        "tail": "54 passed in 60.42s (0:01:00)",
+        "seconds": 66,
+        "min_available_mb_seen": 372
+      },
+      "tests/test_answer_validation.py": {
+        "status": "passed",
+        "tail": "80 passed in 4.61s",
+        "seconds": 10,
+        "min_available_mb_seen": 770
+      },
+      "tests/test_edit_target.py": {
+        "status": "passed",
+        "tail": "24 passed in 1.09s",
+        "seconds": 6,
+        "min_available_mb_seen": 910
+      },
+      "tests/test_account_resolution.py": {
+        "status": "passed",
+        "tail": "5 passed in 5.12s",
+        "seconds": 10,
+        "min_available_mb_seen": 679
+      },
+      "tests/test_ai_config.py": {
+        "status": "passed",
+        "tail": "23 passed in 1.56s",
+        "seconds": 6,
+        "min_available_mb_seen": 469
+      }
+    },
+    "first_pass_failure_explained": "tests/test_retrieval.py: 2 failed, 8 errors, all 'relation \"users\" does not exist': caused by two pytest sessions overlapping (a session rebuilds the shared test schema). Re-run alone: 21 passed.",
+    "final_status_of_every_file": {
+      "tests/test_room_events.py": "passed",
+      "tests/test_rooms_api.py": "passed",
+      "tests/test_ws_access.py": "passed",
+      "tests/test_analysis_vision.py": "passed",
+      "tests/test_room_events_api.py": "passed",
+      "tests/test_ai_proposals_actions.py": "passed",
+      "tests/test_eval_reporting.py": "passed",
+      "tests/test_retrieval.py": "passed",
+      "tests/test_constraints.py": "passed",
+      "tests/test_ws_stress.py": "passed",
+      "tests/test_manual_part3_sequence.py": "passed",
+      "tests/test_analysis_lifecycle.py": "passed",
+      "tests/test_ai_classifier.py": "passed",
+      "tests/test_messages_races.py": "passed",
+      "tests/test_sources_cleanup.py": "passed",
+      "tests/test_sources_files.py": "passed",
+      "tests/test_ai_migration.py": "passed",
+      "tests/test_ai_core.py": "passed",
+      "tests/test_documents_api.py": "passed",
+      "tests/test_realtime_failures.py": "passed",
+      "tests/test_room_constraints.py": "passed",
+      "tests/test_manual_part4_sequence.py": "passed",
+      "tests/test_login_flow.py": "passed",
+      "tests/test_invitations_api.py": "passed",
+      "tests/test_client_e2e.py": "passed",
+      "tests/test_ai_requests_flow.py": "passed",
+      "tests/test_ai_cost_status.py": "passed",
+      "tests/test_messages_send.py": "passed",
+      "tests/test_messages_edit_delete.py": "passed",
+      "tests/test_answer_validation.py": "passed",
+      "tests/test_edit_target.py": "passed",
+      "tests/test_account_resolution.py": "passed",
+      "tests/test_ai_config.py": "passed"
+    },
+    "final_totals": {
+      "passed": 932,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0
+    },
+    "extra_file_run_because_the_plan_shifted": {
+      "tests/test_migrations.py": {
+        "status": "passed",
+        "tail": "7 passed, 1 warning in 19.82s",
+        "seconds": 24,
+        "min_available_mb_seen": 657
+      }
+    },
+    "lowest_available_memory_mb": 344
+  },
+  "new_files_of_this_stage": {
+    "tests/test_classifier_repeat.py": "9 passed",
+    "tests/test_review_sheet.py": "6 passed",
+    "tests/test_clock_step_grace.py": "9 passed"
+  },
+  "after_the_test_helper_change_(docs/ai.md 23.3)": {
+    "files_rerun": 19,
+    "version_1_of_the_helper": {
+      "note": "first pass was stopped by the memory guard (186 MB available during test_ai_proposals_generation.py, which was killed); the rest was resumed. tests/test_ai_proposals_schema.py then failed once: the first version of the helper was incomplete",
+      "files": {
+        "tests/test_clock_step_grace.py": {
+          "status": "passed",
+          "tail": "6 passed in 12.91s",
+          "seconds": 18,
+          "min_available_mb_seen": 1417
+        },
+        "tests/test_analysis_lifecycle.py": {
+          "status": "passed",
+          "tail": "37 passed in 63.90s (0:01:03)",
+          "seconds": 70,
+          "min_available_mb_seen": 971
+        },
+        "tests/test_analysis_jobs.py": {
+          "status": "passed",
+          "tail": "39 passed in 95.19s (0:01:35)",
+          "seconds": 100,
+          "min_available_mb_seen": 1059
+        },
+        "tests/test_analysis_pipeline.py": {
+          "status": "passed",
+          "tail": "10 passed in 44.80s",
+          "seconds": 50,
+          "min_available_mb_seen": 782
+        },
+        "tests/test_retrieval.py": {
+          "status": "passed",
+          "tail": "21 passed in 82.01s (0:01:22)",
+          "seconds": 86,
+          "min_available_mb_seen": 727
+        },
+        "tests/test_ai_answers.py": {
+          "status": "passed",
+          "tail": "39 passed in 124.80s (0:02:04)",
+          "seconds": 129,
+          "min_available_mb_seen": 613
+        },
+        "tests/test_ai_classifier.py": {
+          "status": "passed",
+          "tail": "45 passed in 22.14s",
+          "seconds": 28,
+          "min_available_mb_seen": 455
+        },
+        "tests/test_ai_cost_status.py": {
+          "status": "passed",
+          "tail": "10 passed in 10.44s",
+          "seconds": 16,
+          "min_available_mb_seen": 697
+        },
+        "tests/test_ai_proposals_actions.py": {
+          "status": "passed",
+          "tail": "24 passed in 57.62s",
+          "seconds": 62,
+          "min_available_mb_seen": 641
+        },
+        "tests/test_ai_proposals_generation.py": {
+          "status": "passed",
+          "tail": "39 passed in 95.10s (0:01:35)",
+          "seconds": 100,
+          "min_available_mb_seen": 546
+        },
+        "tests/test_ai_proposals_schema.py": {
+          "status": "failed",
+          "tail": "1 failed, 14 passed in 41.23s",
+          "seconds": 46,
+          "min_available_mb_seen": 622
+        },
+        "tests/test_ai_requests_flow.py": {
+          "status": "passed",
+          "tail": "12 passed in 38.48s",
+          "seconds": 44,
+          "min_available_mb_seen": 969
+        },
+        "tests/test_ai_requests_more.py": {
+          "status": "passed",
+          "tail": "11 passed in 40.68s",
+          "seconds": 46,
+          "min_available_mb_seen": 1445
+        },
+        "tests/test_ai_requests_rules.py": {
+          "status": "passed",
+          "tail": "54 passed in 157.14s (0:02:37)",
+          "seconds": 163,
+          "min_available_mb_seen": 1340
+        },
+        "tests/test_ai_security_sweep.py": {
+          "status": "passed",
+          "tail": "13 passed in 22.62s",
+          "seconds": 28,
+          "min_available_mb_seen": 1470
+        },
+        "tests/test_classifier_repeat.py": {
+          "status": "passed",
+          "tail": "9 passed in 1.42s",
+          "seconds": 6,
+          "min_available_mb_seen": 1641
+        },
+        "tests/test_review_sheet.py": {
+          "status": "passed",
+          "tail": "6 passed in 1.13s",
+          "seconds": 6,
+          "min_available_mb_seen": 2086
+        },
+        "tests/eval/test_eval.py": {
+          "status": "passed",
+          "tail": "1 skipped in 0.12s",
+          "seconds": 4,
+          "min_available_mb_seen": 2119
+        },
+        "tests/eval/test_proposal_eval.py": {
+          "status": "passed",
+          "tail": "1 skipped in 0.13s",
+          "seconds": 4,
+          "min_available_mb_seen": 2094
+        }
+      }
+    },
+    "version_2_of_the_helper": {
+      "files": {
+        "tests/test_clock_step_grace.py": {
+          "status": "passed",
+          "tail": "9 passed in 17.33s",
+          "seconds": 22,
+          "min_available_mb_seen": 1918
+        },
+        "tests/test_ai_proposals_schema.py": {
+          "status": "passed",
+          "tail": "15 passed in 46.89s",
+          "seconds": 52,
+          "min_available_mb_seen": 1496
+        },
+        "tests/test_analysis_lifecycle.py": {
+          "status": "passed",
+          "tail": "37 passed in 63.66s (0:01:03)",
+          "seconds": 68,
+          "min_available_mb_seen": 1604
+        },
+        "tests/test_analysis_jobs.py": {
+          "status": "passed",
+          "tail": "39 passed in 97.80s (0:01:37)",
+          "seconds": 102,
+          "min_available_mb_seen": 1747
+        },
+        "tests/test_analysis_pipeline.py": {
+          "status": "passed",
+          "tail": "10 passed in 46.07s",
+          "seconds": 50,
+          "min_available_mb_seen": 1813
+        },
+        "tests/test_retrieval.py": {
+          "status": "passed",
+          "tail": "21 passed in 82.88s (0:01:22)",
+          "seconds": 88,
+          "min_available_mb_seen": 1646
+        },
+        "tests/test_ai_answers.py": {
+          "status": "passed",
+          "tail": "39 passed in 132.07s (0:02:12)",
+          "seconds": 137,
+          "min_available_mb_seen": 892
+        },
+        "tests/test_ai_classifier.py": {
+          "status": "passed",
+          "tail": "45 passed in 17.81s",
+          "seconds": 24,
+          "min_available_mb_seen": 956
+        },
+        "tests/test_ai_cost_status.py": {
+          "status": "passed",
+          "tail": "10 passed in 10.29s",
+          "seconds": 16,
+          "min_available_mb_seen": 1274
+        },
+        "tests/test_ai_proposals_actions.py": {
+          "status": "passed",
+          "tail": "24 passed in 58.53s",
+          "seconds": 62,
+          "min_available_mb_seen": 1149
+        },
+        "tests/test_ai_proposals_generation.py": {
+          "status": "passed",
+          "tail": "39 passed in 93.86s (0:01:33)",
+          "seconds": 98,
+          "min_available_mb_seen": 994
+        },
+        "tests/test_ai_requests_flow.py": {
+          "status": "passed",
+          "tail": "12 passed in 39.47s",
+          "seconds": 44,
+          "min_available_mb_seen": 822
+        },
+        "tests/test_ai_requests_more.py": {
+          "status": "passed",
+          "tail": "11 passed in 58.51s",
+          "seconds": 64,
+          "min_available_mb_seen": 355
+        },
+        "tests/test_ai_requests_rules.py": {
+          "status": "passed",
+          "tail": "54 passed in 159.13s (0:02:39)",
+          "seconds": 165,
+          "min_available_mb_seen": 424
+        },
+        "tests/test_ai_security_sweep.py": {
+          "status": "passed",
+          "tail": "13 passed in 23.34s",
+          "seconds": 28,
+          "min_available_mb_seen": 1020
+        },
+        "tests/test_classifier_repeat.py": {
+          "status": "passed",
+          "tail": "9 passed in 1.75s",
+          "seconds": 8,
+          "min_available_mb_seen": 1077
+        },
+        "tests/test_review_sheet.py": {
+          "status": "passed",
+          "tail": "6 passed in 1.61s",
+          "seconds": 6,
+          "min_available_mb_seen": 1040
+        },
+        "tests/eval/test_eval.py": {
+          "status": "passed",
+          "tail": "1 skipped in 0.17s",
+          "seconds": 6,
+          "min_available_mb_seen": 970
+        },
+        "tests/eval/test_proposal_eval.py": {
+          "status": "passed",
+          "tail": "1 skipped in 0.13s",
+          "seconds": 6,
+          "min_available_mb_seen": 1125
+        }
+      },
+      "totals": {
+        "passed": 393,
+        "failed": 0,
+        "skipped": 2,
+        "error": 0
+      },
+      "note": "the 2 skipped tests are tests/eval/test_eval.py and test_proposal_eval.py, which skip unless the evaluation is enabled"
+    }
+  }
+}

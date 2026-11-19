@@ -9,6 +9,15 @@ Providers: OpenAI `gpt-6-luna` (generation, classification, vision and map calls
 (embeddings). **Cost is unknown/unconfigured** in every run: no price settings exist, so a ledger or table cost of 0 means "could not be
 priced", never "free". Tokens are provider-reported. The account is in `docs/ai.md` 22.2 and 22.7-22.9.
 
+## Fourth stage: classifier effort `none`, the repeat check, the review sheet (2026-11-19, later)
+
+| Files | What they are |
+|---|---|
+| `none-answer.*` | The 13-question real answer evaluation with `AI_CLASSIFIER_REASONING_EFFORT=none` (`eval-2`, two-stage manifest; the manifest's `configuration` records the effort and the 512-token budget, captured before the first provider call). Compare with `postfix-answer.*`: same code, same dataset, only the classifier effort differs |
+| `classifier-repeat.json` / `.md` | A bounded repeat check of the classifier alone (180 calls, cap 200): 8 gold instructions and 10 diagnostic variants, 5 attempts each, effort not sent against `none`. A diagnostic, not part of the acceptance dataset; the adoption rule is in the script's docstring, written before the first run. It uses the production adapter, prompt, schema and budget but not the request pipeline or the ledger |
+| `human-review-sheet.md` | 8 answers and 8 proposals (including `diagram-release` twice and the two real repairs) with the request, cited passages, output, expected evidence, the harness's automated checks, my own reading, and **empty** human-review fields. Regenerate with `PYTHONPATH=. uv run python -m tests.eval.build_review_sheet` from `backend/`; it reads only the files in this folder |
+| `remaining-backend-tests.json` | Per-file results for batches 10-15 of the backend suite, one process per file (see `docs/ai.md` 23.3) |
+
 ## Three stages of runs, and how each was recorded
 
 | Stage | Files | Evaluator | How the evidence was captured |
