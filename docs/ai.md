@@ -1945,7 +1945,7 @@ the API sends `cost_micros`), so it **always** showed "about $0.0000", priced or
 | Change | Where |
 |---|---|
 | The classifier has its own output budget, `AI_CLASSIFIER_MAX_OUTPUT_TOKENS` (default **512**, validated 16 to `AI_MAX_OUTPUT_TOKENS`): about 4x the largest total seen, still bounded. The generation budget is not shared or copied | `config.py`, `answer/execute.py` |
-| Optional `AI_CLASSIFIER_REASONING_EFFORT` (empty by default, so any model keeps working; sent for this one call only; validated against the known values) | `config.py`, adapter `generate_structured(reasoning_effort=...)`, gateway |
+| Optional `AI_CLASSIFIER_REASONING_EFFORT` (empty by default in the code, so any model keeps working; `none` in the example configuration for `gpt-6-luna` since 23.1; sent for this one call only; validated against the known values) | `config.py`, adapter `generate_structured(reasoning_effort=...)`, gateway |
 | The reply is held to the schema's enum; the routes are defined once (`ROUTES`). Anything else (missing, unsupported or wrong-case value, malformed, empty) is `invalid_output` | `answer/execute.py` |
 | Stable failure categories: `truncated`, `invalid_output`, `refused`, `timeout`, `provider_failure`. Budget and key problems still stop the request | `answer/execute.py` |
 | A truncated reply keeps what the provider reported (tokens, reasoning tokens, reason); the failed attempt is **recorded with its real tokens and cost** and counted in the request's usage (`llm_failed_calls`) | adapter, `ProviderError.usage/detail`, `calls.py`, gateway |
@@ -2011,20 +2011,207 @@ a decision: set `AI_CLASSIFIER_REASONING_EFFORT=none` for this model; clarify th
 versioned prompt change, which also changes what the evaluation measures); or accept the behaviour and change the gold expectation. The
 classifier enum has no diagram route, so a drawing request has no category of its own.
 
+*Update, 2026-11-19, later: the decision was taken after a run of each option's evidence; see 23.1 (effort `none`, adopted in the example configuration for `gpt-6-luna`).*
+
 ### 22.9 Verification of this change
 
 | Check | Result |
 |---|---|
 | New backend tests | `tests/test_ai_classifier.py` 45, `tests/test_eval_reporting.py` 25, `tests/test_ai_cost_status.py` 10: all pass. With the budget and the truncation-usage fix reverted, the four tests that depend on them fail; with "unpriced shows as 0" and "a fallback counts as a model classification" reintroduced, seven reporting tests fail (both restored) |
-| Existing AI backend tests after the change | 522 passed in three batches (one `test_analysis_lifecycle` test failed once in a batch run and passed alone and on a re-run of its file, 37/37: a single non-reproducing failure, the same class as the timing flakes in 21.3, not explained and not called harmless) |
-| Full backend suite, `scripts/run_suite_in_batches.py --batches 15` | **Incomplete: stopped by the system.** The run was killed for low memory during batch 10 of 15 (the situation `docs/ai-progress.md` warns about) and was **not restarted**. Batches 1-9 (51 of 84 test files) passed: 1,257 passed, 3 skipped, 0 failed. Batches 10-15 (33 files) did not run. Of those, the AI-related files were run separately earlier in this stage and passed (`test_ai_core`, `test_ai_config`, `test_ai_requests_flow`, `test_ai_proposals_actions`, `test_ai_migration`, `test_analysis_lifecycle`, `test_analysis_vision`, `test_retrieval`, `test_answer_validation`, `test_edit_target` and the three new files). **Not run since these changes:** the non-AI remainder (rooms, realtime and websocket, documents, messages, sources, login, invitations, constraints, account resolution, the client end-to-end and manual-sequence files). The change does not touch those areas (it adds validated settings and changes AI code), but they were not verified. To finish: run the remaining batches when memory allows |
+| Existing AI backend tests after the change | 522 passed in three batches (one `test_analysis_lifecycle` test failed once in a batch run and passed alone and on a re-run of its file, 37/37: a single non-reproducing failure, the same class as the timing flakes in 21.3, not explained and not called harmless). *Update, 2026-11-19, later: reproduced and explained, see 23.3.* |
+| Full backend suite, `scripts/run_suite_in_batches.py --batches 15` | **Incomplete: stopped by the system.** The run was killed for low memory during batch 10 of 15 (the situation `docs/ai-progress.md` warns about) and was **not restarted**. Batches 1-9 (51 of 84 test files) passed: 1,257 passed, 3 skipped, 0 failed. Batches 10-15 (33 files) did not run. Of those, the AI-related files were run separately earlier in this stage and passed (`test_ai_core`, `test_ai_config`, `test_ai_requests_flow`, `test_ai_proposals_actions`, `test_ai_migration`, `test_analysis_lifecycle`, `test_analysis_vision`, `test_retrieval`, `test_answer_validation`, `test_edit_target` and the three new files). **Not run since these changes:** the non-AI remainder (rooms, realtime and websocket, documents, messages, sources, login, invitations, constraints, account resolution, the client end-to-end and manual-sequence files). The change does not touch those areas (it adds validated settings and changes AI code), but they were not verified. To finish: run the remaining batches when memory allows. *Update, 2026-11-19, later: done, see 23.2 (all 33 files passed, one at a time).* |
 | Frontend | type check clean; build clean; 159 unit tests (5 new for the usage cost) |
 | Browser, real providers (`E2E_AI=real`, Chromium) | `ai-real.spec.ts` passed: `@AI` with one chosen source (request `4c3141e1-…`: classification attempted, model route `qa`, no failure, no fallback; cited the right file, not the unchosen one), edit proposal previewed and applied (request `dee62ef8-…`, proposal `2f3d54e9-…`, receipt written) and seen by the second browser and the viewer, viewer's apply and AI request refused (403), second proposal (request `08c69676-…`, proposal `16c8489c-…`) `conflicted / block_changed` after another person edited its target. Usage ledger: `openai/gpt-6-luna` and `google/gemini-embedding-2`, all `ok`, no stub, published usage `cost_status: unpriced, est_cost_micros: null` |
 | Offline-edit recovery with a real model's replacement | `ai-real-recovery.spec.ts` passed (request `4bb5c469-…`, proposal `738def12-…`): the model's text intact in both browsers, the offline words in neither document, only the typist told, inserted back once, both converge |
-| Stub-mode browser specs, sequentially | `pending-recovery` 2, `ai-access` 1, `ai-proposals` 4, `ai-chat` 2, `room-rail` 6, `room-layout` 2, `editor-collab` 14 (one toolbar test failed once in a sequence and passed alone and on a re-run of the file: 14/14; not explained) |
+| Stub-mode browser specs, sequentially | `pending-recovery` 2, `ai-access` 1, `ai-proposals` 4, `ai-chat` 2, `room-rail` 6, `room-layout` 2, `editor-collab` 14 (one toolbar test failed once in a sequence and passed alone and on a re-run of the file: 14/14; not explained). *Update, 2026-11-19, later: reproduced (4 of 12) and changed, see 23.3.* |
 | Real-server recovery integration (`collab/test/pending-recovery.test.ts`) | 6 passed |
 
 **Real and not real.** Real: the two providers (OpenAI `gpt-6-luna`, Google `gemini-embedding-2`), the API, worker, collaboration service,
 PostgreSQL and Redis, and two or three Chromium sessions, in the `E2E_AI=real` specs and both evaluations. Deterministic test doubles: the
 provider stand-in in the stub-mode specs and in the backend regression tests (controlled failures belong there; no real model response was
 ever faulted on purpose). Not done: any human assessment of factual support or usefulness; real-inference runs in Firefox.
+
+## 23. Classifier effort `none`, the remaining backend tests, the flakes, the review sheet (2026-11-19, after 22.9)
+
+Nothing above is rewritten. 22.8 left the `diagram-release` misrouting as an open decision and 22.9 left the backend suite incomplete; this section
+records what was done about both, with dated corrections to those two places.
+
+### 23.1 Classifier reasoning effort `none`
+
+**The contract.** The classifier is called only when the request's task hint is `auto`. Its prompt defines four routes: `qa` (a question to answer from the
+material), `summarize` (asks for a summary or overview of one or more files), `compare` (asks to compare or contrast two or more files) and
+`document_review` (asks to check, review, proofread or critique the open document). It sees the instruction text alone. There is no diagram route.
+
+**Why `diagram-release` expects `qa`.** "Draw a flowchart of the build and deploy steps" is not a question, a comparison or a review of the open
+document, so by exclusion it is `qa`; the evaluation maps `diagram` to `qa` for that reason (`EXPECTED_TASK`). That is a reading of an
+under-specified prompt, not something the prompt states: `summarize` ("an overview of one or more files") is also defensible for a request about "the steps".
+What the route changes is what the answer is built from. `qa` retrieves the passages that match the request, so the build steps arrive as source text.
+`summarize` reads each section and cites section summaries the model wrote (the `S` labels), so the required phrase "compile the sources" was not in the
+cited text. The gold expectation was **not** changed to fit the model.
+
+**An explicit choice from the UI is authoritative, and is not overridden.** The composer offers Auto (the default), Ask, Summarize and Compare. Anything but
+Auto skips the classifier entirely (`resolve_task`): Ask runs as `qa`, Summarize as `summarize`, Compare as `compare`. The only change after that is narrowing
+to what the request's context supports (compare with fewer than two sources runs as `qa`; summarize with no source falls back to the document review or `qa`;
+document review without the open document runs as `qa`). Edit and draft requests never classify. `document_review` has no UI choice: it is reachable only
+through Auto. The evaluation sends `auto` for every item, including the summary and the comparison, so it exercises the classifier more than a person who
+picks a task would. A person who picks **Ask** for a drawing request would never have met this misroute.
+
+**The full 13-question real run with the classifier effort `none`** (2026-11-19 20:18 UTC; commit `70fb7d1`, clean tree; runner exit status 0; everything
+else unchanged: prompt, enum, fallback, dataset, gold, generation settings). The start-stage manifest records `ai_classifier_reasoning_effort: "none"` and
+`ai_classifier_max_output_tokens: 512`, captured before the first provider call (the previous manifests did not have these settings in their allowlist).
+
+| Answer evaluation (13 questions, one run each) | Post-fix, effort not sent (22.8) | Effort `none` |
+|---|---|---|
+| Published | 13/13 | 13/13 |
+| Valid model classifications / attempts | 13/13 | 13/13 |
+| Model classification accuracy (of valid) | 12/13 | **13/13** |
+| Classifier failures / requests that ran the fallback | 0/13 / 0/13 | 0/13 / 0/13 |
+| Final route correct | 12/13 | **13/13** |
+| Recall@1 / @3 / @5 (mean share of required phrases, over the 10 items that have them) | 85 / 90 / 90% | 85 / **100 / 100%** |
+| Items with every required phrase in the evidence | 9/10 | 10/10 |
+| Cited text contains the required phrase | 9/10 | 10/10 |
+| Citation check clean / expected source cited | 13/13 / 12/12 | 13/13 / 12/12 |
+| Latency p50 / p95 | 4.99 / 17.22 s | 5.02 / 12.80 s |
+| Provider tokens, run-wide ledger (generation in / out; embeddings in) | 21,577 / 3,460; 4,353 | 21,316 / 3,012; 4,381 |
+| Failed provider calls, run-wide | 0 of 44 | 0 of 44 |
+| Cost | unknown (unpriced) | unknown (unpriced) |
+
+Item by item, only `diagram-release` differs: its model route went from `summarize` to `qa`, recall@3 and @5 from 0 to 100% (recall@1 is 0 in both),
+its latency from 17.2 s to 12.8 s and its generated output from 859 to 478 tokens. Every other item has the same route, the same retrieval and the
+same citation results in both runs. **This is one run:** the generated answers differ run to run, and a difference of a few percent in the other rows is noise.
+
+**The bounded repeat check** (`tests/eval/diagnostics/classifier_repeat.py`; 180 calls against a cap of 200; 20:27 UTC). It sends 8 gold instructions
+(read from the gold set, one or two per route, both diagram items) and 10 diagnostic variants (`diagnostics/variants.py`, kept apart from the acceptance
+dataset; their expected routes were written down before the check ran) five times each at each of two arms: effort not sent, and `none`. It uses the production
+adapter, prompt, schema and 512-token budget, one attempt per call, no retries. It does not go through the request pipeline or the ledger: the classifier sees the
+instruction alone. **The adoption rule was written into the script before the first run.**
+
+| Expected route (correct / attempts) | Effort not sent | Effort `none` |
+|---|---|---|
+| qa (gold, variants and drawing requests) | 44/50 | **50/50** |
+| summarize | 15/15 | 15/15 |
+| compare | 10/10 | 10/10 |
+| document_review | 15/15 | 15/15 |
+| Failures | 0/90 | 0/90 |
+| `diagram-release` | 1/5 (`summarize` 4) | **5/5** |
+| Other drawing requests (variants) | `var-dia-deploy` 4/5, `var-dia-system` 4/5 (`summarize` once each) | 5/5 each |
+| Output tokens, all 90 calls (hidden reasoning included) | 2,174 (mean 24.2) | 1,215 (mean 13.5) |
+| Input tokens | 12,370 | 12,370 |
+| Median / max latency per call | 0.95 / 2.07 s | 1.00 / 2.01 s |
+| Cost | unknown (no prices configured) | unknown |
+
+All six misroutes at the default are drawing requests. No route is worse under `none`, and no gold instruction that was right every time at the default
+is wrong at all under `none`. A tally of 0 failures in 90 calls puts the 95% upper bound on the failure rate near 3% (the rule of three), which is a small sample, not a guarantee.
+
+**Decision: adopted for `gpt-6-luna`, in the shipped example configuration and the local `.env`; the code default stays empty.** All four adoption rules held
+(the full run: 0 classifier failures, 13/13 final routes and no item worse on retrieval or citation; the repeat check: `diagram-release` right on 5 of 5, no route worse, no gold instruction made worse).
+`.env.example` now sets `AI_CLASSIFIER_REASONING_EFFORT=none`. The code default (`config.py`) is still empty on purpose, because 22.7 chose "empty so
+any model keeps working" and the effort values a model accepts differ (`gpt-6-luna` accepts `none` and rejects `minimal` on this account). The evidence is for **one model**; flipping a
+model-agnostic default on it would turn a configuration change for another model into a failed classification on every Auto request (recorded as a
+classifier failure, and the request would run the `qa` fallback, never fail). If you want it as the code default too, it is one line in `config.py` and the two tests that pin the empty
+default (`tests/test_classifier_repeat.py`); say so.
+
+**What this does not show.** One model on one account on one day; 13 gold questions and 10 variants, all written for this corpus; the drawing-to-`qa`
+expectation is a reading, as above; the repeat check bypasses the pipeline; the hidden reasoning is unobservable except as a token count. Nothing here says
+`none` is better at classification in general: at `none` the model reasons less, and the evidence is only that it routed these requests as the pre-registered labels say.
+Recorded: `docs/evidence/ai-eval/none-answer.*` and `classifier-repeat.*`.
+
+### 23.2 The backend suite, completed
+
+The plan is the one `scripts/run_suite_in_batches.py --batches 15` makes (files sorted by size, assigned greedily to the least-loaded batch); it was rebuilt
+from the same rule and its batch sizes (5, 5, 6, 6, 5, 6, 6, 6, 6) match the log of the first run. Batches 1-9 (51 files) had passed in that run: **1,257 passed,
+3 skipped, 0 failed**; this stage changed no application code since (a setting in `.env.example`, test support and tests). Batches 10-15 (33 files) did not run
+then. They were run now **one file per process, one process at a time**, by a small runner (not committed; kept with the evidence summary) that checked free memory
+before each file (at least 700 MB), watched it while the file ran and would kill the process tree below 200 MB, and paused 4 s between files.
+
+| | Result |
+|---|---|
+| Files run (the 33 of batches 10-15) | all 33 passed: **932 passed, 0 failed, 0 skipped, 0 errors**, 986 s of test time |
+| Lowest free memory seen | 344 MB (the host had about 1.4 GB free at the start); the 200 MB limit was never reached, so nothing was killed |
+| First pass | 32 of 33 passed. `tests/test_retrieval.py`: 2 failed and 8 errors, **all `relation "users" does not exist`**. **My doing:** while the runner was going I ran two small pytest sessions for the new test files, and every pytest session rebuilds the shared test schema (`build_fresh_schema()` in `tests/conftest.py`), so the file that was running lost its tables. Re-run alone and sequentially: **21 passed** |
+| Extra | `tests/test_migrations.py` ran a second time and passed (7): adding a test file mid-run moved the recomputed plan by one. It was already counted in batches 1-9 and is not counted twice |
+| New tests of this stage | `tests/test_classifier_repeat.py` 9, `tests/test_review_sheet.py` 6, `tests/test_clock_step_grace.py` 9 (23.3): all pass |
+| After the test-helper change (23.3) | the **19 files that use the changed helper** were run again, one process at a time. With the first version of the helper the memory guard killed one file (186 MB free; resumed once memory recovered) and one file failed once (the gap described in 23.3). With the revised helper: **all 19 passed, 393 passed, 2 skipped (the two eval files, which skip unless enabled), 0 failed.** Files that do not import the helper are unaffected by it |
+
+The runner's last line crashed on `datetime.UTC` (the system Python 3.10) after every per-file result had been saved, so its own summary was computed from the saved
+results. **Totals: 84 of 84 files of the original plan have now passed (2,189 passed, 3 skipped, 0 failed), plus the three new files (24 tests), plus the helper-dependent re-run above.** The 3 skips are the POSIX-only
+sandbox checks, as before. This is "no failure seen", not a proof of absence of flakes (23.3).
+
+**One pytest session at a time.** The test database is shared and each session rebuilds its schema, so two sessions at once break each other
+(missing tables, or rows truncated under a running test). That includes a pytest started by a script while another is still finishing; I did it twice in this
+stage (three false failures in all) and each showed `relation ... does not exist`. Not a defect of the application; a property of how the suite is set up.
+
+### 23.3 The two recorded intermittent failures
+
+**(a) `test_analysis_lifecycle`: "the worker drain returned nothing" (backend). Root cause found: the database clock steps backward.**
+
+*What was recorded.* One failure of `test_a_file_with_no_extractable_text_fails_instead_of_becoming_an_empty_index` in a 151-test batch (it passed alone and 37/37 on a re-run
+of its file). The assertion text was not kept (my output filter hid it), so its signature is unknown.
+
+*Reproduction (strictly one pytest session at a time).* 15 runs of that single test: 15 passed. 20 clean whole-file runs of `test_analysis_lifecycle.py`: **18 passed, 2 failed**, and the two
+failures were two *other* tests of the same file, both with the signature `assert [] == [...]` on `world.run_worker()` (`test_instructions_inside_a_file_are_indexed_as_text_and_trigger_nothing`:
+`[]` for `['succeeded']`; `test_the_vision_model_unavailable_means_scanned_pages_are_gaps`: `[]` for `['failed:too_many_unreadable_pages']`). Three different tests, so it is a property of the
+file's pattern (enqueue, then drain at once), not of one test. Two further runs were invalid and are not counted: they failed with `relation ... does not exist` because I overlapped two pytest sessions (23.2).
+Not reproduced under CPU saturation (1 clean loaded run passed).
+
+*Snapshot at the moment of a failure.* A probe wrapped `run_worker` and, on an empty drain, recorded the job table. For the vision test: one job, `state=queued`, `attempts 0/3`, not cancelled, **no locks**, a plain
+claim query returning nothing, and `run_after = 21:31:55.428` while the database's own `now()` was `21:31:55.347` and `clock_timestamp()` `21:31:55.349`: **the job was stamped 81 ms in the database's future.**
+Nothing was wrong with the job; it was not yet due by the database's own clock.
+
+*Cause, measured.* Polling `clock_timestamp()` against the host clock for 240 s (read-only): the Postgres server's clock (the VM behind Docker Desktop) **steps backward 8 times, about every 30 s (at 14.9, 44.8, 74.6, 104.5,
+134.3, 164.2, 194.1 and 223.9 s), by 126 to 186 ms each time**, drifting ahead of the host in between. A job is stamped `run_after = now()` when created and claimed when `run_after <= now()` (`app/ai/analysis/jobs.py`,
+and the same rule for requests in `app/services/ai_requests.py`), so a job created within ~190 ms before a step is not due for up to that long afterwards, and a test that drains straight away gets `[]`. Each enqueue-then-drain pair
+is exposed for roughly 0.1-0.3 s, a step's window is about 0.15 s and a step comes every 30 s, and the file has about 40 such pairs, so the rate should be on the order of 10% of file runs; observed 2 of 20.
+
+*Is it an application bug?* No: a job queued in the last ~190 ms before a clock step is claimed up to ~190 ms later, the worker polls anyway, and nothing is lost or wrong. The fragile part is the test helper's assumption that
+"queued" means "claimable this instant". Other single-run flakes recorded in 21.3 compare times against the database clock too (`test_outbox_dispatcher::test_only_due_rows_are_claimed_up_to_the_batch_size`, and the proposal
+helper drains that returned nothing) and are *consistent with* this cause; I did not test them.
+
+*Fix (test helpers only), in two versions.* `tests/analysis_helpers.py`: `run_worker()` and `drain()` now wait and claim again, **only** for work that was due when it was created (`run_after = created_at`), is not cancelled, and is due within the last 0.3 s or
+within the next 1 s, at most 5 times. Work delayed on purpose (a retry backoff has `run_after > created_at`) is not waited for, so the tests that assert "nothing to claim yet" still see nothing.
+**My first version was incomplete.** It waited only for work still in the future at the moment it checked. The re-run of the dependent files then failed once in `test_ai_proposals_schema.py` (`request_and_result`, the same "drain returned nothing"
+class, now after the fix): a claim compares with `now()` as of the START of its transaction, so work that became due a few milliseconds later is missed by that claim and is already due when the check runs, and the first version
+said "nothing to wait for". The revised version also covers work that became due in the last 0.3 s.
+`tests/test_clock_step_grace.py` (9 tests) simulates the step by moving `run_after` and `created_at` 0.4 s ahead (drained, and it really waited), and checks that a backoff, cancelled work and work due for a long time are not waited for, that the wait is bounded, that
+the request path behaves the same, that work that became due a moment ago is tried again, and that the helper's comparison matches the claims'. With the wait disabled, the two "only waiting on the clock" tests fail; with the 0.3 s window removed (the first version), the "became due a moment ago" test fails.
+**Not shown:** a live before/after across a real step (the API's rate limits stop a back-to-back loop), and no number of clean runs can prove a flake of this size gone; the claim is the measured cause plus the simulated fix, and the dependent files passing again (23.2).
+
+**(b) The `editor-collab` toolbar test (Playwright, Chromium). Cause inferred, not observed: keys sent a millisecond apart.**
+
+*What was recorded.* One failure of `toolbar: bold, heading, list, table, link (and a refused link), undo` in a sequence of specs; it passed alone and 14/14 on a re-run of the file. The error was not kept.
+
+*Reproduction.* That one test repeated 12 times in one session, nothing else running: **4 failed, 8 passed.** All four failed the same way: at the step that selects the heading (line 158), `locator("h2")` is no
+longer in editor A and the test waits for it until the 60 s timeout. The page snapshot saved at each failure shows the editor holding **one bullet-list item with the bold text "Plain wordsitem one" and the table**: the new paragraph after the heading
+was never made, so the bullet button turned the heading itself into a list item and "item one" was typed onto its end. The trace shows `Control+End` and `Enter` sent about 1 ms apart, straight after the heading assertions.
+
+*A guess that was wrong.* I first thought focus was still on the toolbar's `<select>` (TipTap's `focus()` is deferred by a frame) and added a wait for the editor to have focus. **It did not fix it** (3 of 12 still failed, with the wait passing), so focus is not the cause and I removed that change.
+*What the evidence supports.* A temporary copy of the test that logged the editor's HTML after each key **passed 12 of 12**: the extra round trips between keys removed the failure, so it depends on how quickly the keys follow each other. The editor learns of a caret move
+from a `selectionchange` that arrives a frame later, so an `Enter` sent right after `Control+End` can act on the previous selection. That is my inference; I did not observe ProseMirror's selection at that moment.
+
+*Change (test only).* `e2e/editor-collab.spec.ts` waits two animation frames (`settle()`) after `Control+End` and after `Enter`. With it: **12 of 12 passed** under the same conditions, the whole spec **14 of 14**, type check clean. If the failure rate had still been about 29% (7 of 24
+unfixed repeats), 12 passes in a row would happen about 1.6% of the time; that is good evidence, not proof. **Not examined:** whether the editor itself mishandles a fast `Enter` after a caret move (it would matter for key repeat or scripted input, not for a person typing). The recorded evidence is in `docs/evidence/ai-eval/flake-investigations.json`.
+
+*The other single-run flakes in 21.3* (`test_outbox_dispatcher::test_only_due_rows_are_claimed_up_to_the_batch_size`, `test_ws_access` revoked session, `test_ai_proposals_schema::test_a_valid_edit_and_draft_proposal_are_accepted`, a proposal helper whose drain returned nothing): the clock steps are consistent with the ones that compare times against the database clock; none was reproduced or tested.
+
+
+### 23.4 The human review sheet
+
+`docs/evidence/ai-eval/human-review-sheet.md`, generated by `backend/tests/eval/build_review_sheet.py` from the committed evidence (no provider is called; 6 tests in
+`tests/test_review_sheet.py`). It has 8 answers (each route, with `diagram-release` twice: with effort `none` and at the default) and 8 proposals (each operation kind: rewrite,
+insert, delete, diagram, two operations, a draft; and **the two real repairs**, from the first two proposal runs, since the post-fix run needed none). Each entry shows the request,
+the sources, the cited passages, the output, the expected evidence, the harness's **automated checks**, **my reading** (my own words, labelled as not a human review) and **empty**
+human fields for factual support, completeness, usefulness and (for proposals) edit safety. Things to know before using it:
+
+* An `S`-labelled citation in a summary or comparison is a **section summary the model wrote**, not source text. Check those answers against `release.md` (Appendix A).
+* The two post-fix `diagram-release` outputs are in A6 and A7. The automated check scores A7 worse (the required phrase is not in its cited text); on my reading its content is not worse. That
+  is exactly the kind of item where your judgement and the mechanical check may differ.
+* The proposal records keep citation numbers but not the passages behind them, so for a proposal the sheet points to the source text instead.
+* Names ending `-repaired` in the proposals set are scenario names from the stub mode; no fault is injected into a real response. P7 and P8 are shown because the model's first real reply was rejected and one repair fixed it.
+* Nothing in the sheet is a human assessment.
+
+### 23.5 What is open
+
+* **Human review** of the sheet (16 items), and of anything else you care about; none has been done.
+* The Postgres clock behind Docker Desktop steps back about every 30 s (23.3). The application is not affected, but any test that compares times against the database clock is exposed; only the two drain helpers were hardened.
+* The classifier effort is adopted in the example configuration and your local `.env` only; the code default is empty (23.1). Say if you want it as the code default.
+* Not done: the real-inference browser specs in Firefox; publishing or merging the branch (nothing has been pushed or merged in this stage).

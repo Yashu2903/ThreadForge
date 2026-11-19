@@ -550,3 +550,16 @@ Full account, tables and caveats: `docs/ai.md` 22.7-22.9. Evidence: `docs/eviden
   item's retrieval and latency got worse. Not tuned; options are listed in 22.8.
 * **Provenance**: run-1 manifests rebuilt with every field labelled; run 2 documented as completion-time; corrected figures in `corrections.json`.
 * **Not done**: any human review; Firefox for real-inference specs.
+
+## Fourth stage (2026-11-19, later): classifier effort `none`, the rest of the backend suite, the flakes, the review sheet
+
+Full account and tables: `docs/ai.md` section 23. Evidence: `docs/evidence/ai-eval/` (README there).
+
+* **Classifier effort `none`**: a full 13-question real run (classifier failures 0/13, final routing 13/13, recall@3 and @5 back to 100%, `diagram-release` fixed, no item worse), then a bounded repeat check
+  (180 calls, a rule written before the first run; `none` right on 90 of 90 against 84 of 90 by default, all six misses drawing requests). **Adopted in `.env.example` and the local `.env` for `gpt-6-luna`; the code default stays empty** so another model keeps working.
+  The gold expectation was not changed. An explicit Ask/Summarize/Compare in the UI skips the classifier; the evaluation sends `auto` for everything.
+* **Backend suite completed**: the 33 files of batches 10-15, one process each with a memory guard: 932 passed, 0 failed (lowest free memory 344 MB). One false failure was mine (two pytest sessions at once rebuild the same test schema). **Run one pytest session at a time.**
+* **The two recorded flakes were reproduced.** (a) lifecycle: the Postgres clock behind Docker steps back 126-186 ms every ~30 s, so a job stamped just before a step is not yet "due" and an immediate drain returns nothing (measured; snapshot captured); fixed in the
+  test drain helpers, 9 tests, my first version was incomplete and a re-run caught it. (b) toolbar e2e: 4 of 12 failed; my first guess (focus) was wrong; keys sent 1 ms apart; a two-frame settle gave 12 of 12 (cause inferred).
+* **Human review sheet** (`human-review-sheet.md`): 8 answers and 8 proposals, automated checks and my reading kept apart, human fields empty. **No human review has been done.**
+* **Not done**: any human review; real-inference specs in Firefox; pushing or merging.
