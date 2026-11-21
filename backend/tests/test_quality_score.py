@@ -11,8 +11,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from tests.eval import quality
 from tests.eval.quality import DEV, HELDOUT, ITEMS
 from tests.eval.quality_score import Outputs, flag_recall, material_text, score_item, sentence_text
