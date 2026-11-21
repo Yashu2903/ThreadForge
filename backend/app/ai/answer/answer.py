@@ -407,7 +407,9 @@ def render_plain_text(
             lines.append(f"[Diagram: {block['title'] or 'untitled'}]")
             if block.get("assumptions"):
                 lines.append(
-                    "Assumed, not stated in the sources: " + "; ".join(block["assumptions"]) + "."
+                    "Assumed, not stated in the sources: "
+                    + "; ".join(a.rstrip(".") for a in block["assumptions"])
+                    + "."
                 )
     if answer.evidence_gaps:
         lines.append("Not found in the sources: " + "; ".join(answer.evidence_gaps))

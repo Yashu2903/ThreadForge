@@ -122,6 +122,27 @@ def test_the_chat_text_of_a_diagram_carries_its_assumptions_and_the_server_notes
     assert "[Diagram: Flow]" in short and f"Assumed, not stated in the sources: {ORDER}" in short
 
 
+def test_several_assumptions_are_joined_without_doubled_full_stops():
+    v = ValidatedAnswer(
+        blocks=[
+            {
+                "type": "diagram",
+                "title": "Flow",
+                "mermaid": FLOW,
+                "assumptions": ["Build is drawn first.", "Deploy follows Build."],
+                "citations": [],
+            }
+        ],
+        citations=[],
+        evidence_gaps=[],
+        stats=ClaimStats(),
+        diagrams=[0],
+    )
+    text = render_plain_text(v, 4000, "")
+    assert "Assumed, not stated in the sources: Build is drawn first; Deploy follows Build." in text
+    assert ".." not in text
+
+
 def test_both_system_prompts_carry_the_grounding_rule_and_the_review_prompt_separates_effect_from_gap():
     for system in (
         answer_prompts.system_prompt("qa"),
