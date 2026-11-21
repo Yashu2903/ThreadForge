@@ -1,0 +1,590 @@
+{
+  "manifest_version": 2,
+  "evaluator_version": "eval-3",
+  "run_id": "e48feef460a64ad59c9dfd2703efc925",
+  "kind": "answer",
+  "mode": "real",
+  "started_utc": "2026-11-21T00:54:33.443701+00:00",
+  "expected_items": 13,
+  "captured_at_start": [
+    "run_id",
+    "started_utc",
+    "evaluator_version",
+    "expected_items",
+    "code",
+    "runtime",
+    "dataset",
+    "prompts_and_schemas",
+    "configuration",
+    "retry_and_repair",
+    "models_requested"
+  ],
+  "code": {
+    "commit": "0fe9a9511ca5fc2f309f56368428b4c45de3af4e",
+    "branch": "unavailable: detached or not a git checkout",
+    "working_tree_clean": false,
+    "changed_or_untracked_paths": [
+      "backend/tests/eval/manifest.py",
+      "backend/tests/eval/metrics.py",
+      "backend/tests/eval/run_eval.py",
+      "backend/tests/eval/test_eval.py",
+      "backend/tests/eval/test_proposal_eval.py",
+      "backend/app/ai/edit/qualifiers.py",
+      "backend/tests/eval/checks.py",
+      "backend/tests/eval/evidence.py",
+      "backend/tests/eval/quality.py",
+      "backend/tests/eval/quality_score.py",
+      "backend/tests/eval/test_quality_eval.py"
+    ],
+    "tracked_code_diff_sha256": "73890f4ccce9de816e5087329b6bccb45dcaa8cc268c90a8db31b149db6a1bc9"
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "platform": "Windows-11-10.0.26300-SP0"
+  },
+  "dataset": {
+    "questions": 13,
+    "gold_sha256": "d0fae81b26d71c4dec7de2536f9374880d7aaf48e6ccbc5297873099612eec43",
+    "corpus_py_sha256": "b2eeb89e4eb4fc56a54f125a4a28a88b0146c63685fa74374db3871d13fdd918",
+    "sources_sha256": {
+      "depots.pdf": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf",
+      "march-scan.pdf": "2c1212bf25f7eb8d18773779e9401448e3f37763520ce1fef31d6120c08473f0",
+      "handbook.docx": "e691140451b4c9185d715fef03a325d1f9802ba18b7c48fb7b2207c89a3052eb",
+      "release.md": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41"
+    },
+    "evidence_gold": {
+      "version": "evidence-gold-v1",
+      "fingerprint": "7a30cfb459df4b7ce100b9e5e2b20834295a11cfabc4d5e47e05e0038d748b5c",
+      "fixtures": "corpus-v1",
+      "fixture_identity": {
+        "depots.pdf": {
+          "kind": "bytes",
+          "sha256": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf"
+        },
+        "march-scan.pdf": {
+          "kind": "content:page_texts",
+          "sha256": "2758200a8ce3fa76b0f79615660db7441714b7eae9b4448a9026e9475ca5f8a5"
+        },
+        "handbook.docx": {
+          "kind": "content:document_xml+media",
+          "sha256": "f86e16bbcce6a772e5d81aa40bdec853cc4ff54c821e7594d8e3fd35a1f23cd8"
+        },
+        "release.md": {
+          "kind": "bytes",
+          "sha256": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41"
+        }
+      },
+      "strategies": {
+        "qa": "ranked_retrieval",
+        "figure": "ranked_retrieval",
+        "diagram": "ranked_retrieval",
+        "compare": "ranked_retrieval",
+        "summarize": "full_sections",
+        "review": "full_document"
+      },
+      "policies": {
+        "unit": "an identifier of a place in an original file (page, section heading path, figure number, document block)",
+        "acceptable_sets": "an item lists acceptable sets; the best set's covered share is the item's value",
+        "multiple_passages": "a unit covered by several candidates counts once, at the first rank",
+        "recall_at_k": "covered units of the best set among the top k ranked candidates / units in that set",
+        "aggregate": "mean over items that have gold evidence, with the item count; pooled units reported beside it",
+        "missing_gold": "recall None: left out of the aggregate and counted, never 0 or 1",
+        "unranked_routes": "summarize and review report coverage of what was read, never recall@k",
+        "section_matching": "a candidate under a section path covers that section and every section above it",
+        "fixture_identity": "bytes where deterministic, otherwise a hash of the content the fixture is generated from"
+      }
+    },
+    "metric_versions": {
+      "required_phrase_coverage": "phrase-v1",
+      "evidence_recall": "evidence-v1"
+    }
+  },
+  "prompts_and_schemas": {
+    "answer_prompt_template_version": "answer-v1",
+    "edit_prompt_template_version": "edit-v1",
+    "parser_version": "extract-v1",
+    "classify_schema_sha256": "2b15a848d3cfae4b10ea074fb5c80ae97737d319197fcbde2c85e436539d3ce4",
+    "file_sha256": {
+      "answer_prompts": "c2a38bc8958b614a4e065a3e66cd27854cde5f1035b1dbebe5f1498ee85e0ef0",
+      "answer_schema_and_validation": "53f6890a667ec0ba54a490f81cdc46620b5f8743deb630a03bef84ca7db3e47c",
+      "edit_prompts": "5d90a1d16dffdc4b25b119f3a14bdbd48f6b92c601201cd7b9e991c4bae98bc5",
+      "edit_schema": "12bc12b2ee97492298cdb4cb0ae68e04026a312ba09b3d8367eb52a38c2784e3",
+      "answer_strategies": "9c1dd6d76f8d9aafd0eda810b5e36f70bd314ece0cf100ef899da874c2d79bd8",
+      "edit_target_and_context": "67ca4d950dbac96d56e4a15559bf8e85eb98ff0ae2e83d01a159ebfe61bc17c3",
+      "edit_generate": "7b11af2b044525d7a39cd1f96e361d0239ae4f6b8735e467c69763622ff1b76e",
+      "edit_qualifiers": "9ff07c9fa694d61eb49ed1856c6a4c1c8c5f6ec8f10dcfba46cb7bc723b5d9af"
+    }
+  },
+  "configuration": {
+    "ai_llm_model": "gpt-6-luna",
+    "ai_embed_model": "gemini-embedding-2",
+    "ai_embed_dimensions": 1536,
+    "ai_embed_max_input_tokens": 8192,
+    "ai_llm_context_tokens": 1050000,
+    "ai_llm_max_output_tokens": 128000,
+    "ai_llm_structured_output": true,
+    "ai_llm_reasoning_effort": "",
+    "ai_classifier_max_output_tokens": 512,
+    "ai_classifier_reasoning_effort": "none",
+    "ai_max_input_tokens": 200000,
+    "ai_max_output_tokens": 8000,
+    "ai_max_provider_calls": 40,
+    "ai_call_timeout_seconds": 120.0,
+    "ai_retry_max_attempts": 4,
+    "ai_key_concurrency": 4,
+    "ai_key_policy": "server_only",
+    "ai_proposals_enabled": false,
+    "ai_retrieval_lexical_k": 20,
+    "ai_retrieval_vector_k": 20,
+    "ai_retrieval_rrf_k": 60,
+    "ai_retrieval_evidence_tokens": 24000,
+    "ai_retrieval_max_distance": 0.6,
+    "ai_chunk_target_tokens": 400,
+    "ai_chunk_max_tokens": 900,
+    "ai_chunk_overlap_tokens": 40,
+    "ai_openai_base_url": "https://api.openai.com",
+    "ai_google_base_url": "https://generativelanguage.googleapis.com",
+    "ai_prices_checked_on": ""
+  },
+  "retry_and_repair": {
+    "retried_provider_codes": [
+      "provider_rate_limited",
+      "provider_unavailable",
+      "provider_timeout"
+    ],
+    "max_attempts_per_call": 4,
+    "base_delay_seconds": 1.0,
+    "max_delay_seconds": 30.0,
+    "call_timeout_seconds": 120.0,
+    "truncated_output_retried": false,
+    "repairs": "none for answers: a reply that fails validation fails the request"
+  },
+  "models_requested": {
+    "generation": "gpt-6-luna",
+    "embedding": "gemini-embedding-2"
+  },
+  "finished_utc": "2026-11-21T00:55:57.312680+00:00",
+  "captured_at_completion": [
+    "finished_utc",
+    "cases",
+    "results",
+    "models_recorded",
+    "usage_ledger_run_wide",
+    "usage_totals",
+    "provider_failures",
+    "cost"
+  ],
+  "models_recorded": [
+    "google:gemini-embedding-2",
+    "openai:gpt-6-luna"
+  ],
+  "usage_ledger_run_wide": [
+    {
+      "operation": "answer",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 13,
+      "input_tokens": 18693,
+      "output_tokens": 2289,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "classify",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 13,
+      "input_tokens": 1778,
+      "output_tokens": 172,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "embed_text",
+      "provider": "google",
+      "model": "gemini-embedding-2",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 16,
+      "input_tokens": 4387,
+      "output_tokens": 0,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "map",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 1,
+      "input_tokens": 230,
+      "output_tokens": 151,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "vision_describe",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 1,
+      "input_tokens": 603,
+      "output_tokens": 139,
+      "est_cost_micros": "0"
+    }
+  ],
+  "usage_totals": {
+    "source": "the run-wide usage ledger only (per-case figures are views of the same rows)",
+    "by_provider": {
+      "openai": {
+        "calls": 28,
+        "failed_calls": 0,
+        "input_tokens": 21304,
+        "output_tokens": 2751
+      },
+      "google": {
+        "calls": 16,
+        "failed_calls": 0,
+        "input_tokens": 4387,
+        "output_tokens": 0
+      }
+    }
+  },
+  "provider_failures": {
+    "calls": {
+      "numerator": 0,
+      "denominator": 44,
+      "value": 0.0
+    },
+    "by_operation_and_code": []
+  },
+  "cost": {
+    "status": "unpriced",
+    "complete_total": false,
+    "est_cost_micros": null,
+    "est_cost_usd": null,
+    "currency": "USD",
+    "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+    "unpriced_components": [
+      "generation",
+      "embedding"
+    ],
+    "kind_of_value": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+    "rates": null,
+    "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+    "usage_retained": {
+      "generation_input_tokens": 21304,
+      "generation_output_tokens": 2751,
+      "embedding_input_tokens": 4387
+    }
+  },
+  "results": {
+    "routing": {
+      "published": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "classification_attempts": 13,
+      "valid_model_classifications": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "model_accuracy_of_valid": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "model_accuracy_of_attempts": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "classifier_failures": {
+        "numerator": 0,
+        "denominator": 13,
+        "value": 0.0
+      },
+      "classifier_failures_by_category": {},
+      "fallback_requests": {
+        "numerator": 0,
+        "denominator": 13,
+        "value": 0.0
+      },
+      "final_route_accuracy": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "final_correct_by_fallback": 0,
+      "model_misrouted": [],
+      "fallback_ids": []
+    },
+    "ocr_character_accuracy": 0.9191063174114021
+  },
+  "cases": [
+    {
+      "id": "qa-berlin",
+      "request_id": "6c1252b8-da84-4a7e-b810-6eb46168e4a7",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.700651099992683,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-lisbon-storms",
+      "request_id": "b04b2d73-1f29-4eb1-acdf-6c72a334cd48",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.5002318999904674,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-scan-orders",
+      "request_id": "dce7a0b9-9fea-4b44-b792-1a82568ca016",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.179291699983878,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-scan-delays",
+      "request_id": "3c89bbf5-7430-4bb4-a6ae-23cb1c60a227",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.3704475999984425,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-md-owner",
+      "request_id": "55ddc438-d811-4d1c-82e6-925b08b0c7ff",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.9523476000176743,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-md-restart",
+      "request_id": "11c226e7-0110-415f-a356-0cd6acff81b8",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.567838799994206,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-two-sources",
+      "request_id": "4d34f511-2f5e-42dd-891e-6dcb99419016",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.660850499989465,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "figure-handbook",
+      "request_id": "b4bbe32f-4297-4126-b8bc-60390b6e104f",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 6.304442699998617,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "summarize-release",
+      "request_id": "ccfdac13-f308-4ffd-ae58-19212ad8132c",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 6.259626300015952,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "summarize",
+        "model_route": "summarize",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "summarize"
+    },
+    {
+      "id": "compare-depots-release",
+      "request_id": "60c0fca1-cc0d-443c-a5a5-91082a69f7a8",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 8.032635400013532,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "compare",
+        "model_route": "compare",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "compare"
+    },
+    {
+      "id": "review-launch-plan",
+      "request_id": "219b915d-05fc-4c00-9a8f-55d07105cfd4",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.106927699991502,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "document_review",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "document_review"
+    },
+    {
+      "id": "diagram-release",
+      "request_id": "c506ea41-53a3-4cd7-893a-87d105171943",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 9.193740199989406,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "diagram-architecture",
+      "request_id": "b3efd253-e803-4b13-aeab-09793171d9c3",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 7.722820499999216,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    }
+  ]
+}

@@ -1,0 +1,3469 @@
+{
+  "mode": "real",
+  "split": "dev",
+  "run": {
+    "failures": {
+      "calls": {
+        "numerator": 0,
+        "denominator": 18,
+        "value": 0.0
+      },
+      "by_operation_and_code": []
+    },
+    "cost": {
+      "status": "unpriced",
+      "complete_total": false,
+      "est_cost_micros": null,
+      "est_cost_usd": null,
+      "currency": "USD",
+      "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+      "unpriced_components": [
+        "generation",
+        "embedding"
+      ],
+      "kind_of_value": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+      "rates": null,
+      "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+      "usage_retained": {
+        "generation_input_tokens": 13842,
+        "generation_output_tokens": 5297,
+        "embedding_input_tokens": 3155
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "closing-summary-atlas",
+      "split": "dev",
+      "finding": "F1",
+      "kind": "edit",
+      "instruction": "Add a closing summary paragraph.",
+      "sources": [],
+      "document": "atlas",
+      "request_id": "2c533fe3-1565-40c1-a3b3-c05aa6611c8d",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 7.799684700003127,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1980,
+        "output_tokens": 651,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Added a closing summary paragraph after B6.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "81ddb72a-8de4-40ed-96b5-844858ed25d2"
+                  },
+                  "content": [
+                    {
+                      "text": "Atlas moves the order system from the old data centre to the cloud by 30 June, with a budget of 120,000 euros approved by the steering group. The main risk is the payment gateway, which has no staging environment; Maria Keller owns the cutover plan and Tom Vogel owns the rollback plan.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": "247ae329-cb1b-5dd7-886c-28d76b6eab34",
+              "before": [],
+              "reason": "Summarizes the stated schedule, approved budget, main risk, and plan owners without adding claims.",
+              "block_id": null,
+              "citations": [],
+              "hash_after": [
+                "4d9fec33ef53f130a3f8ad338d7969e6a3aab61f13a34799687b3ce75107a298"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            }
+          ],
+          "summary": "Added a closing summary paragraph after B6.",
+          "inserted_chars": 286
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "closing-summary-atlas",
+        "split": "dev",
+        "finding": "F1",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "what",
+              "deadline",
+              "budget",
+              "risk",
+              "owners"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 5,
+            "needed": 4
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": []
+        },
+        "finding_met": true,
+        "explain": [
+          "concepts 5/5 (need 4), missing []"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Added a closing summary paragraph after B6.\nOpen the review card to preview the change.",
+      "gaps": [
+        "No P/S-style evidence labels were provided; the summary is based on the visible document context."
+      ],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 0,
+          "ranges": 0,
+          "insert_at": "end"
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_plus_context",
+          "scope": "edit",
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 402,
+            "blocks_shown": 6,
+            "blocks_total": 6,
+            "tokens_shown": 158,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "document_id": "aaaaef81-74e0-4bc1-85e7-04070497f4d6",
+          "blocks_total": 6,
+          "blocks_included": 0,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 402,
+            "blocks_shown": 6,
+            "blocks_total": 6,
+            "tokens_shown": 158,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "repaired": false,
+          "review_flags": 0,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "rewrite-qualified-dev",
+      "split": "dev",
+      "finding": "F5",
+      "kind": "edit",
+      "instruction": "Tighten these sentences without changing what they say.",
+      "sources": [],
+      "document": "qualified-dev",
+      "request_id": "2d54e211-cfd0-4222-9127-61acf4d55382",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.664317399990978,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 2049,
+        "output_tokens": 942,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Tightened the four sentences while preserving their timing, uncertainty, approval status, and condition.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "f42623d2-259e-5587-b012-2aaa596813b3"
+                  },
+                  "content": [
+                    {
+                      "text": "Launch is scheduled for Friday at noon.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "f42623d2-259e-5587-b012-2aaa596813b3"
+                  },
+                  "content": [
+                    {
+                      "text": "The launch is scheduled for Friday at noon.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Removed the unnecessary article while retaining the scheduled timing.",
+              "block_id": "f42623d2-259e-5587-b012-2aaa596813b3",
+              "citations": [],
+              "hash_after": [
+                "eaaa0ab63af5ce0c37521d957a94560eab56a53f556c437a3c44a0e658a0c50c"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            },
+            {
+              "op": 1,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "fa9e9006-cbf4-5d7b-8a50-f7bcaf79e2e6"
+                  },
+                  "content": [
+                    {
+                      "text": "Vendor delays could push back the schedule.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "fa9e9006-cbf4-5d7b-8a50-f7bcaf79e2e6"
+                  },
+                  "content": [
+                    {
+                      "text": "Vendor delays could slip the schedule.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Shortened the phrasing while retaining the possibility of delay.",
+              "block_id": "fa9e9006-cbf4-5d7b-8a50-f7bcaf79e2e6",
+              "citations": [],
+              "hash_after": [
+                "3b1b10befd2f471db32ff35a3a898196b4762a7bf42ebc33dda07342b5515448"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            },
+            {
+              "op": 2,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "3ff5f56b-f53f-5957-bd3f-8f2667252107"
+                  },
+                  "content": [
+                    {
+                      "text": "The budget is estimated at $40,000 and is not yet approved.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "3ff5f56b-f53f-5957-bd3f-8f2667252107"
+                  },
+                  "content": [
+                    {
+                      "text": "The budget is estimated at forty thousand dollars and is not yet approved.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Condensed the amount into standard currency notation while retaining the estimate and unapproved status.",
+              "block_id": "3ff5f56b-f53f-5957-bd3f-8f2667252107",
+              "citations": [],
+              "hash_after": [
+                "29bd5df6e347f36ac04e06952fad6592057a3525d5269ff18174bb47b8e167d7"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            },
+            {
+              "op": 3,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "987cd08a-49d2-568d-b880-67cd5a4ae27b"
+                  },
+                  "content": [
+                    {
+                      "text": "Support will move to the new queue if migration finishes by June.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "987cd08a-49d2-568d-b880-67cd5a4ae27b"
+                  },
+                  "content": [
+                    {
+                      "text": "Support will move to the new queue if the migration finishes by June.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Removed an unnecessary article while preserving the move and its condition.",
+              "block_id": "987cd08a-49d2-568d-b880-67cd5a4ae27b",
+              "citations": [],
+              "hash_after": [
+                "2a3dcd45748e17211381f5f32e46d7cae456ed3f93388d95cf5066f97a6ddadb"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            }
+          ],
+          "summary": "Tightened the four sentences while preserving their timing, uncertainty, approval status, and condition.",
+          "inserted_chars": 206
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "rewrite-qualified-dev",
+        "split": "dev",
+        "finding": "F5",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "blocks": {
+            "1": {
+              "found": [
+                "scheduled",
+                "friday",
+                "noon"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 3,
+              "before": "The launch is scheduled for Friday at noon.",
+              "after": "Launch is scheduled for Friday at noon.",
+              "length_ratio": 0.91
+            },
+            "2": {
+              "found": [
+                "hedge",
+                "vendor",
+                "schedule"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 3,
+              "before": "Vendor delays could slip the schedule.",
+              "after": "Vendor delays could push back the schedule.",
+              "length_ratio": 1.13
+            },
+            "3": {
+              "found": [
+                "estimated",
+                "amount",
+                "not-approved"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 3,
+              "before": "The budget is estimated at forty thousand dollars and is not yet approved.",
+              "after": "The budget is estimated at $40,000 and is not yet approved.",
+              "length_ratio": 0.8
+            },
+            "4": {
+              "found": [
+                "conditional",
+                "june",
+                "queue"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 3,
+              "before": "Support will move to the new queue if the migration finishes by June.",
+              "after": "Support will move to the new queue if migration finishes by June.",
+              "length_ratio": 0.94
+            }
+          },
+          "lost": {},
+          "lost_and_flagged": {}
+        },
+        "finding_met": true,
+        "explain": [
+          "4 sentences changed; facts lost: none; flagged by the app: n/a"
+        ]
+      },
+      "chat_text": "Proposed 4 changes to \u201cPlan\u201d: Tightened the four sentences while preserving their timing, uncertainty, approval status, and condition.\nOpen the review card to preview the change.",
+      "gaps": [
+        "No labeled evidence passages were provided, so citations could not be attached; the edits rely on the selected text."
+      ],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 4,
+          "ranges": 0,
+          "insert_at": null
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_plus_context",
+          "scope": "edit",
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 219,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 87,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "document_id": "aaaaef81-74e0-4bc1-85e7-04070497f4d6",
+          "blocks_total": 5,
+          "blocks_included": 4,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 219,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 87,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "repaired": false,
+          "review_flags": 0,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "compare-depots-release",
+      "split": "dev",
+      "finding": "F6",
+      "kind": "answer",
+      "instruction": "Compare how the depot report and the release process assign responsibilities.",
+      "sources": [
+        "depots.pdf",
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "604a218b-a199-44c8-935f-dabbdcdf528e",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.96239699999569,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 2726,
+        "output_tokens": 1056,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 3,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "text": "**Depot report:** Across the depot entries, responsibilities are assigned to role groups: shift leads review the loading bays, sorting belts and returns desk each morning; drivers collect routes and scan parcels at the gate; supervisors write weekly summaries of delays. The report does not name individual people as owners of these tasks. Customers are described as able to track deliveries, not as responsible for an operational task. [P1, P2, P3, P4, P5, P6, P7, P8]",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "**Release process:** The process says each release goes through three gates, and its stage-owner table assigns Build to Alice and Deploy to Bob. Build includes compiling the sources and running unit tests; Deploy restarts the workers one at a time. The evidence does not identify the third gate or its owner. [P9, P10, P11, P12]",
+            "type": "paragraph",
+            "citations": [
+              9,
+              10,
+              11,
+              12
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "**Comparison:** Both files connect responsibilities with defined work: the depot report assigns recurring duties to operational roles, while the release process names individual owners for two stages and describes their work. They differ in granularity and coverage: the depot report covers several role-based tasks, whereas the release evidence gives named owners for only two of the three gates. [P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12]",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "unsupported": false
+          }
+        ],
+        "evidence_gaps": [
+          "The release evidence does not name the third gate or assign it an owner.",
+          "The depot report does not identify individual owners by name."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "compare",
+      "routing": {
+        "hint": "compare",
+        "failure": null,
+        "degraded": false,
+        "final_route": "compare",
+        "model_route": null,
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": false,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "compare-depots-release",
+        "split": "dev",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "depots",
+              "release"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 2,
+            "needed": 2
+          },
+          "placeholder_hits": [],
+          "cited_sources": [
+            "depots.pdf",
+            "release.md"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['depots.pdf', 'release.md'] (need ['depots.pdf', 'release.md']); concepts 2/2"
+        ]
+      },
+      "chat_text": "**Depot report:** Across the depot entries, responsibilities are assigned to role groups: shift leads review the loading bays, sorting belts and returns desk each morning; drivers collect routes and scan parcels at the gate; supervisors write weekly summaries of delays. The report does not name individual people as owners of these tasks. Customers are described as able to track deliveries, not as responsible for an operational task. [P1, P2, P3, P4, P5, P6, P7, P8] [1][2][3][4][5][6][7][8]\n**Release process:** The process says each release goes through three gates, and its stage-owner table assigns Build to Alice and Deploy to Bob. Build includes compiling the sources and running unit tests; Deploy restarts the workers one at a time. The evidence does not identify the third gate or its owner. [P9, P10, P11, P12] [9][10][11][12]\n**Comparison:** Both files connect responsibilities with defined work: the depot report assigns recurring duties to operational roles, while the release process names individual owners for two stages and describes their work. They differ in granularity and coverage: the depot report covers several role-based tasks, whereas the release evidence gives named owners for only two of the three gates. [P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12] [1][2][3][4][5][6][7][8]\nNot found in the sources: The release evidence does not name the third gate or assign it an owner.; The depot report does not identify individual owners by name.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The release evidence does not name the third gate or assign it an owner.",
+        "The depot report does not identify individual owners by name."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "92cc612f-21ad-413a-8614-cca07156fdf2",
+              "page_end": 2,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 2,
+              "version_no": 1,
+              "text_sha256": "7eb1d2a2c091d06aab7e2e8b43ab36d1a7b5dbc01d6819cb7ffc774cc600fbf5",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week.\nLisbon depot report for May. The Lisbon depot handled 3100 parcels in May. The Lisbon depot closed early twice because of storms. Shift leads at the Lisbon depot reviewed loading bays, sortin",
+          "locator": {
+            "page_end": 2,
+            "page_start": 2,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "92cc612f-21ad-413a-8614-cca07156fdf2"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "32667645-7e31-4d72-a7c6-199b6b90ed01",
+              "page_end": 3,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 3,
+              "version_no": 1,
+              "text_sha256": "ab74b31a16a06443cd29dd4fa8705e3c9e42deeca3c652035a920d53df1069dd",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "in the tracking system, and the Lisbon supervisors wrote a short summary of delays at the end of every week.\nMadrid depot report for May. The Madrid depot handled 5100 parcels in May. The Madrid depot added a third sorting belt in April. Shift leads at the Madrid depot reviewed loading bays, sorting",
+          "locator": {
+            "page_end": 3,
+            "page_start": 3,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "32667645-7e31-4d72-a7c6-199b6b90ed01"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 4,
+              "chunk_id": "8790f725-6579-46b8-a409-2ede72835368",
+              "page_end": 5,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 5,
+              "version_no": 1,
+              "text_sha256": "9c949da2e4ec38c16f73bcef27f067131f011a63df2bcd2081cb977bb7f7cad3",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "in the tracking system, and the Vienna supervisors wrote a short summary of delays at the end of every week.\nOslo depot report for May. The Oslo depot handled 1900 parcels in May. The Oslo depot paused night shifts during the ice warning. Shift leads at the Oslo depot reviewed loading bays, sorting ",
+          "locator": {
+            "page_end": 5,
+            "page_start": 5,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "8790f725-6579-46b8-a409-2ede72835368"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "6f04dedf-de54-4b8a-8e02-5a14799bb3cc",
+              "page_end": 4,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 4,
+              "version_no": 1,
+              "text_sha256": "5510c74bc20a6c1d6ed36c088a209849a410f6416e4c3e011f9dc064cac375a4",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "in the tracking system, and the Madrid supervisors wrote a short summary of delays at the end of every week.\nVienna depot report for May. The Vienna depot handled 2800 parcels in May. The Vienna depot lost two delivery vans to a recall. Shift leads at the Vienna depot reviewed loading bays, sorting ",
+          "locator": {
+            "page_end": 4,
+            "page_start": 4,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "6f04dedf-de54-4b8a-8e02-5a14799bb3cc"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 5,
+          "kind": "passage",
+          "label": "P5",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "ee901a8f-0c53-4cfc-b8d1-87fd04e6e511",
+              "page_end": 1,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 1,
+              "version_no": 1,
+              "text_sha256": "1d5dfbabd0e29735dc8989105c0f0a7999211c3145767678da7fa23ea916a873",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Berlin depot report for May. The Berlin depot handled 4200 parcels in May. Staffing at the Berlin depot rose by six people after the spring hiring round. Shift leads at the Berlin depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Berlin d",
+          "locator": {
+            "page_end": 1,
+            "page_start": 1,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "ee901a8f-0c53-4cfc-b8d1-87fd04e6e511"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 6,
+          "kind": "passage",
+          "label": "P6",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 5,
+              "chunk_id": "26905f75-7f33-4cb5-b927-ee968e854f84",
+              "page_end": 6,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 6,
+              "version_no": 1,
+              "text_sha256": "4341af0a8da17416d172c7702222e7ecfd32810ba4f017936258ada0db42d571",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "in the tracking system, and the Oslo supervisors wrote a short summary of delays at the end of every week.\nPrague depot report for May. The Prague depot handled 3600 parcels in May. The Prague depot moved its returns desk to the east bay. Shift leads at the Prague depot reviewed loading bays, sortin",
+          "locator": {
+            "page_end": 6,
+            "page_start": 6,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "26905f75-7f33-4cb5-b927-ee968e854f84"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 7,
+          "kind": "passage",
+          "label": "P7",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 7,
+              "chunk_id": "22b2fba7-28b2-417c-ac90-067f4c491727",
+              "page_end": 8,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 8,
+              "version_no": 1,
+              "text_sha256": "50a97a71985da3eeae2d793903b5e4529bbded1a9c102707dc1cf1247454eb48",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "in the tracking system, and the Rome supervisors wrote a short summary of delays at the end of every week.\nParis depot report for May. The Paris depot handled 6100 parcels in May. The Paris depot opened a second loading dock on the river side. Shift leads at the Paris depot reviewed loading bays, so",
+          "locator": {
+            "page_end": 8,
+            "page_start": 8,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "22b2fba7-28b2-417c-ac90-067f4c491727"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 8,
+          "kind": "passage",
+          "label": "P8",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 6,
+              "chunk_id": "55e8c949-3c89-48e7-84ea-3a32fef2a55b",
+              "page_end": 7,
+              "chunk_kind": "text",
+              "extraction": "text_layer",
+              "page_start": 7,
+              "version_no": 1,
+              "text_sha256": "577b786ab8ab3b7b02eb653aab12a7c4d39e0c995cfb4ee158abc93c6c6f7372",
+              "heading_path": [],
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "in the tracking system, and the Prague supervisors wrote a short summary of delays at the end of every week.\nRome depot report for May. The Rome depot handled 4700 parcels in May. The Rome depot trained twelve temporary packers. Shift leads at the Rome depot reviewed loading bays, sorting belts and ",
+          "locator": {
+            "page_end": 7,
+            "page_start": 7,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "55e8c949-3c89-48e7-84ea-3a32fef2a55b"
+          ],
+          "derivation": null,
+          "extraction": "text_layer",
+          "provenance": "complete",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+        },
+        {
+          "n": 9,
+          "kind": "passage",
+          "label": "P9",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "c5ef7547-da9f-4373-b58c-598aa331e1b6",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "a919d420607a226b2155b98488e56c2fc491f7a31deaf6d157b31832d5d43958",
+              "heading_path": [
+                "Release process"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Release process\nEvery release goes through three gates.",
+          "locator": {
+            "heading_path": [
+              "Release process"
+            ]
+          },
+          "chunk_ids": [
+            "c5ef7547-da9f-4373-b58c-598aa331e1b6"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 10,
+          "kind": "passage",
+          "label": "P10",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "d1757860-9de5-49c2-b47a-0c67bbfb8df2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 11,
+          "kind": "passage",
+          "label": "P11",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "87a5352d-2025-4801-914f-4e282736c0bf"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 12,
+          "kind": "passage",
+          "label": "P12",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "07f63803-c292-42be-8af6-4b8c08058663"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "92cc612f-21ad-413a-8614-cca07156fdf2",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "text_layer",
+              "page_start": 2,
+              "page_end": 2,
+              "heading_path": [],
+              "text": "in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week.\nLisbon depot report for May. The Lisbon depot handled 3100 parcels in May. The Lisbon depot closed early twice because of storms. Shift leads at the Lisbon depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Lisbon dispatch office and scanned every parcel at the gate. Customers in the Lisbon area could follow their deliveries in the tracking system, and the Lisbon supervisors wrote a short summary of delays at the end of every week. Shift leads at the Lisbon depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Lisbon dispatch office and scanned every parcel at the gate. Customers in the Lisbon area could follow their deliveries in the tracking system, and the Lisbon supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "7eb1d2a2c091d06aab7e2e8b43ab36d1a7b5dbc01d6819cb7ffc774cc600fbf5",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "32667645-7e31-4d72-a7c6-199b6b90ed01",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "text_layer",
+              "page_start": 3,
+              "page_end": 3,
+              "heading_path": [],
+              "text": "in the tracking system, and the Lisbon supervisors wrote a short summary of delays at the end of every week.\nMadrid depot report for May. The Madrid depot handled 5100 parcels in May. The Madrid depot added a third sorting belt in April. Shift leads at the Madrid depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Madrid dispatch office and scanned every parcel at the gate. Customers in the Madrid area could follow their deliveries in the tracking system, and the Madrid supervisors wrote a short summary of delays at the end of every week. Shift leads at the Madrid depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Madrid dispatch office and scanned every parcel at the gate. Customers in the Madrid area could follow their deliveries in the tracking system, and the Madrid supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "ab74b31a16a06443cd29dd4fa8705e3c9e42deeca3c652035a920d53df1069dd",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "8790f725-6579-46b8-a409-2ede72835368",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 4,
+              "extraction": "text_layer",
+              "page_start": 5,
+              "page_end": 5,
+              "heading_path": [],
+              "text": "in the tracking system, and the Vienna supervisors wrote a short summary of delays at the end of every week.\nOslo depot report for May. The Oslo depot handled 1900 parcels in May. The Oslo depot paused night shifts during the ice warning. Shift leads at the Oslo depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Oslo dispatch office and scanned every parcel at the gate. Customers in the Oslo area could follow their deliveries in the tracking system, and the Oslo supervisors wrote a short summary of delays at the end of every week. Shift leads at the Oslo depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Oslo dispatch office and scanned every parcel at the gate. Customers in the Oslo area could follow their deliveries in the tracking system, and the Oslo supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "9c949da2e4ec38c16f73bcef27f067131f011a63df2bcd2081cb977bb7f7cad3",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "4": {
+          "n": 4,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "6f04dedf-de54-4b8a-8e02-5a14799bb3cc",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "text_layer",
+              "page_start": 4,
+              "page_end": 4,
+              "heading_path": [],
+              "text": "in the tracking system, and the Madrid supervisors wrote a short summary of delays at the end of every week.\nVienna depot report for May. The Vienna depot handled 2800 parcels in May. The Vienna depot lost two delivery vans to a recall. Shift leads at the Vienna depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Vienna dispatch office and scanned every parcel at the gate. Customers in the Vienna area could follow their deliveries in the tracking system, and the Vienna supervisors wrote a short summary of delays at the end of every week. Shift leads at the Vienna depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Vienna dispatch office and scanned every parcel at the gate. Customers in the Vienna area could follow their deliveries in the tracking system, and the Vienna supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "5510c74bc20a6c1d6ed36c088a209849a410f6416e4c3e011f9dc064cac375a4",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "5": {
+          "n": 5,
+          "label": "P5",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "ee901a8f-0c53-4cfc-b8d1-87fd04e6e511",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "text_layer",
+              "page_start": 1,
+              "page_end": 1,
+              "heading_path": [],
+              "text": "Berlin depot report for May. The Berlin depot handled 4200 parcels in May. Staffing at the Berlin depot rose by six people after the spring hiring round. Shift leads at the Berlin depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Berlin dispatch office and scanned every parcel at the gate. Customers in the Berlin area could follow their deliveries in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week. Shift leads at the Berlin depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Berlin dispatch office and scanned every parcel at the gate. Customers in the Berlin area could follow their deliveries in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "1d5dfbabd0e29735dc8989105c0f0a7999211c3145767678da7fa23ea916a873",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "6": {
+          "n": 6,
+          "label": "P6",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "26905f75-7f33-4cb5-b927-ee968e854f84",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 5,
+              "extraction": "text_layer",
+              "page_start": 6,
+              "page_end": 6,
+              "heading_path": [],
+              "text": "in the tracking system, and the Oslo supervisors wrote a short summary of delays at the end of every week.\nPrague depot report for May. The Prague depot handled 3600 parcels in May. The Prague depot moved its returns desk to the east bay. Shift leads at the Prague depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Prague dispatch office and scanned every parcel at the gate. Customers in the Prague area could follow their deliveries in the tracking system, and the Prague supervisors wrote a short summary of delays at the end of every week. Shift leads at the Prague depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Prague dispatch office and scanned every parcel at the gate. Customers in the Prague area could follow their deliveries in the tracking system, and the Prague supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "4341af0a8da17416d172c7702222e7ecfd32810ba4f017936258ada0db42d571",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "7": {
+          "n": 7,
+          "label": "P7",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "22b2fba7-28b2-417c-ac90-067f4c491727",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 7,
+              "extraction": "text_layer",
+              "page_start": 8,
+              "page_end": 8,
+              "heading_path": [],
+              "text": "in the tracking system, and the Rome supervisors wrote a short summary of delays at the end of every week.\nParis depot report for May. The Paris depot handled 6100 parcels in May. The Paris depot opened a second loading dock on the river side. Shift leads at the Paris depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Paris dispatch office and scanned every parcel at the gate. Customers in the Paris area could follow their deliveries in the tracking system, and the Paris supervisors wrote a short summary of delays at the end of every week. Shift leads at the Paris depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Paris dispatch office and scanned every parcel at the gate. Customers in the Paris area could follow their deliveries in the tracking system, and the Paris supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "50a97a71985da3eeae2d793903b5e4529bbded1a9c102707dc1cf1247454eb48",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "8": {
+          "n": 8,
+          "label": "P8",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "text_layer",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "55e8c949-3c89-48e7-84ea-3a32fef2a55b",
+              "chunk_kind": "text",
+              "source_id": "13f9207c-6a5a-450c-ad84-bfbbb8b516e7",
+              "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb",
+              "source_name": "depots.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 6,
+              "extraction": "text_layer",
+              "page_start": 7,
+              "page_end": 7,
+              "heading_path": [],
+              "text": "in the tracking system, and the Prague supervisors wrote a short summary of delays at the end of every week.\nRome depot report for May. The Rome depot handled 4700 parcels in May. The Rome depot trained twelve temporary packers. Shift leads at the Rome depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Rome dispatch office and scanned every parcel at the gate. Customers in the Rome area could follow their deliveries in the tracking system, and the Rome supervisors wrote a short summary of delays at the end of every week. Shift leads at the Rome depot reviewed loading bays, sorting belts and the returns desk each morning. Drivers collected routes from the Rome dispatch office and scanned every parcel at the gate. Customers in the Rome area could follow their deliveries in the tracking system, and the Rome supervisors wrote a short summary of delays at the end of every week.",
+              "text_sha256": "577b786ab8ab3b7b02eb653aab12a7c4d39e0c995cfb4ee158abc93c6c6f7372",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "9": {
+          "n": 9,
+          "label": "P9",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "c5ef7547-da9f-4373-b58c-598aa331e1b6",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process"
+              ],
+              "text": "Release process\nEvery release goes through three gates.",
+              "text_sha256": "a919d420607a226b2155b98488e56c2fc491f7a31deaf6d157b31832d5d43958",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "10": {
+          "n": 10,
+          "label": "P10",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "11": {
+          "n": 11,
+          "label": "P11",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "The deploy step restarts the workers one at a time.",
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "12": {
+          "n": 12,
+          "label": "P12",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "text": "Build\n- compile the sources\n- run the unit tests",
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "compare",
+        "routing": {
+          "hint": "compare",
+          "failure": null,
+          "degraded": false,
+          "final_route": "compare",
+          "model_route": null,
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": false,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "depots.pdf",
+            "figures_total": 0,
+            "passages_used": 8,
+            "sections_read": 1,
+            "sections_total": 1,
+            "figures_examined": 0,
+            "source_version_id": "5aad3317-3739-4eec-9e04-65827be7b7cb"
+          },
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "release.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 3,
+            "sections_total": 3,
+            "figures_examined": 0,
+            "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 3,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "draft-release-checklist",
+      "split": "dev",
+      "finding": "F6",
+      "kind": "draft",
+      "instruction": "Draft a short checklist for a new release owner from the release notes.",
+      "sources": [
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "87a646d1-025e-4669-a529-a9629bd3e754",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 6.1005467000068165,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1352,
+        "output_tokens": 510,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "A short checklist based on the available release notes.",
+        "preview": {
+          "kind": "draft",
+          "title": "Release Owner Checklist",
+          "summary": "A short checklist based on the available release notes.",
+          "document": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "heading",
+                "attrs": {
+                  "id": "0be6f6ab-2cb4-4b17-a06e-8e76434dfb99"
+                },
+                "content": [
+                  {
+                    "text": "Checklist",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "d0fd5bed-aedc-4957-904c-821eb3dd711f"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "f6e077b0-76d1-4f90-8ad0-f8889d8ab5ab"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "a18e1afc-b8b2-4601-bed9-f7d47483327f"
+                        },
+                        "content": [
+                          {
+                            "text": "Build (owner: Alice): compile the sources and run the unit tests.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "c5fbb1eb-53e9-446e-9018-27902ddbce23"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "8e9532c1-7cc2-4bef-997f-b10cbbf41ebf"
+                        },
+                        "content": [
+                          {
+                            "text": "Deploy (owner: Bob): restart the workers one at a time.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "attrs": {
+                  "id": "0f02f9f0-128e-481c-b350-5ed44280a83a",
+                  "level": 2
+                },
+                "content": [
+                  {
+                    "text": "Sources",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "4b5648a0-01af-4982-b12b-2ae6085ab401"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "9cabc586-93d0-428f-b867-6ec5c3530cd1"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "0e844817-f8fb-48dd-94c2-efa657238ffc"
+                        },
+                        "content": [
+                          {
+                            "text": "release.md, Release process > Deploy",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "fb93fc35-c771-45cd-be48-93be5b400ce8"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "5fd7a0ba-c6b7-46ba-bb48-c065734de679"
+                        },
+                        "content": [
+                          {
+                            "text": "release.md, Release process > Build",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "block_citations": [
+            [],
+            [
+              1,
+              2,
+              3
+            ]
+          ],
+          "block_assumptions": [
+            [],
+            []
+          ],
+          "unsupported_blocks": 0
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "draft",
+      "routing": null,
+      "score": {
+        "id": "draft-release-checklist",
+        "split": "dev",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "build",
+              "tests",
+              "deploy",
+              "owners"
+            ],
+            "missing": [
+              "gates"
+            ],
+            "share": 0.8,
+            "of": 5,
+            "needed": 4
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "names_third_gate": false,
+          "cited_sources": [
+            "release.md"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['release.md'] (need n/a); concepts 4/5"
+        ]
+      },
+      "chat_text": "Drafted \u201cRelease Owner Checklist\u201d: A short checklist based on the available release notes.\nOpen the review card to preview the change.",
+      "gaps": [
+        "The notes say every release goes through three gates, but only Build and Deploy are named; the third gate and its requirements are not specified."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "d1757860-9de5-49c2-b47a-0c67bbfb8df2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "87a5352d-2025-4801-914f-4e282736c0bf"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "07f63803-c292-42be-8af6-4b8c08058663"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "The deploy step restarts the workers one at a time.",
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "text": "Build\n- compile the sources\n- run the unit tests",
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "draft",
+        "sources": 1,
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-release-answer",
+      "split": "dev",
+      "finding": "F4",
+      "kind": "answer",
+      "instruction": "Draw a flowchart of the build and deploy steps.",
+      "sources": [
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "12c97c55-03fc-4ec9-a604-bb79f28235e0",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 9.58401479999884,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1220,
+        "output_tokens": 361,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "type": "diagram",
+            "title": "Build and deploy",
+            "mermaid": "flowchart TD\n    A[Build: compile the sources] --> B[Build: run the unit tests]\n    B --> C[Deploy: restart the workers one at a time]",
+            "citations": [
+              1,
+              2,
+              3
+            ],
+            "assumptions": [
+              "The build list is shown in its written order; the evidence does not explicitly state that order.",
+              "Build is shown before deploy based on the stage listing; the evidence does not explicitly state the sequence."
+            ],
+            "unsupported": false,
+            "render_error": null,
+            "render_status": "ok"
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "diagram-release-answer",
+        "split": "dev",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "names_third_gate": false,
+          "diagrams": [
+            {
+              "draws_order": true,
+              "order_disclosed": true,
+              "possibly_invented_labels": []
+            }
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "diagram checks [{'draws_order': True, 'order_disclosed': True, 'possibly_invented_labels': []}]"
+        ]
+      },
+      "chat_text": "[Diagram: Build and deploy]\nAssumed, not stated in the sources: The build list is shown in its written order; the evidence does not explicitly state that order.; Build is shown before deploy based on the stage listing; the evidence does not explicitly state the sequence..\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "d1757860-9de5-49c2-b47a-0c67bbfb8df2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "07f63803-c292-42be-8af6-4b8c08058663"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "87a5352d-2025-4801-914f-4e282736c0bf"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "text": "Build\n- compile the sources\n- run the unit tests",
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "The deploy step restarts the workers one at a time.",
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "qa",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "release.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 3,
+            "sections_total": 3,
+            "figures_examined": 0,
+            "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-release-edit",
+      "split": "dev",
+      "finding": "F4",
+      "kind": "edit",
+      "instruction": "Draw a flowchart of the build and deploy steps.",
+      "sources": [
+        "release.md"
+      ],
+      "document": "launch-plan",
+      "request_id": "99a93fdb-9139-429f-932d-4a618a87f177",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 14.698149200004991,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 2130,
+        "output_tokens": 1103,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Proposed a flowchart of the documented build and deploy steps.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "diagram",
+                  "attrs": {
+                    "id": "e5055a93-3623-412f-8055-614635384f9e"
+                  },
+                  "content": [
+                    {
+                      "text": "flowchart TD\n  B[\"Build (Alice): compile the sources; run the unit tests\"] --> D[\"Deploy (Bob): restart the workers one at a time\"]",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "b5a0fabb-a923-4af3-b750-aaa1df081478"
+                  },
+                  "content": [
+                    {
+                      "text": "Assumed, not stated in the source: The Build-to-Deploy order is inferred from the order of the stages listed; the source does not explicitly state their sequence.",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "italic"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "anchor": "fa9e9006-cbf4-5d7b-8a50-f7bcaf79e2e6",
+              "before": [],
+              "reason": "Shows the named build tasks and deploy action with their listed owners. The connecting arrow is identified as an inference.",
+              "block_id": null,
+              "citations": [
+                1,
+                2,
+                3
+              ],
+              "hash_after": [
+                "c1b70bc3043cdcd90209888d0e2c259d96e31d297db6ebd7fde107f346dd8acb",
+                "38dd2151e5156a2e85e7aca037196c38e243fb8c0461b7f998480bf0b6b37e7e"
+              ],
+              "assumptions": [
+                "The Build-to-Deploy order is inferred from the order of the stages listed; the source does not explicitly state their sequence."
+              ],
+              "unsupported": false,
+              "review_flags": []
+            }
+          ],
+          "summary": "Proposed a flowchart of the documented build and deploy steps.",
+          "inserted_chars": 293
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "diagram-release-edit",
+        "split": "dev",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "names_third_gate": false,
+          "diagrams": [
+            {
+              "draws_order": true,
+              "order_disclosed": true,
+              "possibly_invented_labels": []
+            }
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "diagram checks [{'draws_order': True, 'order_disclosed': True, 'possibly_invented_labels': []}]"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Proposed a flowchart of the documented build and deploy steps.\nOpen the review card to preview the change.",
+      "gaps": [
+        "The release process is said to have three gates, but only Build and Deploy are named in the provided evidence; the third gate and its position are unspecified, so it is not included in the flowchart."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "d1757860-9de5-49c2-b47a-0c67bbfb8df2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [
+            "- compile the sources"
+          ],
+          "derived": false,
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "07f63803-c292-42be-8af6-4b8c08058663"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [
+            "The deploy step restarts the workers one at a time."
+          ],
+          "derived": false,
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "87a5352d-2025-4801-914f-4e282736c0bf"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "text": "Build\n- compile the sources\n- run the unit tests",
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "The deploy step restarts the workers one at a time.",
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 1,
+          "ranges": 0,
+          "insert_at": null
+        },
+        "sources": 1,
+        "document": {
+          "mode": "target_plus_context",
+          "scope": "edit",
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 205,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 83,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "document_id": "aaaaef81-74e0-4bc1-85e7-04070497f4d6",
+          "blocks_total": 5,
+          "blocks_included": 1,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 205,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 83,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "repaired": false,
+          "review_flags": 0,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "review-launch-risks",
+      "split": "dev",
+      "finding": "F7",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [],
+      "document": "launch-plan",
+      "request_id": "4ff8ee46-98d2-4be4-9a04-a788a21889df",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 4.471702499984531,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1346,
+        "output_tokens": 281,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "Vendor delays could slip the schedule. The document states both the risk and its possible effect.",
+                "citations": [
+                  1
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": [
+          "The document does not state how likely vendor delays are, who owns this risk, or what mitigation is planned."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "document_review",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "document_review",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "review-launch-risks",
+        "split": "dev",
+        "finding": "F7",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "vendor-risk"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 1,
+            "needed": 1
+          },
+          "placeholder_hits": [],
+          "claims_effect_missing": false,
+          "invented_risks": []
+        },
+        "finding_met": true,
+        "explain": [
+          "concepts 1/1; effect wrongly called missing: False; invented risks: []"
+        ]
+      },
+      "chat_text": "- Vendor delays could slip the schedule. The document states both the risk and its possible effect. [1]\nNot found in the sources: The document does not state how likely vendor delays are, who owns this risk, or what mitigation is planned.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The document does not state how likely vendor delays are, who owns this risk, or what mitigation is planned."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "document",
+          "label": "D5",
+          "origin": [
+            {
+              "kind": "document_block",
+              "block_id": "987cd08a-49d2-568d-b880-67cd5a4ae27b",
+              "document_id": "aaaaef81-74e0-4bc1-85e7-04070497f4d6",
+              "text_sha256": "d71e84cbc917c739e4d1e9c537889673e89101d340ec4b1db0e9488939ca534f",
+              "update_counter": 7
+            }
+          ],
+          "quotes": [
+            "Vendor delays could slip the schedule."
+          ],
+          "derived": false,
+          "excerpt": "Vendor delays could slip the schedule.",
+          "locator": {
+            "block_id": "987cd08a-49d2-568d-b880-67cd5a4ae27b",
+            "block_type": "paragraph"
+          },
+          "chunk_ids": [],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "the open document",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": null
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "D5",
+          "kind": "document",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "document_block",
+              "document_id": "aaaaef81-74e0-4bc1-85e7-04070497f4d6",
+              "update_counter": 7,
+              "block_id": "987cd08a-49d2-568d-b880-67cd5a4ae27b",
+              "text": "Vendor delays could slip the schedule.",
+              "integrity": "manifest_copy"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "document_review",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "document_review",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "document": {
+          "mode": "full",
+          "scope": "whole",
+          "document_id": "aaaaef81-74e0-4bc1-85e7-04070497f4d6",
+          "blocks_total": 5,
+          "blocks_included": 5,
+          "captured_update_counter": 7
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "missing-context-review",
+      "split": "dev",
+      "finding": "F2",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "db41971c-c27b-4ccc-8013-deb9aadf917a",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 5.925061000016285,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1201,
+        "output_tokens": 393,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 4,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "The process says every release has three gates, but only Build and Deploy are named here, leaving the third gate and its checks unclear.",
+                "citations": [
+                  1,
+                  2
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "The listed Build checks are compilation and unit tests only; the document does not specify other validation, so defects not caught by those checks may go undetected.",
+                "citations": [
+                  3
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Workers are restarted one at a time, but the document does not describe failure handling or recovery during deployment, leaving operational contingencies unclear.",
+                "citations": [
+                  4
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Owners are listed for Build and Deploy only; ownership for the stated third gate is not specified in the available text.",
+                "citations": [
+                  1,
+                  2
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": true
+      },
+      "score": {
+        "id": "missing-context-review",
+        "split": "dev",
+        "finding": "F2",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "placeholder_hits": []
+        },
+        "finding_met": true,
+        "explain": [
+          "notices ['document_not_included']; document read: False"
+        ]
+      },
+      "chat_text": "Note: You asked about the open document, but it was not included in this request, so this answer uses only the files you selected. To include the document, turn on \u201cUse open document\u201d and ask again.\n- The process says every release has three gates, but only Build and Deploy are named here, leaving the third gate and its checks unclear. [1][2]\n- The listed Build checks are compilation and unit tests only; the document does not specify other validation, so defects not caught by those checks may go undetected. [3]\n- Workers are restarted one at a time, but the document does not describe failure handling or recovery during deployment, leaving operational contingencies unclear. [4]\n- Owners are listed for Build and Deploy only; ownership for the stated third gate is not specified in the available text. [1][2]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "c5ef7547-da9f-4373-b58c-598aa331e1b6",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "a919d420607a226b2155b98488e56c2fc491f7a31deaf6d157b31832d5d43958",
+              "heading_path": [
+                "Release process"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [
+            "Every release goes through three gates."
+          ],
+          "derived": false,
+          "excerpt": "Release process\nEvery release goes through three gates.",
+          "locator": {
+            "heading_path": [
+              "Release process"
+            ]
+          },
+          "chunk_ids": [
+            "c5ef7547-da9f-4373-b58c-598aa331e1b6"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "d1757860-9de5-49c2-b47a-0c67bbfb8df2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "07f63803-c292-42be-8af6-4b8c08058663"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+            }
+          ],
+          "quotes": [
+            "The deploy step restarts the workers one at a time."
+          ],
+          "derived": false,
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "87a5352d-2025-4801-914f-4e282736c0bf"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "c5ef7547-da9f-4373-b58c-598aa331e1b6",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process"
+              ],
+              "text": "Release process\nEvery release goes through three gates.",
+              "text_sha256": "a919d420607a226b2155b98488e56c2fc491f7a31deaf6d157b31832d5d43958",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "d1757860-9de5-49c2-b47a-0c67bbfb8df2",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "07f63803-c292-42be-8af6-4b8c08058663",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Build"
+              ],
+              "text": "Build\n- compile the sources\n- run the unit tests",
+              "text_sha256": "362a64a31995461493c751f6f9c42ff981cd5ef076ec24285270312608fe1a92",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "4": {
+          "n": 4,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "87a5352d-2025-4801-914f-4e282736c0bf",
+              "chunk_kind": "text",
+              "source_id": "9989e448-821d-4c23-8c51-de42ada13f4a",
+              "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39",
+              "source_name": "release.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Release process",
+                "Deploy"
+              ],
+              "text": "The deploy step restarts the workers one at a time.",
+              "text_sha256": "4e2a9c5ab5e44ca3aab86e43fc4001411fccd3065ad46be137cde3e56c665e9d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "notices": [
+          {
+            "code": "document_not_included",
+            "action": "To include the document, turn on \u201cUse open document\u201d and ask again.",
+            "message": "You asked about the open document, but it was not included in this request, so this answer uses only the files you selected."
+          }
+        ],
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": true
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "release.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 3,
+            "sections_total": 3,
+            "figures_examined": 0,
+            "source_version_id": "ac45f730-2c0d-4d8e-a752-342ec9654f39"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 4,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    }
+  ]
+}

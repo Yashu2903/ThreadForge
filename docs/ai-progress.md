@@ -563,3 +563,13 @@ Full account and tables: `docs/ai.md` section 23. Evidence: `docs/evidence/ai-ev
   test drain helpers, 9 tests, my first version was incomplete and a re-run caught it. (b) toolbar e2e: 4 of 12 failed; my first guess (focus) was wrong; keys sent 1 ms apart; a two-frame settle gave 12 of 12 (cause inferred).
 * **Human review sheet** (`human-review-sheet.md`): 8 answers and 8 proposals, automated checks and my reading kept apart, human fields empty. **No human review has been done.**
 * **Not done**: any human review; real-inference specs in Firefox; pushing or merging.
+
+## Fifth stage (2026-11-20): the review follow-up
+
+Full account, finding map and tables: `docs/ai.md` section 24. Evidence: `docs/evidence/ai-eval/` (README there), the new review material in `review-2026-11-20/`.
+
+* **Findings** of the human review were mapped (reproduced, historical or unresolved; established or inferred cause). Reproduced and fixed: edits never saw the document when nothing was selected (P7: edit-v2 sends it read-only, with a recorded size policy and a refusal when none of it fits); derived summaries now carry provenance and open to the original text through a scoped, integrity-checked route (UI labels derived text, shows originals and the original file); diagrams list what they assume and say so in the card, the chat and the proposal; rewrites get a deterministic qualification review flag; a request that asks for the document without including it says so.
+* **Metrics**: the old "recall" is reported as `required_phrase_coverage` (phrase-v1); `evidence-v1` measures recall of gold evidence units over ranked original candidates and coverage for unranked routes. Old results are unchanged.
+* **Evaluation**: `quality-v1` (dev + held-out, deterministic labelled checks, criteria committed before any run); baseline (reviewed build) and new build run on the same harness. The new build met every finding criterion on both splits; the baseline reproduced the placeholder closing summary, the undisclosed diagram order and one reversed negation. Guards G1-G3 met (proposal gate 16/16, routing 13/13, 0 classifier failures). One baseline finding (A5 wording) did not reproduce.
+* **Review material v2**: 28 items, each its own file with full text, original evidence, provenance and empty human fields; the architecture image (no arrowheads).
+* **Not done**: any human review; real runs on long documents; Firefox AI flows; publishing or merging.

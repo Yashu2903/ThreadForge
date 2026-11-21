@@ -1,0 +1,17 @@
+{
+  "kind": "quality",
+  "command": [
+    "python.exe",
+    "-m",
+    "pytest",
+    "tests/eval/test_quality_eval.py",
+    "-s",
+    "-p",
+    "no:cacheprovider"
+  ],
+  "exit_status": 0,
+  "meaning": "passed",
+  "started_utc": "2026-11-21T00:45:48.800754+00:00",
+  "finished_utc": "2026-11-21T00:48:18.474389+00:00",
+  "note": "exit_status is the evaluator process's own status, not that of any command that ran after it"
+}

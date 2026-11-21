@@ -1,0 +1,360 @@
+{
+  "manifest_version": 2,
+  "evaluator_version": "eval-3",
+  "run_id": "c4b9cfd400b24706855e5d981ad1b474",
+  "kind": "proposal",
+  "mode": "real",
+  "started_utc": "2026-11-21T00:51:42.475481+00:00",
+  "expected_items": 16,
+  "captured_at_start": [
+    "run_id",
+    "started_utc",
+    "evaluator_version",
+    "expected_items",
+    "code",
+    "runtime",
+    "dataset",
+    "prompts_and_schemas",
+    "configuration",
+    "retry_and_repair",
+    "models_requested"
+  ],
+  "code": {
+    "commit": "4c41a404d64e0aae9e7d332756a2ea7ca34cab60",
+    "branch": "verification-pass-recovery",
+    "working_tree_clean": false,
+    "changed_or_untracked_paths": [
+      "backend/tests/eval/build_followup_comparison.py",
+      "docs/evidence/ai-eval/baseline-quality.manifest.json",
+      "docs/evidence/ai-eval/baseline-quality.records.json",
+      "docs/evidence/ai-eval/baseline-quality.report.md",
+      "docs/evidence/ai-eval/baseline-quality.run-status.json",
+      "docs/evidence/ai-eval/new-quality-dev.manifest.json",
+      "docs/evidence/ai-eval/new-quality-dev.records.json",
+      "docs/evidence/ai-eval/new-quality-dev.report.md",
+      "docs/evidence/ai-eval/new-quality-dev.run-status.json",
+      "docs/evidence/ai-eval/new-quality-heldout.manifest.json",
+      "docs/evidence/ai-eval/new-quality-heldout.records.json",
+      "docs/evidence/ai-eval/new-quality-heldout.report.md",
+      "docs/evidence/ai-eval/new-quality-heldout.run-status.json"
+    ],
+    "tracked_code_diff_sha256": "no tracked changes outside docs"
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "platform": "Windows-11-10.0.26300-SP0"
+  },
+  "dataset": {
+    "items": 16,
+    "gold_sha256": "4adf63a1991ec3cd3feb4c6ff90395d0f1c87cde600c739ec8addfda9555fec1",
+    "proposals_py_sha256": "d9372790691ca58b6ac75855f54833153477dbb17955ab0b270bba627609bca1",
+    "corpus_py_sha256": "b2eeb89e4eb4fc56a54f125a4a28a88b0146c63685fa74374db3871d13fdd918",
+    "sources_sha256": {
+      "release.md": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41",
+      "depots.pdf": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf"
+    }
+  },
+  "prompts_and_schemas": {
+    "answer_prompt_template_version": "answer-v2",
+    "edit_prompt_template_version": "edit-v2",
+    "parser_version": "extract-v1",
+    "classify_schema_sha256": "2b15a848d3cfae4b10ea074fb5c80ae97737d319197fcbde2c85e436539d3ce4",
+    "file_sha256": {
+      "answer_prompts": "8f619ed4af45a3342e8ab4df29e6b10d1799589ace0b5b0c7dd275a43b2d63e0",
+      "answer_schema_and_validation": "9ff3b24e8311974d54eaf83cc8d73cd3e86458855c663d9626d6e79dcdb848cb",
+      "edit_prompts": "1da76344e00b7bff75c7b61cc04bfee3d89d6769a6e9ae06e65dd99930acb82b",
+      "edit_schema": "e0f0b0c83561d0c0db45eebcecedbd52f2eb3e64890438d966853ac3ab5fbe4d",
+      "answer_strategies": "fb0612e93f15cda9cf4d88da19e15d07618ed9d11a6ccbb35d77120010cdd264",
+      "edit_target_and_context": "41d91a34c93aae7cc1acee088b142efec0d4037be072a728a1ab99d0267840de",
+      "edit_generate": "9476f6e5e7e06bb73f371a8acfa775041b69f96f790b1a297af3d9d42876900d",
+      "edit_qualifiers": "ad4688df88b34f68e061feb5d586579ee6a726540db1aa896661abc64c07bef5"
+    }
+  },
+  "configuration": {
+    "ai_llm_model": "gpt-6-luna",
+    "ai_embed_model": "gemini-embedding-2",
+    "ai_embed_dimensions": 1536,
+    "ai_embed_max_input_tokens": 8192,
+    "ai_llm_context_tokens": 1050000,
+    "ai_llm_max_output_tokens": 128000,
+    "ai_llm_structured_output": true,
+    "ai_llm_reasoning_effort": "",
+    "ai_classifier_max_output_tokens": 512,
+    "ai_classifier_reasoning_effort": "none",
+    "ai_max_input_tokens": 200000,
+    "ai_max_output_tokens": 8000,
+    "ai_max_provider_calls": 40,
+    "ai_call_timeout_seconds": 120.0,
+    "ai_retry_max_attempts": 4,
+    "ai_key_concurrency": 4,
+    "ai_key_policy": "server_only",
+    "ai_proposals_enabled": true,
+    "ai_retrieval_lexical_k": 20,
+    "ai_retrieval_vector_k": 20,
+    "ai_retrieval_rrf_k": 60,
+    "ai_retrieval_evidence_tokens": 24000,
+    "ai_retrieval_max_distance": 0.6,
+    "ai_chunk_target_tokens": 400,
+    "ai_chunk_max_tokens": 900,
+    "ai_chunk_overlap_tokens": 40,
+    "ai_openai_base_url": "https://api.openai.com",
+    "ai_google_base_url": "https://generativelanguage.googleapis.com",
+    "ai_prices_checked_on": ""
+  },
+  "retry_and_repair": {
+    "retried_provider_codes": [
+      "provider_rate_limited",
+      "provider_unavailable",
+      "provider_timeout"
+    ],
+    "max_attempts_per_call": 4,
+    "base_delay_seconds": 1.0,
+    "max_delay_seconds": 30.0,
+    "call_timeout_seconds": 120.0,
+    "truncated_output_retried": false,
+    "repairs": "at most one repair request per proposal (the gate's definition)"
+  },
+  "models_requested": {
+    "generation": "gpt-6-luna",
+    "embedding": "gemini-embedding-2"
+  },
+  "finished_utc": "2026-11-21T00:54:17.915652+00:00",
+  "captured_at_completion": [
+    "finished_utc",
+    "cases",
+    "results",
+    "models_recorded",
+    "usage_ledger_run_wide",
+    "usage_totals",
+    "provider_failures",
+    "cost"
+  ],
+  "models_recorded": [
+    "google:gemini-embedding-2",
+    "openai:gpt-6-luna"
+  ],
+  "usage_ledger_run_wide": [
+    {
+      "operation": "answer",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 17,
+      "input_tokens": 34550,
+      "output_tokens": 12207,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "embed_text",
+      "provider": "google",
+      "model": "gemini-embedding-2",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 9,
+      "input_tokens": 3207,
+      "output_tokens": 0,
+      "est_cost_micros": "0"
+    }
+  ],
+  "usage_totals": {
+    "source": "the run-wide usage ledger only (per-case figures are views of the same rows)",
+    "by_provider": {
+      "openai": {
+        "calls": 17,
+        "failed_calls": 0,
+        "input_tokens": 34550,
+        "output_tokens": 12207
+      },
+      "google": {
+        "calls": 9,
+        "failed_calls": 0,
+        "input_tokens": 3207,
+        "output_tokens": 0
+      }
+    }
+  },
+  "provider_failures": {
+    "calls": {
+      "numerator": 0,
+      "denominator": 26,
+      "value": 0.0
+    },
+    "by_operation_and_code": []
+  },
+  "cost": {
+    "status": "unpriced",
+    "complete_total": false,
+    "est_cost_micros": null,
+    "est_cost_usd": null,
+    "currency": "USD",
+    "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+    "unpriced_components": [
+      "generation",
+      "embedding"
+    ],
+    "kind_of_value": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+    "rates": null,
+    "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+    "usage_retained": {
+      "generation_input_tokens": 34550,
+      "generation_output_tokens": 12207,
+      "embedding_input_tokens": 3207
+    }
+  },
+  "results": {
+    "gate": {
+      "rule": ">= 90% schema-valid with at most one repair",
+      "value": 1.0
+    },
+    "first_try_valid": 15,
+    "published": 16,
+    "items": 16
+  },
+  "cases": [
+    {
+      "id": "edit-rewrite",
+      "request_id": "b318fa5c-b61d-453b-acbc-1f66c3691406",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 4.729486500000348
+    },
+    {
+      "id": "edit-range",
+      "request_id": "61e5f533-6f10-4979-a595-6effa1098c84",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 4.081496399972821
+    },
+    {
+      "id": "edit-insert-from-release",
+      "request_id": "ffdcf6ea-a9fe-4163-8226-a9c8107b94a4",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 14.5309151999827
+    },
+    {
+      "id": "edit-insert-table",
+      "request_id": "6b6b4035-ec3b-4804-9395-4518aca4bf13",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 5.2715403999900445
+    },
+    {
+      "id": "edit-delete",
+      "request_id": "4f6da5d7-ac11-4d63-b58b-77443488d539",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 3.0386332999914885
+    },
+    {
+      "id": "edit-end-summary",
+      "request_id": "78bfdec0-416f-4850-8417-7e2b694709bc",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 5.3659199999819975
+    },
+    {
+      "id": "edit-diagram",
+      "request_id": "5d8a4270-dc7e-48b1-ae51-0222a5f089a6",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 14.593390099995304
+    },
+    {
+      "id": "edit-two-operations",
+      "request_id": "411e5e1a-02a7-4132-b8f6-17e1e2d87aba",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 6.648432900023181
+    },
+    {
+      "id": "edit-wrong-label-repaired",
+      "request_id": "9bfa7ee5-fa86-45fb-9df5-b35ee92fd47f",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 4.993997999990825
+    },
+    {
+      "id": "edit-wrong-range-repaired",
+      "request_id": "d07121d0-79b6-433d-a661-a2791da2a72a",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 4.822385200008284
+    },
+    {
+      "id": "edit-hostile-diagram-repaired",
+      "request_id": "59f05ced-03a6-41c0-b46e-3825ebd7f91a",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 11.192516400013119
+    },
+    {
+      "id": "edit-not-json-repaired",
+      "request_id": "c04836d5-9495-4c66-bb14-c68cb052e91e",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 4.715681600006064
+    },
+    {
+      "id": "edit-never-valid",
+      "request_id": "96952271-e7fc-4b76-8f53-939b6992d46f",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 4.42086269997526
+    },
+    {
+      "id": "draft-proposal",
+      "request_id": "10f42f69-292f-4b08-bc57-a712996b6ff9",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 13.058334700006526
+    },
+    {
+      "id": "draft-with-diagram",
+      "request_id": "4ad20cfc-945a-4180-881f-3902390c138b",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": false,
+      "repaired": true,
+      "latency_s": 24.062562400009483
+    },
+    {
+      "id": "draft-two-sources",
+      "request_id": "68e30fa7-a216-49e2-86c9-73df778855b3",
+      "published": true,
+      "outcome": "published",
+      "first_try_valid": true,
+      "repaired": false,
+      "latency_s": 14.097800900024595
+    }
+  ]
+}

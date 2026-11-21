@@ -1,0 +1,3599 @@
+{
+  "mode": "real",
+  "split": "heldout",
+  "run": {
+    "failures": {
+      "calls": {
+        "numerator": 0,
+        "denominator": 23,
+        "value": 0.0
+      },
+      "by_operation_and_code": []
+    },
+    "cost": {
+      "status": "unpriced",
+      "complete_total": false,
+      "est_cost_micros": null,
+      "est_cost_usd": null,
+      "currency": "USD",
+      "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+      "unpriced_components": [
+        "generation",
+        "embedding"
+      ],
+      "kind_of_value": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+      "rates": null,
+      "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+      "usage_retained": {
+        "generation_input_tokens": 15075,
+        "generation_output_tokens": 5380,
+        "embedding_input_tokens": 1326
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "closing-summary-hiring",
+      "split": "heldout",
+      "finding": "F1",
+      "kind": "edit",
+      "instruction": "Add a closing summary paragraph.",
+      "sources": [],
+      "document": "hiring",
+      "request_id": "37a63835-d533-4c7c-a1f6-4606b8261a26",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 6.117728500015801,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1978,
+        "output_tokens": 525,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Added a closing paragraph summarizing the hiring plan, budget condition, remote-candidate question, and assigned responsibilities.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "286db638-090b-4c5c-81a2-ba6bca2e320f"
+                  },
+                  "content": [
+                    {
+                      "text": "In summary, the support team will hire three agents by 15 September, starting with the night shift. The 45,000-dollar recruiting budget is pending finance sign-off. It remains unclear whether remote candidates can be considered before the August policy review. Priya Nair coordinates interviews, and Omar Haddad approves offers.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": "cdaf9676-fed5-5598-8281-b214b45aaa5a",
+              "before": [],
+              "reason": "Provides a closing summary of the points stated in the visible document context.",
+              "block_id": null,
+              "citations": [],
+              "hash_after": [
+                "04a6f42c2ac51763f6dc4c4159830bda6b5bf612cc6b2e08b13c50fea69aaeae"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            }
+          ],
+          "summary": "Added a closing paragraph summarizing the hiring plan, budget condition, remote-candidate question, and assigned responsibilities.",
+          "inserted_chars": 328
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "closing-summary-hiring",
+        "split": "heldout",
+        "finding": "F1",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "what",
+              "deadline",
+              "budget",
+              "pending",
+              "open",
+              "owners"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 6,
+            "needed": 4
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": []
+        },
+        "finding_met": true,
+        "explain": [
+          "concepts 6/6 (need 4), missing []"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Added a closing paragraph summarizing the hiring plan, budget condition, remote-candidate question, and assigned responsibilities.\nOpen the review card to preview the change.",
+      "gaps": [
+        "No evidence labels were provided, so the summary is grounded in the visible document context but cannot include the required evidence-label citations."
+      ],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 0,
+          "ranges": 0,
+          "insert_at": "end"
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_plus_context",
+          "scope": "edit",
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 429,
+            "blocks_shown": 6,
+            "blocks_total": 6,
+            "tokens_shown": 166,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "document_id": "b6bd786c-720a-4b69-94c7-d16a76bab798",
+          "blocks_total": 6,
+          "blocks_included": 0,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 429,
+            "blocks_shown": 6,
+            "blocks_total": 6,
+            "tokens_shown": 166,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "repaired": false,
+          "review_flags": 0,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "rewrite-qualified-heldout",
+      "split": "heldout",
+      "finding": "F5",
+      "kind": "edit",
+      "instruction": "Make these sentences shorter and clearer.",
+      "sources": [],
+      "document": "qualified-heldout",
+      "request_id": "0c5f81a1-fa1e-45e6-8212-20dbf358e13f",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.009390799998073,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 2054,
+        "output_tokens": 865,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Shortened and clarified three sentences while preserving their qualifications and attribution. The first sentence was already concise.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "4a032161-6d69-59c6-910c-d7d326ca86dd"
+                  },
+                  "content": [
+                    {
+                      "text": "Deliveries won't resume until the strike ends, which may take two weeks.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "4a032161-6d69-59c6-910c-d7d326ca86dd"
+                  },
+                  "content": [
+                    {
+                      "text": "Deliveries will not resume until the strike ends, which may take two weeks.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Shortens the wording while preserving the condition and uncertainty about how long the strike may take.",
+              "block_id": "4a032161-6d69-59c6-910c-d7d326ca86dd",
+              "citations": [],
+              "hash_after": [
+                "4a52a3f437410ef42517e49c593c4843e06de819c27db963ed63ee211abec16c"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": [
+                {
+                  "code": "status_changed",
+                  "detail": "\u201cwill\u201d (planned) is gone: the text no longer says the work is planned"
+                }
+              ]
+            },
+            {
+              "op": 1,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "39d6bdc9-935d-5837-9eec-5e7e3b8025b5"
+                  },
+                  "content": [
+                    {
+                      "text": "If approved, the grant would cover about 60 percent of the cost.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "39d6bdc9-935d-5837-9eec-5e7e3b8025b5"
+                  },
+                  "content": [
+                    {
+                      "text": "The grant, if approved, would cover about 60 percent of the cost.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Moves the condition to the start for clarity while retaining the conditional wording and approximate amount.",
+              "block_id": "39d6bdc9-935d-5837-9eec-5e7e3b8025b5",
+              "citations": [],
+              "hash_after": [
+                "ff0c07c4ef9bdd81d2ae9d17fdc0e10fc256191db22a1685754195c4bc1701a3"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            },
+            {
+              "op": 2,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "0b7eba90-603e-5b27-9e76-b09fb0e0097d"
+                  },
+                  "content": [
+                    {
+                      "text": "The safety officer says the east exit is closed for repairs.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "0b7eba90-603e-5b27-9e76-b09fb0e0097d"
+                  },
+                  "content": [
+                    {
+                      "text": "According to the safety officer, the east exit is closed for repairs.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Shortens the attribution while preserving who reported the closure and its stated reason.",
+              "block_id": "0b7eba90-603e-5b27-9e76-b09fb0e0097d",
+              "citations": [],
+              "hash_after": [
+                "fceb3dc41dd926b34c610f87c7379d8784d58e4330d0d972d3bf97ef7ef3bea9"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            }
+          ],
+          "summary": "Shortened and clarified three sentences while preserving their qualifications and attribution. The first sentence was already concise.",
+          "inserted_chars": 196
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "rewrite-qualified-heldout",
+        "split": "heldout",
+        "finding": "F5",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "blocks": {
+            "2": {
+              "found": [
+                "not-resume",
+                "until",
+                "strike",
+                "hedge",
+                "two-weeks"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 5,
+              "before": "Deliveries will not resume until the strike ends, which may take two weeks.",
+              "after": "Deliveries won't resume until the strike ends, which may take two weeks.",
+              "length_ratio": 0.96
+            },
+            "3": {
+              "found": [
+                "conditional",
+                "approved",
+                "sixty",
+                "about"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 4,
+              "before": "The grant, if approved, would cover about 60 percent of the cost.",
+              "after": "If approved, the grant would cover about 60 percent of the cost.",
+              "length_ratio": 0.98
+            },
+            "4": {
+              "found": [
+                "attribution",
+                "east-exit",
+                "closed",
+                "repairs"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 4,
+              "before": "According to the safety officer, the east exit is closed for repairs.",
+              "after": "The safety officer says the east exit is closed for repairs.",
+              "length_ratio": 0.87
+            }
+          },
+          "lost": {},
+          "lost_and_flagged": {}
+        },
+        "finding_met": true,
+        "explain": [
+          "3 sentences changed; facts lost: none; flagged by the app: n/a"
+        ]
+      },
+      "chat_text": "Proposed 3 changes to \u201cPlan\u201d: Shortened and clarified three sentences while preserving their qualifications and attribution. The first sentence was already concise.\nOpen the review card to preview the change.",
+      "gaps": [
+        "No labeled evidence passages were provided; these edits are based solely on the selected sentences."
+      ],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 4,
+          "ranges": 0,
+          "insert_at": null
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_plus_context",
+          "scope": "edit",
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 223,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 90,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "document_id": "b6bd786c-720a-4b69-94c7-d16a76bab798",
+          "blocks_total": 5,
+          "blocks_included": 4,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 223,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 90,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "repaired": false,
+          "review_flags": 1,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "compare-handbook-scan",
+      "split": "heldout",
+      "finding": "F6",
+      "kind": "answer",
+      "instruction": "Compare what the handbook and the scanned report say about operations and deliveries.",
+      "sources": [
+        "handbook.docx",
+        "march-scan.pdf"
+      ],
+      "document": null,
+      "request_id": "23c31a30-f6db-41bf-9448-5344e0c8f58e",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.724325199989835,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 2039,
+        "output_tokens": 799,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 3,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "text": "**Handbook:** It describes a deployment pipeline and lists Build and Deploy owners as Alice and Bob; its details also say to build the release candidate. It does not describe warehouse operations or deliveries in the supplied excerpts. (P1, P2, P4)",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "**Scanned report:** The OCR text reports that the warehouse processed 12,000 orders in March and attributes delivery delays to a driver shortage; it also says management approved summer hiring and customer satisfaction improved after a tracking system launched. The report covers equipment maintenance and employee training as well. Because these passages are OCR and marked as potentially error-prone, treat these details as what the OCR reports, not as independently verified facts. (P7, P8)",
+            "type": "paragraph",
+            "citations": [
+              4,
+              5
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "**Comparison:** The files address different kinds of operations: the handbook concerns software deployment, while the report concerns warehouse activity and deliveries. The supplied report excerpts do not identify deployment stages or owners; the supplied handbook excerpts do not discuss order volumes, delivery delays, drivers, or warehouse maintenance. They therefore do not provide a direct account of the same operational or delivery process. (P1, P2, P4, P7, P8)",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "unsupported": false
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "compare",
+      "routing": {
+        "hint": "compare",
+        "failure": null,
+        "degraded": false,
+        "final_route": "compare",
+        "model_route": null,
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": false,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "compare-handbook-scan",
+        "split": "heldout",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "handbook",
+              "scan"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 2,
+            "needed": 2
+          },
+          "placeholder_hits": [],
+          "cited_sources": [
+            "handbook.docx",
+            "march-scan.pdf"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['handbook.docx', 'march-scan.pdf'] (need ['handbook.docx', 'march-scan.pdf']); concepts 2/2"
+        ]
+      },
+      "chat_text": "**Handbook:** It describes a deployment pipeline and lists Build and Deploy owners as Alice and Bob; its details also say to build the release candidate. It does not describe warehouse operations or deliveries in the supplied excerpts. (P1, P2, P4) [1][2][3]\n**Scanned report:** The OCR text reports that the warehouse processed 12,000 orders in March and attributes delivery delays to a driver shortage; it also says management approved summer hiring and customer satisfaction improved after a tracking system launched. The report covers equipment maintenance and employee training as well. Because these passages are OCR and marked as potentially error-prone, treat these details as what the OCR reports, not as independently verified facts. (P7, P8) [4][5]\n**Comparison:** The files address different kinds of operations: the handbook concerns software deployment, while the report concerns warehouse activity and deliveries. The supplied report excerpts do not identify deployment stages or owners; the supplied handbook excerpts do not discuss order volumes, delivery delays, drivers, or warehouse maintenance. They therefore do not provide a direct account of the same operational or delivery process. (P1, P2, P4, P7, P8) [1][2][3][4][5]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 4,
+              "chunk_id": "4baff159-7c21-4953-be65-3ef2ca1156ce",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "docx",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "heading_path": [
+                "Section 2 overview",
+                "Details"
+              ],
+              "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Section 2 overview",
+              "Details"
+            ]
+          },
+          "chunk_ids": [
+            "4baff159-7c21-4953-be65-3ef2ca1156ce"
+          ],
+          "derivation": null,
+          "extraction": "docx",
+          "provenance": "complete",
+          "source_name": "handbook.docx",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "4b4bc31b-5c47-4f61-a6d5-f6f2981dede6",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "docx",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "284231bbb76d9aaab9a0a3f4bd766e3d7960bd9d6daffc58ed751d517570cdb5",
+              "heading_path": [
+                "Section 1 overview"
+              ],
+              "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Section 1 overview\nSection 1 describes the deployment pipeline. alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha al",
+          "locator": {
+            "heading_path": [
+              "Section 1 overview"
+            ]
+          },
+          "chunk_ids": [
+            "4b4bc31b-5c47-4f61-a6d5-f6f2981dede6"
+          ],
+          "derivation": null,
+          "extraction": "docx",
+          "provenance": "complete",
+          "source_name": "handbook.docx",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "b9d5d439-8a4d-4b12-8feb-603e5df86684",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "docx",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "0988eb847e75c6bf9dae8401fa1996a3fb2c89fc673a80e0e77c1d9ddeb78ae2",
+              "heading_path": [
+                "Section 1 overview",
+                "Details"
+              ],
+              "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Details\n- Build the release candidate",
+          "locator": {
+            "heading_path": [
+              "Section 1 overview",
+              "Details"
+            ]
+          },
+          "chunk_ids": [
+            "b9d5d439-8a4d-4b12-8feb-603e5df86684"
+          ],
+          "derivation": null,
+          "extraction": "docx",
+          "provenance": "complete",
+          "source_name": "handbook.docx",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P7",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "af974260-fc36-4232-9f4a-2f92e79cb7e7",
+              "page_end": 2,
+              "chunk_kind": "text",
+              "extraction": "tesseract",
+              "page_start": 1,
+              "version_no": 1,
+              "text_sha256": "d7909ef63c7fa2985d332601088e6ddb43c08673a3635808f9044498c95eb0bf",
+              "heading_path": [],
+              "source_version_id": "f035c23b-0959-4e15-b8ee-b7678bc09fd5"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Quarterly operations review for the northern region\nThe warehouse processed twelve thousand orders in March.\nDelivery delays were caused by a shortage of drivers.\nManagement approved additional hiring for the summer season. Customer satisfaction improved after the new tracking system launched. Retur",
+          "locator": {
+            "page_end": 2,
+            "page_start": 1,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "af974260-fc36-4232-9f4a-2f92e79cb7e7"
+          ],
+          "derivation": null,
+          "extraction": "tesseract",
+          "provenance": "complete",
+          "source_name": "march-scan.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": true,
+          "source_version_id": "f035c23b-0959-4e15-b8ee-b7678bc09fd5"
+        },
+        {
+          "n": 5,
+          "kind": "passage",
+          "label": "P8",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "4262e944-1b5f-468f-ac42-6ec51ba985eb",
+              "page_end": 3,
+              "chunk_kind": "text",
+              "extraction": "tesseract",
+              "page_start": 3,
+              "version_no": 1,
+              "text_sha256": "106c6538b05d4841a8f26928081aa133ce057d5463a2fcea55eae2e8c81312fe",
+              "heading_path": [],
+              "source_version_id": "f035c23b-0959-4e15-b8ee-b7678bc09fd5"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "extinguishers were checked by the safety officer.\nThe maintenance budget stayed within the agreed limit.\nTraining plan for new employees\nNew drivers complete two days of route practice.\nPackers learn the handling rules for fragile items.\nEvery trainee receives a printed guide to the tracking system.",
+          "locator": {
+            "page_end": 3,
+            "page_start": 3,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "4262e944-1b5f-468f-ac42-6ec51ba985eb"
+          ],
+          "derivation": null,
+          "extraction": "tesseract",
+          "provenance": "complete",
+          "source_name": "march-scan.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": true,
+          "source_version_id": "f035c23b-0959-4e15-b8ee-b7678bc09fd5"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "docx",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "4baff159-7c21-4953-be65-3ef2ca1156ce",
+              "chunk_kind": "text",
+              "source_id": "6009a753-4d3e-4707-9d74-974d26c410ed",
+              "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7",
+              "source_name": "handbook.docx",
+              "file_kind": "docx",
+              "version_no": 1,
+              "ordinal": 4,
+              "extraction": "docx",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Section 2 overview",
+                "Details"
+              ],
+              "text": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+              "text_sha256": "6ed83247cd773f0708cf7e94824ae1b2bbb52a0075f4939482ff4553755dcbcc",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "docx",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "4b4bc31b-5c47-4f61-a6d5-f6f2981dede6",
+              "chunk_kind": "text",
+              "source_id": "6009a753-4d3e-4707-9d74-974d26c410ed",
+              "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7",
+              "source_name": "handbook.docx",
+              "file_kind": "docx",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "docx",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Section 1 overview"
+              ],
+              "text": "Section 1 overview\nSection 1 describes the deployment pipeline. alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha",
+              "text_sha256": "284231bbb76d9aaab9a0a3f4bd766e3d7960bd9d6daffc58ed751d517570cdb5",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "docx",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "b9d5d439-8a4d-4b12-8feb-603e5df86684",
+              "chunk_kind": "text",
+              "source_id": "6009a753-4d3e-4707-9d74-974d26c410ed",
+              "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7",
+              "source_name": "handbook.docx",
+              "file_kind": "docx",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "docx",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Section 1 overview",
+                "Details"
+              ],
+              "text": "Details\n- Build the release candidate",
+              "text_sha256": "0988eb847e75c6bf9dae8401fa1996a3fb2c89fc673a80e0e77c1d9ddeb78ae2",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "4": {
+          "n": 4,
+          "label": "P7",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "tesseract",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "af974260-fc36-4232-9f4a-2f92e79cb7e7",
+              "chunk_kind": "text",
+              "source_id": "5b454adf-ac3d-4e9b-bd4f-972f3f400974",
+              "source_version_id": "f035c23b-0959-4e15-b8ee-b7678bc09fd5",
+              "source_name": "march-scan.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "tesseract",
+              "page_start": 1,
+              "page_end": 2,
+              "heading_path": [],
+              "text": "Quarterly operations review for the northern region\nThe warehouse processed twelve thousand orders in March.\nDelivery delays were caused by a shortage of drivers.\nManagement approved additional hiring for the summer season. Customer satisfaction improved after the new tracking system launched. Returns decreased because packaging standards were updated.\nThe finance team expects steady revenue growth next quarter.\nSafety inspections found no major incidents this period.\nMaintenance schedule for the sorting equipment Conveyor belts are inspected every second Monday.\nThe label printers were replaced after repeated jams. Forklift batteries are charged overnight in the east bay.\nA spare scanner is kept at the dispatch office.\nCleaning of the loading docks happens before each shift. Fire extinguishers were checked by the safety officer.\nThe maintenance budget stayed within the agreed limit.",
+              "text_sha256": "d7909ef63c7fa2985d332601088e6ddb43c08673a3635808f9044498c95eb0bf",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "5": {
+          "n": 5,
+          "label": "P8",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "tesseract",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "4262e944-1b5f-468f-ac42-6ec51ba985eb",
+              "chunk_kind": "text",
+              "source_id": "5b454adf-ac3d-4e9b-bd4f-972f3f400974",
+              "source_version_id": "f035c23b-0959-4e15-b8ee-b7678bc09fd5",
+              "source_name": "march-scan.pdf",
+              "file_kind": "pdf",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "tesseract",
+              "page_start": 3,
+              "page_end": 3,
+              "heading_path": [],
+              "text": "extinguishers were checked by the safety officer.\nThe maintenance budget stayed within the agreed limit.\nTraining plan for new employees\nNew drivers complete two days of route practice.\nPackers learn the handling rules for fragile items.\nEvery trainee receives a printed guide to the tracking system. A mentor is assigned to each new employee for four weeks. Training records are signed by the shift leader.\nRefresher courses are offered every spring.\nFeedback from trainees is collected in a short survey.",
+              "text_sha256": "106c6538b05d4841a8f26928081aa133ce057d5463a2fcea55eae2e8c81312fe",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "compare",
+        "routing": {
+          "hint": "compare",
+          "failure": null,
+          "degraded": false,
+          "final_route": "compare",
+          "model_route": null,
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": false,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "handbook.docx",
+            "figures_total": 1,
+            "passages_used": 6,
+            "sections_read": 4,
+            "sections_total": 5,
+            "figures_examined": 1,
+            "source_version_id": "c7d63580-eefb-4b42-b6bb-b97d82ccf2e7"
+          },
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "march-scan.pdf",
+            "figures_total": 0,
+            "passages_used": 2,
+            "sections_read": 1,
+            "sections_total": 1,
+            "figures_examined": 0,
+            "source_version_id": "f035c23b-0959-4e15-b8ee-b7678bc09fd5"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 3,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "draft-onboarding-welcome",
+      "split": "heldout",
+      "finding": "F6",
+      "kind": "draft",
+      "instruction": "Draft a short welcome message for new hires from the onboarding notes.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "0229cc52-cb21-44ad-a4a7-020a19d9f61d",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 5.7153785999980755,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1363,
+        "output_tokens": 513,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "A short welcome for new hires with a few onboarding highlights.",
+        "preview": {
+          "kind": "draft",
+          "title": "Welcome to the Team",
+          "summary": "A short welcome for new hires with a few onboarding highlights.",
+          "document": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "9039eaf4-9cc7-44ac-8857-d59714980de3"
+                },
+                "content": [
+                  {
+                    "text": "Welcome to the team! As you get started, you\u2019ll meet your teammates and tour the warehouse.",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "9ef48048-b46c-46a6-b2d2-50c03b788d11"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "a456dd74-148e-4389-a047-39489f238894"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "11d59d60-bfde-48d3-8076-f37d6981a856"
+                        },
+                        "content": [
+                          {
+                            "text": "Dana handles payroll setup.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "815a4d3c-b2fa-407a-b5c7-947601d5e169"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "11d6ad5b-c37c-45b6-90a7-44e31a8155a7"
+                        },
+                        "content": [
+                          {
+                            "text": "The IT desk issues laptops and badges; Sam approves equipment requests.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "attrs": {
+                  "id": "2c70c4db-2bc9-48f9-937e-398a61290f17",
+                  "level": 2
+                },
+                "content": [
+                  {
+                    "text": "Sources",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "b2a069f8-f0ae-44b1-9e6a-694f883fb4b0"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "2eaeed18-f4bd-442b-97c3-8a0bdb1f857c"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "1d37d123-c56e-4444-8b77-12748f5dad02"
+                        },
+                        "content": [
+                          {
+                            "text": "onboarding.md, Onboarding > Orientation",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "f8be8010-708c-46ad-bc29-74c501d21bdf"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "11584e4f-413b-42c3-9c14-1fefba12f1aa"
+                        },
+                        "content": [
+                          {
+                            "text": "onboarding.md, Onboarding > Payroll",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "45797e3f-4ab7-4d7d-a69c-c18210e74f83"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "72d4b5e2-8ad0-4e8a-a666-dfd3d6bf52c3"
+                        },
+                        "content": [
+                          {
+                            "text": "onboarding.md, Onboarding > Equipment",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "block_citations": [
+            [
+              1
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "block_assumptions": [
+            [],
+            []
+          ],
+          "unsupported_blocks": 0
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "draft",
+      "routing": null,
+      "score": {
+        "id": "draft-onboarding-welcome",
+        "split": "heldout",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "orientation",
+              "payroll",
+              "equipment",
+              "welcome"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 4,
+            "needed": 3
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "cited_sources": [
+            "onboarding.md"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['onboarding.md'] (need n/a); concepts 4/4"
+        ]
+      },
+      "chat_text": "Drafted \u201cWelcome to the Team\u201d: A short welcome for new hires with a few onboarding highlights.\nOpen the review card to preview the change.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "e68b8687-4a7a-4a48-902d-f3e26e2f1d28"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "645e84ee-02fa-4870-8983-ddbff94e74a2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "text": "Orientation\n- meet the team\n- tour the warehouse",
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "text": "Payroll\nPayroll setup is handled by Dana.",
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "text": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "draft",
+        "sources": 1,
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 2,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-onboarding-answer",
+      "split": "heldout",
+      "finding": "F4",
+      "kind": "answer",
+      "instruction": "Draw a diagram of the onboarding steps.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "2ec3c926-5dd0-41dd-a135-25ac68170f13",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 11.387557400012156,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1214,
+        "output_tokens": 536,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "type": "diagram",
+            "title": "Onboarding items (no sequence specified)",
+            "mermaid": "flowchart TB\n  subgraph Orientation\n    team[Meet the team]\n    tour[Tour the warehouse]\n  end\n  subgraph Equipment\n    issued[IT desk issues laptops and badges]\n    approved[Equipment requests approved by Sam]\n  end\n  subgraph Payroll\n    dana[Payroll setup handled by Dana]\n  end",
+            "citations": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "assumptions": [],
+            "unsupported": false,
+            "render_error": null,
+            "render_status": "ok"
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "diagram-onboarding-answer",
+        "split": "heldout",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "diagrams": [
+            {
+              "draws_order": false,
+              "order_disclosed": true,
+              "possibly_invented_labels": []
+            }
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "diagram checks [{'draws_order': False, 'order_disclosed': True, 'possibly_invented_labels': []}]"
+        ]
+      },
+      "chat_text": "[Diagram: Onboarding items (no sequence specified)]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "heading_path": [
+                "Onboarding"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Onboarding\nNew hires complete several onboarding items.",
+          "locator": {
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "94d559aa-43ce-4efb-a791-25226255559c"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "e68b8687-4a7a-4a48-902d-f3e26e2f1d28"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "645e84ee-02fa-4870-8983-ddbff94e74a2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding"
+              ],
+              "text": "Onboarding\nNew hires complete several onboarding items.",
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "text": "Orientation\n- meet the team\n- tour the warehouse",
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "text": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "4": {
+          "n": 4,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "text": "Payroll\nPayroll setup is handled by Dana.",
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "qa",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "onboarding.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 4,
+            "sections_total": 4,
+            "figures_examined": 0,
+            "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-onboarding-edit",
+      "split": "heldout",
+      "finding": "F4",
+      "kind": "edit",
+      "instruction": "Draw a diagram of the onboarding steps.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": "rollout",
+      "request_id": "5d7644e6-7b21-487d-b892-62cd60628c61",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 10.735602900007507,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 2113,
+        "output_tokens": 722,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Propose an onboarding diagram that groups the documented items without implying a sequence, since no order is specified.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "diagram",
+                  "attrs": {
+                    "id": "5bfe9d57-9cbe-4acf-9028-15b41a202a87"
+                  },
+                  "content": [
+                    {
+                      "text": "mindmap\n  root((Onboarding))\n    New hires complete several onboarding items\n    Orientation\n      Meet the team\n      Tour the warehouse\n    Equipment\n      IT desk issues laptops and badges\n      Equipment requests approved by Sam\n    Payroll\n      Payroll setup handled by Dana",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": "0b7eba90-603e-5b27-9e76-b09fb0e0097d",
+              "before": [],
+              "reason": "Group the documented onboarding items and responsibilities by topic; the source does not specify a chronological order.",
+              "block_id": null,
+              "citations": [
+                1,
+                2,
+                3,
+                4
+              ],
+              "hash_after": [
+                "eab51e7f7cdf7f4b2f093b1a374e8978a90224414cced2720c2f433db39d1736"
+              ],
+              "assumptions": [],
+              "unsupported": false,
+              "review_flags": []
+            }
+          ],
+          "summary": "Propose an onboarding diagram that groups the documented items without implying a sequence, since no order is specified.",
+          "inserted_chars": 280
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "diagram-onboarding-edit",
+        "split": "heldout",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "diagrams": [
+            {
+              "draws_order": false,
+              "order_disclosed": true,
+              "possibly_invented_labels": []
+            }
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "diagram checks [{'draws_order': False, 'order_disclosed': True, 'possibly_invented_labels': []}]"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Propose an onboarding diagram that groups the documented items without implying a sequence, since no order is specified.\nOpen the review card to preview the change.",
+      "gaps": [
+        "The evidence names onboarding items and responsibilities but does not specify their order, so the diagram does not present them as sequential steps."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "heading_path": [
+                "Onboarding"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [
+            "New hires complete several onboarding items."
+          ],
+          "derived": false,
+          "excerpt": "Onboarding\nNew hires complete several onboarding items.",
+          "locator": {
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "94d559aa-43ce-4efb-a791-25226255559c"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [
+            "- meet the team - tour the warehouse"
+          ],
+          "derived": false,
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "e68b8687-4a7a-4a48-902d-f3e26e2f1d28"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [
+            "The IT desk issues laptops and badges. Equipment requests are approved by Sam."
+          ],
+          "derived": false,
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "645e84ee-02fa-4870-8983-ddbff94e74a2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [
+            "Payroll setup is handled by Dana."
+          ],
+          "derived": false,
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding"
+              ],
+              "text": "Onboarding\nNew hires complete several onboarding items.",
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "text": "Orientation\n- meet the team\n- tour the warehouse",
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "text": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "4": {
+          "n": 4,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "text": "Payroll\nPayroll setup is handled by Dana.",
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 0,
+          "ranges": 0,
+          "insert_at": "end"
+        },
+        "sources": 1,
+        "document": {
+          "mode": "target_plus_context",
+          "scope": "edit",
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 235,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 94,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "document_id": "b6bd786c-720a-4b69-94c7-d16a76bab798",
+          "blocks_total": 5,
+          "blocks_included": 0,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "context": {
+            "mode": "full",
+            "complete": true,
+            "chars_shown": 235,
+            "blocks_shown": 5,
+            "blocks_total": 5,
+            "tokens_shown": 94,
+            "budget_tokens": 68775,
+            "clipped_blocks": 0,
+            "omitted_blocks": 0
+          },
+          "repaired": false,
+          "review_flags": 0,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "summarize-onboarding",
+      "split": "heldout",
+      "finding": "F3",
+      "kind": "answer",
+      "instruction": "Summarize the onboarding notes.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "b6706bbc-1b9f-4b5b-a35d-5ae0ef2c9001",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 5.124886499979766,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1300,
+        "output_tokens": 354,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 4,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "text": "New hires complete several onboarding items.",
+            "type": "paragraph",
+            "citations": [
+              1
+            ],
+            "unsupported": false
+          },
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "Orientation includes meeting the team and touring the warehouse.",
+                "citations": [
+                  2
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Dana handles payroll setup.",
+                "citations": [
+                  3
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "The IT desk issues laptops and badges, and Sam approves equipment requests.",
+                "citations": [
+                  4
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "summarize",
+      "routing": {
+        "hint": "summarize",
+        "failure": null,
+        "degraded": false,
+        "final_route": "summarize",
+        "model_route": null,
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": false,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "summarize-onboarding",
+        "split": "heldout",
+        "finding": "F3",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "orientation",
+              "payroll",
+              "equipment"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 3,
+            "needed": 3
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": []
+        },
+        "finding_met": true,
+        "explain": [
+          "derived citations resolve: True; provenance incomplete: 0",
+          "concepts 3/3 (need 3)"
+        ]
+      },
+      "chat_text": "New hires complete several onboarding items. [1]\n- Orientation includes meeting the team and touring the warehouse. [2]\n- Dana handles payroll setup. [3]\n- The IT desk issues laptops and badges, and Sam approves equipment requests. [4]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "section",
+          "label": "S1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "heading_path": [
+                "Onboarding"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": true,
+          "excerpt": "New hires complete several onboarding items.",
+          "locator": {
+            "section_key": "Onboarding",
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "94d559aa-43ce-4efb-a791-25226255559c"
+          ],
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 55,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 55
+          },
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 2,
+          "kind": "section",
+          "label": "S2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": true,
+          "excerpt": "Orientation includes meeting the team and touring the warehouse.",
+          "locator": {
+            "section_key": "Onboarding > Orientation",
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "e68b8687-4a7a-4a48-902d-f3e26e2f1d28"
+          ],
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 48,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 48
+          },
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 3,
+          "kind": "section",
+          "label": "S3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": true,
+          "excerpt": "Dana handles payroll setup.",
+          "locator": {
+            "section_key": "Onboarding > Payroll",
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5"
+          ],
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 41,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 41
+          },
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 4,
+          "kind": "section",
+          "label": "S4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": true,
+          "excerpt": "The IT desk issues laptops and badges; Sam approves equipment requests.",
+          "locator": {
+            "section_key": "Onboarding > Equipment",
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "645e84ee-02fa-4870-8983-ddbff94e74a2"
+          ],
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 88,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 88
+          },
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "S1",
+          "kind": "section",
+          "derived": true,
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 55,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 55
+          },
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding"
+              ],
+              "text": "Onboarding\nNew hires complete several onboarding items.",
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "S2",
+          "kind": "section",
+          "derived": true,
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 48,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 48
+          },
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "text": "Orientation\n- meet the team\n- tour the warehouse",
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "S3",
+          "kind": "section",
+          "derived": true,
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 41,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 41
+          },
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "text": "Payroll\nPayroll setup is handled by Dana.",
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "4": {
+          "n": 4,
+          "label": "S4",
+          "kind": "section",
+          "derived": true,
+          "derivation": {
+            "of": "file",
+            "kind": "section_summary",
+            "model": "gpt-6-luna",
+            "method": "map-v1",
+            "prompt": "answer-v2",
+            "input_chars": 88,
+            "origin_count": 1,
+            "input_truncated": false,
+            "chars_sent_to_model": 88
+          },
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "text": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "summarize",
+        "routing": {
+          "hint": "summarize",
+          "failure": null,
+          "degraded": false,
+          "final_route": "summarize",
+          "model_route": null,
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": false,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "full",
+            "version_no": 1,
+            "source_name": "onboarding.md",
+            "figures_total": 0,
+            "sections_read": 4,
+            "sections_total": 4,
+            "figures_examined": 0,
+            "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 4,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "review-rollout-risks",
+      "split": "heldout",
+      "finding": "F7",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [],
+      "document": "rollout",
+      "request_id": "7c70cbf6-d1f1-4fcf-9d38-f69c4d6ee186",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 6.021105399995577,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1356,
+        "output_tokens": 487,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "Risk stated: a shortage of trainers. Stated effect: it could delay the rollout by several weeks.",
+                "citations": [
+                  1
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": [
+          "The document does not state how likely the trainer shortage is or describe a mitigation for it (D3)."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "document_review",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "document_review",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "review-rollout-risks",
+        "split": "heldout",
+        "finding": "F7",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "trainer-risk"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 1,
+            "needed": 1
+          },
+          "placeholder_hits": [],
+          "claims_effect_missing": false,
+          "invented_risks": []
+        },
+        "finding_met": true,
+        "explain": [
+          "concepts 1/1; effect wrongly called missing: False; invented risks: []"
+        ]
+      },
+      "chat_text": "- Risk stated: a shortage of trainers. Stated effect: it could delay the rollout by several weeks. [1]\nNot found in the sources: The document does not state how likely the trainer shortage is or describe a mitigation for it (D3).\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The document does not state how likely the trainer shortage is or describe a mitigation for it (D3)."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "document",
+          "label": "D3",
+          "origin": [
+            {
+              "kind": "document_block",
+              "block_id": "4a032161-6d69-59c6-910c-d7d326ca86dd",
+              "document_id": "b6bd786c-720a-4b69-94c7-d16a76bab798",
+              "text_sha256": "95c5634e1aee792c58cabf500d9fea049605ea0380d22095a0d61e3554d09415",
+              "update_counter": 7
+            }
+          ],
+          "quotes": [
+            "A shortage of trainers could delay the rollout by several weeks."
+          ],
+          "derived": false,
+          "excerpt": "A shortage of trainers could delay the rollout by several weeks.",
+          "locator": {
+            "block_id": "4a032161-6d69-59c6-910c-d7d326ca86dd",
+            "block_type": "paragraph"
+          },
+          "chunk_ids": [],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "the open document",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": null
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "D3",
+          "kind": "document",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "document_block",
+              "document_id": "b6bd786c-720a-4b69-94c7-d16a76bab798",
+              "update_counter": 7,
+              "block_id": "4a032161-6d69-59c6-910c-d7d326ca86dd",
+              "text": "A shortage of trainers could delay the rollout by several weeks.",
+              "integrity": "manifest_copy"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "document_review",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "document_review",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "document": {
+          "mode": "full",
+          "scope": "whole",
+          "document_id": "b6bd786c-720a-4b69-94c7-d16a76bab798",
+          "blocks_total": 5,
+          "blocks_included": 5,
+          "captured_update_counter": 7
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "missing-context-onboarding",
+      "split": "heldout",
+      "finding": "F2",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "b9214c7f-0241-4cd9-9026-987033342339",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 6.691102199984016,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 1212,
+        "output_tokens": 476,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 3,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0,
+          "provenance_incomplete": 0
+        },
+        "blocks": [
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "Equipment approvals depend on Sam, and payroll setup is assigned to Dana. If either is unavailable, those onboarding tasks could be delayed; the document does not mention backups or escalation arrangements.",
+                "citations": [
+                  1,
+                  2
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "The document says new hires complete several onboarding items but does not specify deadlines, how completion is tracked, or who is responsible for the orientation activities. This could leave tasks incomplete or inconsistently managed.",
+                "citations": [
+                  3,
+                  4
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "It is unclear whether Sam\u2019s approval is required for all equipment, including laptops and badges, or only for some requests; the document does not define the approval scope.",
+                "citations": [
+                  1
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": [
+          "The document does not provide information about the likelihood or impact of these potential risks, existing controls, backup coverage, or onboarding completion procedures."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": true
+      },
+      "score": {
+        "id": "missing-context-onboarding",
+        "split": "heldout",
+        "finding": "F2",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": 0,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "placeholder_hits": []
+        },
+        "finding_met": true,
+        "explain": [
+          "notices ['document_not_included']; document read: False"
+        ]
+      },
+      "chat_text": "Note: You asked about the open document, but it was not included in this request, so this answer uses only the files you selected. To include the document, turn on \u201cUse open document\u201d and ask again.\n- Equipment approvals depend on Sam, and payroll setup is assigned to Dana. If either is unavailable, those onboarding tasks could be delayed; the document does not mention backups or escalation arrangements. [1][2]\n- The document says new hires complete several onboarding items but does not specify deadlines, how completion is tracked, or who is responsible for the orientation activities. This could leave tasks incomplete or inconsistently managed. [3][4]\n- It is unclear whether Sam\u2019s approval is required for all equipment, including laptops and badges, or only for some requests; the document does not define the approval scope. [1]\nNot found in the sources: The document does not provide information about the likelihood or impact of these potential risks, existing controls, backup coverage, or onboarding completion procedures.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The document does not provide information about the likelihood or impact of these potential risks, existing controls, backup coverage, or onboarding completion procedures."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P3",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 3,
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "645e84ee-02fa-4870-8983-ddbff94e74a2"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P4",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 2,
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P1",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 0,
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "heading_path": [
+                "Onboarding"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Onboarding\nNew hires complete several onboarding items.",
+          "locator": {
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "94d559aa-43ce-4efb-a791-25226255559c"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P2",
+          "origin": [
+            {
+              "kind": "chunk",
+              "ordinal": 1,
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "page_end": null,
+              "chunk_kind": "text",
+              "extraction": "plain",
+              "page_start": null,
+              "version_no": 1,
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+            }
+          ],
+          "quotes": [],
+          "derived": false,
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "e68b8687-4a7a-4a48-902d-f3e26e2f1d28"
+          ],
+          "derivation": null,
+          "extraction": "plain",
+          "provenance": "complete",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "n": 1,
+          "label": "P3",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "645e84ee-02fa-4870-8983-ddbff94e74a2",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 3,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Equipment"
+              ],
+              "text": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+              "text_sha256": "3f8d90fd55f89d51c819216d25739f768c75c500c4269e9e20743de671ebefee",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "2": {
+          "n": 2,
+          "label": "P4",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "7e32dc2b-a5af-43ce-b5a4-db5e591cfde5",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 2,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Payroll"
+              ],
+              "text": "Payroll\nPayroll setup is handled by Dana.",
+              "text_sha256": "c697d0bdd1b83968a1d3b9a85fd1df50a62f49d4b97f58e009bdb06a8f3c446a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "3": {
+          "n": 3,
+          "label": "P1",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "94d559aa-43ce-4efb-a791-25226255559c",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 0,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding"
+              ],
+              "text": "Onboarding\nNew hires complete several onboarding items.",
+              "text_sha256": "a84b9baab7bf175b220dd410bf416e6a256a6e26dca790d233713690d2a8a48a",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        },
+        "4": {
+          "n": 4,
+          "label": "P2",
+          "kind": "passage",
+          "derived": false,
+          "derivation": null,
+          "provenance": "complete",
+          "extraction": "plain",
+          "origin": [
+            {
+              "kind": "chunk",
+              "chunk_id": "e68b8687-4a7a-4a48-902d-f3e26e2f1d28",
+              "chunk_kind": "text",
+              "source_id": "0584c96f-0619-49a6-9935-b948f25a01a8",
+              "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57",
+              "source_name": "onboarding.md",
+              "file_kind": "md",
+              "version_no": 1,
+              "ordinal": 1,
+              "extraction": "plain",
+              "page_start": null,
+              "page_end": null,
+              "heading_path": [
+                "Onboarding",
+                "Orientation"
+              ],
+              "text": "Orientation\n- meet the team\n- tour the warehouse",
+              "text_sha256": "08f55d1a57695d742160f5551352e883561c207a09cda7da42b10afebcd5677d",
+              "integrity": "verified"
+            }
+          ],
+          "unavailable": 0
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "notices": [
+          {
+            "code": "document_not_included",
+            "action": "To include the document, turn on \u201cUse open document\u201d and ask again.",
+            "message": "You asked about the open document, but it was not included in this request, so this answer uses only the files you selected."
+          }
+        ],
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": true
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "onboarding.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 4,
+            "sections_total": 4,
+            "figures_examined": 0,
+            "source_version_id": "84df8a7c-cd06-4644-a00d-78de729dcd57"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 3,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0,
+        "provenance_incomplete": 0
+      },
+      "placeholder_hits": []
+    }
+  ]
+}

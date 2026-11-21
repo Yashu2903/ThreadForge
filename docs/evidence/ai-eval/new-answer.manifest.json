@@ -1,0 +1,578 @@
+{
+  "manifest_version": 2,
+  "evaluator_version": "eval-3",
+  "run_id": "e90037a2b0e34c0bb987dfb7c3a79d00",
+  "kind": "answer",
+  "mode": "real",
+  "started_utc": "2026-11-21T00:49:45.227778+00:00",
+  "expected_items": 13,
+  "captured_at_start": [
+    "run_id",
+    "started_utc",
+    "evaluator_version",
+    "expected_items",
+    "code",
+    "runtime",
+    "dataset",
+    "prompts_and_schemas",
+    "configuration",
+    "retry_and_repair",
+    "models_requested"
+  ],
+  "code": {
+    "commit": "4c41a404d64e0aae9e7d332756a2ea7ca34cab60",
+    "branch": "verification-pass-recovery",
+    "working_tree_clean": true,
+    "changed_or_untracked_paths": [],
+    "tracked_code_diff_sha256": "no tracked changes outside docs"
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "platform": "Windows-11-10.0.26300-SP0"
+  },
+  "dataset": {
+    "questions": 13,
+    "gold_sha256": "d0fae81b26d71c4dec7de2536f9374880d7aaf48e6ccbc5297873099612eec43",
+    "corpus_py_sha256": "b2eeb89e4eb4fc56a54f125a4a28a88b0146c63685fa74374db3871d13fdd918",
+    "sources_sha256": {
+      "depots.pdf": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf",
+      "march-scan.pdf": "13a63d81b60ab460e490b907337bb42acc4fed72867a22fd43dfcbc01bd86432",
+      "handbook.docx": "f153e6d64ac40fdca797d64f147da3ab5f8f7af2e7112951a6aed114eb4ac6b7",
+      "release.md": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41"
+    },
+    "evidence_gold": {
+      "version": "evidence-gold-v1",
+      "fingerprint": "7a30cfb459df4b7ce100b9e5e2b20834295a11cfabc4d5e47e05e0038d748b5c",
+      "fixtures": "corpus-v1",
+      "fixture_identity": {
+        "depots.pdf": {
+          "kind": "bytes",
+          "sha256": "bfa2352926d3a2fc7dbc0af961e99408778c3444fb0b2bed5b9088445fa0c3bf"
+        },
+        "march-scan.pdf": {
+          "kind": "content:page_texts",
+          "sha256": "2758200a8ce3fa76b0f79615660db7441714b7eae9b4448a9026e9475ca5f8a5"
+        },
+        "handbook.docx": {
+          "kind": "content:document_xml+media",
+          "sha256": "f86e16bbcce6a772e5d81aa40bdec853cc4ff54c821e7594d8e3fd35a1f23cd8"
+        },
+        "release.md": {
+          "kind": "bytes",
+          "sha256": "f1238b25d49734733008e56f0e0a58f2e4baf67d847162863baab01f76584b41"
+        }
+      },
+      "strategies": {
+        "qa": "ranked_retrieval",
+        "figure": "ranked_retrieval",
+        "diagram": "ranked_retrieval",
+        "compare": "ranked_retrieval",
+        "summarize": "full_sections",
+        "review": "full_document"
+      },
+      "policies": {
+        "unit": "an identifier of a place in an original file (page, section heading path, figure number, document block)",
+        "acceptable_sets": "an item lists acceptable sets; the best set's covered share is the item's value",
+        "multiple_passages": "a unit covered by several candidates counts once, at the first rank",
+        "recall_at_k": "covered units of the best set among the top k ranked candidates / units in that set",
+        "aggregate": "mean over items that have gold evidence, with the item count; pooled units reported beside it",
+        "missing_gold": "recall None: left out of the aggregate and counted, never 0 or 1",
+        "unranked_routes": "summarize and review report coverage of what was read, never recall@k",
+        "section_matching": "a candidate under a section path covers that section and every section above it",
+        "fixture_identity": "bytes where deterministic, otherwise a hash of the content the fixture is generated from"
+      }
+    },
+    "metric_versions": {
+      "required_phrase_coverage": "phrase-v1",
+      "evidence_recall": "evidence-v1"
+    }
+  },
+  "prompts_and_schemas": {
+    "answer_prompt_template_version": "answer-v2",
+    "edit_prompt_template_version": "edit-v2",
+    "parser_version": "extract-v1",
+    "classify_schema_sha256": "2b15a848d3cfae4b10ea074fb5c80ae97737d319197fcbde2c85e436539d3ce4",
+    "file_sha256": {
+      "answer_prompts": "8f619ed4af45a3342e8ab4df29e6b10d1799589ace0b5b0c7dd275a43b2d63e0",
+      "answer_schema_and_validation": "9ff3b24e8311974d54eaf83cc8d73cd3e86458855c663d9626d6e79dcdb848cb",
+      "edit_prompts": "1da76344e00b7bff75c7b61cc04bfee3d89d6769a6e9ae06e65dd99930acb82b",
+      "edit_schema": "e0f0b0c83561d0c0db45eebcecedbd52f2eb3e64890438d966853ac3ab5fbe4d",
+      "answer_strategies": "fb0612e93f15cda9cf4d88da19e15d07618ed9d11a6ccbb35d77120010cdd264",
+      "edit_target_and_context": "41d91a34c93aae7cc1acee088b142efec0d4037be072a728a1ab99d0267840de",
+      "edit_generate": "9476f6e5e7e06bb73f371a8acfa775041b69f96f790b1a297af3d9d42876900d",
+      "edit_qualifiers": "ad4688df88b34f68e061feb5d586579ee6a726540db1aa896661abc64c07bef5"
+    }
+  },
+  "configuration": {
+    "ai_llm_model": "gpt-6-luna",
+    "ai_embed_model": "gemini-embedding-2",
+    "ai_embed_dimensions": 1536,
+    "ai_embed_max_input_tokens": 8192,
+    "ai_llm_context_tokens": 1050000,
+    "ai_llm_max_output_tokens": 128000,
+    "ai_llm_structured_output": true,
+    "ai_llm_reasoning_effort": "",
+    "ai_classifier_max_output_tokens": 512,
+    "ai_classifier_reasoning_effort": "none",
+    "ai_max_input_tokens": 200000,
+    "ai_max_output_tokens": 8000,
+    "ai_max_provider_calls": 40,
+    "ai_call_timeout_seconds": 120.0,
+    "ai_retry_max_attempts": 4,
+    "ai_key_concurrency": 4,
+    "ai_key_policy": "server_only",
+    "ai_proposals_enabled": false,
+    "ai_retrieval_lexical_k": 20,
+    "ai_retrieval_vector_k": 20,
+    "ai_retrieval_rrf_k": 60,
+    "ai_retrieval_evidence_tokens": 24000,
+    "ai_retrieval_max_distance": 0.6,
+    "ai_chunk_target_tokens": 400,
+    "ai_chunk_max_tokens": 900,
+    "ai_chunk_overlap_tokens": 40,
+    "ai_openai_base_url": "https://api.openai.com",
+    "ai_google_base_url": "https://generativelanguage.googleapis.com",
+    "ai_prices_checked_on": ""
+  },
+  "retry_and_repair": {
+    "retried_provider_codes": [
+      "provider_rate_limited",
+      "provider_unavailable",
+      "provider_timeout"
+    ],
+    "max_attempts_per_call": 4,
+    "base_delay_seconds": 1.0,
+    "max_delay_seconds": 30.0,
+    "call_timeout_seconds": 120.0,
+    "truncated_output_retried": false,
+    "repairs": "none for answers: a reply that fails validation fails the request"
+  },
+  "models_requested": {
+    "generation": "gpt-6-luna",
+    "embedding": "gemini-embedding-2"
+  },
+  "finished_utc": "2026-11-21T00:51:34.150759+00:00",
+  "captured_at_completion": [
+    "finished_utc",
+    "cases",
+    "results",
+    "models_recorded",
+    "usage_ledger_run_wide",
+    "usage_totals",
+    "provider_failures",
+    "cost"
+  ],
+  "models_recorded": [
+    "google:gemini-embedding-2",
+    "openai:gpt-6-luna"
+  ],
+  "usage_ledger_run_wide": [
+    {
+      "operation": "answer",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 13,
+      "input_tokens": 21757,
+      "output_tokens": 4735,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "classify",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 13,
+      "input_tokens": 1778,
+      "output_tokens": 172,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "embed_text",
+      "provider": "google",
+      "model": "gemini-embedding-2",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 16,
+      "input_tokens": 4378,
+      "output_tokens": 0,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "map",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 1,
+      "input_tokens": 226,
+      "output_tokens": 114,
+      "est_cost_micros": "0"
+    },
+    {
+      "operation": "vision_describe",
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "status": "ok",
+      "error_code": "-",
+      "calls": 1,
+      "input_tokens": 603,
+      "output_tokens": 106,
+      "est_cost_micros": "0"
+    }
+  ],
+  "usage_totals": {
+    "source": "the run-wide usage ledger only (per-case figures are views of the same rows)",
+    "by_provider": {
+      "openai": {
+        "calls": 28,
+        "failed_calls": 0,
+        "input_tokens": 24364,
+        "output_tokens": 5127
+      },
+      "google": {
+        "calls": 16,
+        "failed_calls": 0,
+        "input_tokens": 4378,
+        "output_tokens": 0
+      }
+    }
+  },
+  "provider_failures": {
+    "calls": {
+      "numerator": 0,
+      "denominator": 44,
+      "value": 0.0
+    },
+    "by_operation_and_code": []
+  },
+  "cost": {
+    "status": "unpriced",
+    "complete_total": false,
+    "est_cost_micros": null,
+    "est_cost_usd": null,
+    "currency": "USD",
+    "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+    "unpriced_components": [
+      "generation",
+      "embedding"
+    ],
+    "kind_of_value": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+    "rates": null,
+    "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+    "usage_retained": {
+      "generation_input_tokens": 24364,
+      "generation_output_tokens": 5127,
+      "embedding_input_tokens": 4378
+    }
+  },
+  "results": {
+    "routing": {
+      "published": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "classification_attempts": 13,
+      "valid_model_classifications": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "model_accuracy_of_valid": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "model_accuracy_of_attempts": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "classifier_failures": {
+        "numerator": 0,
+        "denominator": 13,
+        "value": 0.0
+      },
+      "classifier_failures_by_category": {},
+      "fallback_requests": {
+        "numerator": 0,
+        "denominator": 13,
+        "value": 0.0
+      },
+      "final_route_accuracy": {
+        "numerator": 13,
+        "denominator": 13,
+        "value": 1.0
+      },
+      "final_correct_by_fallback": 0,
+      "model_misrouted": [],
+      "fallback_ids": []
+    },
+    "ocr_character_accuracy": 0.9191063174114021
+  },
+  "cases": [
+    {
+      "id": "qa-berlin",
+      "request_id": "f16c8515-442a-4dcb-91ef-de2db2a6c689",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.5290770000137854,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-lisbon-storms",
+      "request_id": "71244354-c796-4d15-9e23-b4c96335edad",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.527043700014474,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-scan-orders",
+      "request_id": "ee64ea64-b252-449a-b97b-4052215a0d59",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.089734200009843,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-scan-delays",
+      "request_id": "b6b2ba9d-f952-47f0-9974-220299fc8d55",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.5992611999972723,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-md-owner",
+      "request_id": "1416d3a2-8bfc-4d6a-a432-abbde12f9e5e",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.2049447000026703,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-md-restart",
+      "request_id": "c166c970-d469-4aca-a167-376fc5a1cdb5",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 3.703803699987475,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "qa-two-sources",
+      "request_id": "5e01358a-3fe7-40f5-b595-dc2c49fc17d9",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.984333200001856,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "figure-handbook",
+      "request_id": "7fa04626-8133-4746-b378-517b5814af0c",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 4.553152100008447,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "summarize-release",
+      "request_id": "34c5ea38-6423-4ccc-ac1d-cf93b3a345b3",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 6.0928511999954935,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "summarize",
+        "model_route": "summarize",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "summarize"
+    },
+    {
+      "id": "compare-depots-release",
+      "request_id": "d7b0dbba-c990-4396-bb32-ed8f6ee2770a",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 15.88312440001755,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "compare",
+        "model_route": "compare",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "compare"
+    },
+    {
+      "id": "review-launch-plan",
+      "request_id": "c4c29d15-7713-4423-8214-a7daefc4feca",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 9.32698509999318,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "document_review",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "document_review"
+    },
+    {
+      "id": "diagram-release",
+      "request_id": "de9329ab-ce7c-4c77-b983-574e51254d67",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 15.48025960000814,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    },
+    {
+      "id": "diagram-architecture",
+      "request_id": "09818128-4262-4937-867d-b8c1a6a8e3c2",
+      "published": true,
+      "outcome": "published",
+      "latency_s": 10.181906300014816,
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "expected_route": "qa"
+    }
+  ]
+}

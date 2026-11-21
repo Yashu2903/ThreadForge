@@ -64,6 +64,75 @@ AGENT: dict[str, list[str]] = {
         "(12,000 orders in March, driver shortage, hiring, satisfaction, maintenance, training) match the sources; the OCR caveat is stated.",
         "The comparison concludes the files cover different subjects and says neither describes the other's topic; I think that is the honest comparison of these two files.",
     ],
+    "A1": [
+        "Open the citation: the original passage is page 1 of depots.pdf and says 4200 parcels. The answer writes 4,200, the same number. One claim, one citation, nothing I could not find in the original text.",
+    ],
+    "A2": [
+        "I looked at fixtures/architecture-figure.png. It has four boxes (Client, API, Worker, Database) left to right, joined by plain lines with NO arrowheads. The answer says exactly that, including that the lines do not show arrowheads. "
+        "The citation opens to a machine-generated figure description, labelled as such, and the figure image itself.",
+        "Correction to the first sheet: its reading of this item said the answer 'matches the figure' and its diagram answer drew arrows (Client --> API). I had not checked the image for arrowheads then; it has none, so a direction was an inference.",
+    ],
+    "A3": [
+        "Each of the three statements traces to one of the three section summaries (S1-S3). Open each citation: it is labelled DERIVED (a summary the model wrote) and shows the original section text with a verified stored-text check. "
+        "The summaries say what the originals say (three gates; Build compiles and runs tests; Alice owns Build, Bob owns Deploy; workers restart one at a time). The gap 'does not name the third gate' is accurate.",
+        "What a derived citation shows is lineage, not support: I compared each summary with its original by eye and found no addition, but that comparison is mine, not a check the system makes.",
+    ],
+    "A4": [
+        "Both files are covered. The depot paragraph (morning checks, route collection and scanning, weekly delay summaries) and its local examples (Berlin six more staff, Madrid a third belt, Oslo paused night shifts, Paris a second dock) are all in depots.pdf; "
+        "the release paragraph matches release.md. The gaps (third gate unspecified; the order of stages not stated) are accurate.",
+        "Citation granularity is coarse: the depot paragraph cites eight passages together, so to check one example you open several. This answer is less thin than the one in the first sheet, which summarised only the repeated filler.",
+    ],
+    "A5": [
+        "The document states one risk and its effect. The answer lists it, says the stated effect is that the schedule could slip, and names what is really missing (how likely, what mitigation). That is the correction the review asked for: the first sheet's answer said impact was missing.",
+        "'Beyond the document: ...' is a labelled suggestion and it cites nothing new. No risk is invented. In the baseline rerun of this request the wording defect did not reappear (see the comparison), so this item shows the new wording, not proof that the prompt change caused it.",
+    ],
+    "A6": [
+        "The diagram chains Build, its two tasks, Deploy and the restart step with arrows. The release notes list Build before Deploy but never say one follows the other, and they do not say the two tasks run in that order. The answer says so in two assumptions, "
+        "which the card shows next to the diagram and the chat message repeats. The third gate is mentioned as unspecified, not named.",
+        "One oddity: the node 'Build - Alice' is followed by arrows to its own tasks, which draws a containment as a sequence. The assumptions disclose the ordering, not that choice. Rendering was checked by the Mermaid parser only; look at it.",
+    ],
+    "A7": [
+        "The earlier run at default effort, kept as it was. It routed to summarize and cited section summaries, so the automated 'required phrase in cited text' check scored it 0 although its diagram, third-gate note and order disclosure were sound. "
+        "The old retrieval 'recall' of 0 for this item came from the same cause: the summarize route retrieves no passages. The new evidence measure reports coverage of the sections read for summarize instead.",
+    ],
+    "A8": [
+        "Undirected: Client --- API --- Worker --- Database. It matches the figure, which has lines and no arrowheads (see fixtures/architecture-figure.png). The earlier build drew arrows here; this answer does not claim a direction the image does not show.",
+    ],
+    "P1": [
+        "'The launch is scheduled for noon on Friday.' Same meaning, same length as the original (the first sheet's output was longer). 'Scheduled' is kept and so are the day and the time. I would not call it clearer; it is a reordering. The app raised no flag, and I found nothing lost.",
+        "The model's own summary says it 'rephrased for clarity'. That is the model's claim; the preview labels it 'Why' (the model's reason), and nothing in the system verifies it.",
+    ],
+    "P2": [
+        "Inserts a heading, the three-gates statement (with the third gate marked as not named), and the Build and Deploy owners with their tasks, as the release notes say. Where it lands depends on the anchor (after the budget paragraph): check the placement in the preview. "
+        "Open the citations: each passage is the original text, and the figures and names match.",
+    ],
+    "P3": [
+        "Deletes exactly the budget paragraph that was asked for. The complete target before and after is shown. A deletion is destructive until applied, so it needs your explicit approval.",
+    ],
+    "P4": [
+        "The diagram is the same chain as A6 and the preview states what it assumes (the order of the tasks and of Build before Deploy), and an italic note repeating it follows the diagram in the inserted blocks, so the caveat travels into the document if applied. "
+        "The three citations open to the original release.md passages.",
+    ],
+    "P5": [
+        "Both operations stay inside the launch plan. The sentence now keeps 'scheduled' ('Launch is scheduled for Friday at noon.'), the concise rewrite the review described as acceptable, and the risk note restates the existing risk. "
+        "The dropped 'scheduled' of the first review did not recur in this sample. The check that would have caught it did: applied to the stored first output it flags 'scheduled is gone' (evidence: historical-rewrite-flags.json).",
+    ],
+    "P6": [
+        "The complete draft is in section 3. It stays within the release notes: three gates, Build and Deploy with their owners and tasks, the third gate described as mentioned but not described, a next step, and a Sources section the server built from the citations. "
+        "'A proposal to formalize the release process into a runbook' is a loose reading of 'a short project proposal from the release notes'; whether it is what you wanted is yours to judge.",
+    ],
+    "P7": [
+        "The same request that produced a placeholder in run 1, now run on the build that sends the document as context. The inserted paragraph states the launch timing, the budget and the schedule risk with its 'could', all from the document. No placeholder; no figure that is not in the document.",
+        "It is one sentence listing three facts and the document has five blocks, so this is not a stress test of a long document; the Atlas and hiring items (Q1, Q2) are.",
+    ],
+    "P7h": [
+        "The repaired reply of run 1: a generic closing sentence, and the model's own summary says the document content was not provided. The first reply had the wrong number of operations. It passed every automated check, which is the point of the finding.",
+        "Cause, as far as it can be established: for an insertion with no selected blocks the old prompt held no document text (shown by a test on the old behaviour, and reproduced in the baseline rerun on two other documents, where the model again said the content was not provided). "
+        "What run 1 actually sent was not stored, so the cause is read from the code and the model's own words, not from the stored prompt. The repair call re-sent the same context as the first call, so repair did not lose anything the first call had.",
+    ],
+    "P8h": [
+        "The repaired reply of run 2: plain Mermaid, a chain Build, its tasks, Deploy, with owners, matching the source's facts. The unsafe first reply (HTML in a diagram) never reached the preview. Like A6, it drew an order the source does not state and said nothing about it; the new build's P4 is the same request with the assumption disclosed.",
+    ],
     "Q11": [
         "A short welcome paragraph and a bullet list with the four facts of the onboarding notes, and a Sources section the server added from the citations. It does what 'a short welcome message' asks, in a plain way; the tone is yours to judge.",
     ],

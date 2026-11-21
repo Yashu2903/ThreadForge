@@ -1,0 +1,79 @@
+{
+  "started": "2026-11-21T00:59:20.760Z",
+  "requests": [
+    {
+      "request_id": "c628963f-3a91-44cd-bf4e-6eede13209a4",
+      "task_hint": "ask"
+    },
+    {
+      "request_id": "608c2052-4db5-4b92-8e0c-810c1b830d80",
+      "task_hint": "ask"
+    },
+    {
+      "request_id": "37575299-1888-425d-a318-0bf9c222e0ba",
+      "task_hint": "summarize"
+    },
+    {
+      "request_id": "2cdbf989-f7c4-4d8a-90e5-84217a0ecca9",
+      "task_hint": "ask"
+    },
+    {
+      "request_id": "49112b3b-57ea-4d7a-91c1-ffb523da4607",
+      "task_hint": "auto"
+    }
+  ],
+  "closing_summary": {
+    "request_id": "c628963f-3a91-44cd-bf4e-6eede13209a4",
+    "rubric_found": [
+      "what",
+      "deadline",
+      "budget",
+      "risk",
+      "owners"
+    ],
+    "placeholder": false,
+    "context": {
+      "mode": "full",
+      "complete": true,
+      "chars_shown": 382,
+      "blocks_shown": 5,
+      "blocks_total": 5,
+      "tokens_shown": 149,
+      "budget_tokens": 16274,
+      "clipped_blocks": 0,
+      "omitted_blocks": 0
+    },
+    "coverage_text_seen": true
+  },
+  "qualified_rewrite": {
+    "request_id": "608c2052-4db5-4b92-8e0c-810c1b830d80",
+    "qualification_kept": true,
+    "review_flag_shown": false
+  },
+  "derived_citation": {
+    "request_id": "37575299-1888-425d-a318-0bf9c222e0ba",
+    "derived_citations": 3,
+    "origin_shown": true,
+    "original_file_link_status": 200
+  },
+  "proposal_citation": {
+    "request_id": "2cdbf989-f7c4-4d8a-90e5-84217a0ecca9",
+    "opened_source_text": true
+  },
+  "diagram": {
+    "request_id": "49112b3b-57ea-4d7a-91c1-ffb523da4607",
+    "diagrams": 1,
+    "draws_order": false,
+    "assumptions_listed": 1,
+    "gaps_mention_order": false,
+    "grouped_instead": true
+  },
+  "permissions": {
+    "chosen_source_only": true,
+    "viewer_ai_request_status": 403,
+    "outsider_origin_status": 404,
+    "outsider_result_status": 404
+  },
+  "finished": "2026-11-21T01:00:29.397Z",
+  "room_id": "8978c2e3-50d1-4ed8-ac2b-a31771ab8a4d"
+}

@@ -177,8 +177,8 @@ test("real inference: closing summary, qualified rewrite, derived citation, sour
 
   // ---- 4. a proposal that cites a source: the preview resolves the reference to the original passage --------------------------------
   await openAsk(a.page, "Propose document edit", "End of document", "Add a build and deploy section using the release notes.");
-  await a.page.getByText(/Files \((\d+) chosen\)/).click();
-  await chooseOnly(a.page, /release\.md/);
+  await chooseOnly(a.page, /release\.md/); // opens the Files list once and ticks only release.md
+  await expect(a.page.getByRole("checkbox", { name: /release\.md/ })).toBeChecked();
   await a.page.getByRole("button", { name: "Ask for an edit" }).click();
   await expect(cards).toHaveCount(3, { timeout: 240_000 });
   const sourced = cards.last();

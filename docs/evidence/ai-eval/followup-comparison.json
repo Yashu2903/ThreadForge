@@ -1,0 +1,379 @@
+{
+  "quality": {
+    "findings": {
+      "F1/dev": {
+        "items": 1,
+        "baseline": 0,
+        "new": 1
+      },
+      "F1/heldout": {
+        "items": 1,
+        "baseline": 0,
+        "new": 1
+      },
+      "F2/dev": {
+        "items": 1,
+        "baseline": 0,
+        "new": 1
+      },
+      "F2/heldout": {
+        "items": 1,
+        "baseline": 0,
+        "new": 1
+      },
+      "F3/heldout": {
+        "items": 1,
+        "baseline": 0,
+        "new": 1
+      },
+      "F4/dev": {
+        "items": 2,
+        "baseline": 0,
+        "new": 2
+      },
+      "F4/heldout": {
+        "items": 2,
+        "baseline": 1,
+        "new": 2
+      },
+      "F5/dev": {
+        "items": 1,
+        "baseline": 1,
+        "new": 1
+      },
+      "F5/heldout": {
+        "items": 1,
+        "baseline": 0,
+        "new": 1
+      },
+      "F6/dev": {
+        "items": 2,
+        "baseline": 2,
+        "new": 2
+      },
+      "F6/heldout": {
+        "items": 2,
+        "baseline": 2,
+        "new": 2
+      },
+      "F7/dev": {
+        "items": 1,
+        "baseline": 1,
+        "new": 1
+      },
+      "F7/heldout": {
+        "items": 1,
+        "baseline": 1,
+        "new": 1
+      }
+    },
+    "items": {
+      "closing-summary-atlas": {
+        "baseline": false,
+        "new": true
+      },
+      "rewrite-qualified-dev": {
+        "baseline": true,
+        "new": true
+      },
+      "compare-depots-release": {
+        "baseline": true,
+        "new": true
+      },
+      "draft-release-checklist": {
+        "baseline": true,
+        "new": true
+      },
+      "diagram-release-answer": {
+        "baseline": false,
+        "new": true
+      },
+      "diagram-release-edit": {
+        "baseline": false,
+        "new": true
+      },
+      "review-launch-risks": {
+        "baseline": true,
+        "new": true
+      },
+      "missing-context-review": {
+        "baseline": false,
+        "new": true
+      },
+      "closing-summary-hiring": {
+        "baseline": false,
+        "new": true
+      },
+      "rewrite-qualified-heldout": {
+        "baseline": false,
+        "new": true
+      },
+      "compare-handbook-scan": {
+        "baseline": true,
+        "new": true
+      },
+      "draft-onboarding-welcome": {
+        "baseline": true,
+        "new": true
+      },
+      "diagram-onboarding-answer": {
+        "baseline": false,
+        "new": true
+      },
+      "diagram-onboarding-edit": {
+        "baseline": true,
+        "new": true
+      },
+      "summarize-onboarding": {
+        "baseline": false,
+        "new": true
+      },
+      "review-rollout-risks": {
+        "baseline": true,
+        "new": true
+      },
+      "missing-context-onboarding": {
+        "baseline": false,
+        "new": true
+      }
+    }
+  },
+  "answer": {
+    "columns": [
+      "none-answer (historical, old harness)",
+      "baseline-answer (0fe9a95, new harness)",
+      "new-answer (new build)"
+    ],
+    "metrics": {
+      "none-answer (historical, old harness)": {
+        "published": "13/13",
+        "final_route": "13/13",
+        "model_classification": "13/13",
+        "classifier_failures": "0/13",
+        "phrase": {
+          "@1": 0.85,
+          "@3": 1.0,
+          "@5": 1.0,
+          "@evidence": 1.0
+        },
+        "phrase_items": 10,
+        "evidence": null,
+        "citations_clean": 1.0,
+        "cites_expected": 1.0,
+        "cited_text_has_phrase": 1.0,
+        "derived_resolve": [],
+        "diagram_renders": 1.0,
+        "diagram_disclosed": [],
+        "latency_p50": 5.017403600009857,
+        "latency_p95": 12.796746300009545,
+        "tokens_in": 21044,
+        "tokens_out": 2906,
+        "failed_calls": 0,
+        "calls": 38
+      },
+      "baseline-answer (0fe9a95, new harness)": {
+        "published": "13/13",
+        "final_route": "13/13",
+        "model_classification": "13/13",
+        "classifier_failures": "0/13",
+        "phrase": {
+          "@1": 0.85,
+          "@3": 1.0,
+          "@5": 1.0,
+          "@evidence": 1.0
+        },
+        "phrase_items": 10,
+        "evidence": {
+          "version": "evidence-v1",
+          "recall": {
+            "@1": {
+              "items": 10,
+              "mean": 0.9,
+              "found_units": 10,
+              "needed_units": 12,
+              "items_all_found": 8
+            },
+            "@3": {
+              "items": 10,
+              "mean": 1.0,
+              "found_units": 12,
+              "needed_units": 12,
+              "items_all_found": 10
+            },
+            "@5": {
+              "items": 10,
+              "mean": 1.0,
+              "found_units": 12,
+              "needed_units": 12,
+              "items_all_found": 10
+            },
+            "@all": {
+              "items": 10,
+              "mean": 1.0,
+              "found_units": 12,
+              "needed_units": 12,
+              "items_all_found": 10
+            }
+          },
+          "coverage": {
+            "items": 1,
+            "mean": 1.0,
+            "found_units": 1,
+            "needed_units": 1
+          },
+          "ranked_items": 11,
+          "ranked_items_without_gold": 1,
+          "read_items": 1,
+          "read_items_without_gold": 0
+        },
+        "citations_clean": 1.0,
+        "cites_expected": 1.0,
+        "cited_text_has_phrase": 1.0,
+        "derived_resolve": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "diagram_renders": 1.0,
+        "diagram_disclosed": [
+          false,
+          false
+        ],
+        "latency_p50": 4.106927699991502,
+        "latency_p95": 9.193740199989406,
+        "tokens_in": 21032,
+        "tokens_out": 2612,
+        "failed_calls": 0,
+        "calls": 38
+      },
+      "new-answer (new build)": {
+        "published": "13/13",
+        "final_route": "13/13",
+        "model_classification": "13/13",
+        "classifier_failures": "0/13",
+        "phrase": {
+          "@1": 0.85,
+          "@3": 1.0,
+          "@5": 1.0,
+          "@evidence": 1.0
+        },
+        "phrase_items": 10,
+        "evidence": {
+          "version": "evidence-v1",
+          "recall": {
+            "@1": {
+              "items": 10,
+              "mean": 0.9,
+              "found_units": 10,
+              "needed_units": 12,
+              "items_all_found": 8
+            },
+            "@3": {
+              "items": 10,
+              "mean": 1.0,
+              "found_units": 12,
+              "needed_units": 12,
+              "items_all_found": 10
+            },
+            "@5": {
+              "items": 10,
+              "mean": 1.0,
+              "found_units": 12,
+              "needed_units": 12,
+              "items_all_found": 10
+            },
+            "@all": {
+              "items": 10,
+              "mean": 1.0,
+              "found_units": 12,
+              "needed_units": 12,
+              "items_all_found": 10
+            }
+          },
+          "coverage": {
+            "items": 2,
+            "mean": 1.0,
+            "found_units": 4,
+            "needed_units": 4
+          },
+          "ranked_items": 11,
+          "ranked_items_without_gold": 1,
+          "read_items": 2,
+          "read_items_without_gold": 0
+        },
+        "citations_clean": 1.0,
+        "cites_expected": 1.0,
+        "cited_text_has_phrase": 1.0,
+        "derived_resolve": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          true,
+          null,
+          null,
+          null,
+          null
+        ],
+        "diagram_renders": 1.0,
+        "diagram_disclosed": [
+          true
+        ],
+        "latency_p50": 4.553152100008447,
+        "latency_p95": 15.88312440001755,
+        "tokens_in": 24092,
+        "tokens_out": 5021,
+        "failed_calls": 0,
+        "calls": 38
+      }
+    }
+  },
+  "proposal": {
+    "columns": [
+      "postfix-proposal (reviewed build)",
+      "new-proposal (new build)"
+    ],
+    "metrics": {
+      "postfix-proposal (reviewed build)": {
+        "items": 16,
+        "first_try": "16/16",
+        "published": "16/16",
+        "gate": 1.0,
+        "resolves": 1.0,
+        "citation_validity": 1.0,
+        "repaired": 0,
+        "review_flags": 0,
+        "p50": 6.347155800001929,
+        "p95": 24.77384009998059,
+        "calls": 1.0
+      },
+      "new-proposal (new build)": {
+        "items": 16,
+        "first_try": "15/16",
+        "published": "16/16",
+        "gate": 1.0,
+        "resolves": 1.0,
+        "citation_validity": 1.0,
+        "repaired": 1,
+        "review_flags": 2,
+        "p50": 5.2715403999900445,
+        "p95": 24.062562400009483,
+        "calls": 1.0625
+      }
+    }
+  }
+}

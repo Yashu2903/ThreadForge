@@ -1,0 +1,4008 @@
+{
+  "mode": "real",
+  "split": "all",
+  "run": {
+    "failures": {
+      "calls": {
+        "numerator": 0,
+        "denominator": 43,
+        "value": 0.0
+      },
+      "by_operation_and_code": []
+    },
+    "cost": {
+      "status": "unpriced",
+      "complete_total": false,
+      "est_cost_micros": null,
+      "est_cost_usd": null,
+      "currency": "USD",
+      "unit_note": "micro-dollars: 1,000,000 = 1 USD",
+      "unpriced_components": [
+        "generation",
+        "embedding"
+      ],
+      "kind_of_value": "unknown: usage was recorded but no rate is configured (the ledger's 0 means 'not priced')",
+      "rates": null,
+      "provider_reported_cost": "not available: the providers' responses report tokens, not cost",
+      "usage_retained": {
+        "generation_input_tokens": 24728,
+        "generation_output_tokens": 8516,
+        "embedding_input_tokens": 4481
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "closing-summary-atlas",
+      "split": "dev",
+      "finding": "F1",
+      "kind": "edit",
+      "instruction": "Add a closing summary paragraph.",
+      "sources": [],
+      "document": "atlas",
+      "request_id": "75a9d352-02f4-47ad-a144-33e9d150a633",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.19821500001126,
+      "ledger": {
+        "answer_calls": 2,
+        "calls": 2,
+        "input_tokens": 2592,
+        "output_tokens": 635,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Proposed a closing paragraph, but the document content was not provided, so it uses a placeholder rather than summarizing unsupported details.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "8f6669fe-63ab-4a49-9dc1-998921604f38"
+                  },
+                  "content": [
+                    {
+                      "text": "A closing summary should be added here once the preceding content is available.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": "5a4ffb3f-7321-5e89-b646-e566c9265648",
+              "before": [],
+              "reason": "Add a closing paragraph without inventing a summary of unavailable content.",
+              "block_id": null,
+              "citations": [],
+              "hash_after": [
+                "0c38ea65597f7e4e9c4f7c0c58cb5ff7dffc8d924f01c9e3e8186ba9e8143b9c"
+              ],
+              "unsupported": false
+            }
+          ],
+          "summary": "Proposed a closing paragraph, but the document content was not provided, so it uses a placeholder rather than summarizing unsupported details.",
+          "inserted_chars": 79
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "closing-summary-atlas",
+        "split": "dev",
+        "finding": "F1",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": false,
+          "repaired": true,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [],
+            "missing": [
+              "what",
+              "deadline",
+              "budget",
+              "risk",
+              "owners"
+            ],
+            "share": 0.0,
+            "of": 5,
+            "needed": 4
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": []
+        },
+        "finding_met": false,
+        "explain": [
+          "concepts 0/5 (need 4), missing ['what', 'deadline', 'budget', 'risk', 'owners']"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Proposed a closing paragraph, but the document content was not provided, so it uses a placeholder rather than summarizing unsupported details.\nOpen the review card to preview the change.",
+      "gaps": [
+        "No document text or supporting evidence was provided, so an accurate summary of its main points cannot be written."
+      ],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 0,
+          "ranges": 0,
+          "insert_at": "end"
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_only",
+          "scope": "edit",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 6,
+          "blocks_included": 0,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "repaired": true,
+          "first_problems": [
+            "wrong_operation_count"
+          ],
+          "first_try_valid": false
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "rewrite-qualified-dev",
+      "split": "dev",
+      "finding": "F5",
+      "kind": "edit",
+      "instruction": "Tighten these sentences without changing what they say.",
+      "sources": [],
+      "document": "qualified-dev",
+      "request_id": "1e712ad8-fd62-410f-a6e5-35a82b06be20",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 6.289478999999119,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1386,
+        "output_tokens": 582,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Tightened the sentences that could be shortened without changing their meaning.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "df71c66b-dd4c-50ff-8666-412b1acf414e"
+                  },
+                  "content": [
+                    {
+                      "text": "The launch is set for Friday at noon.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "df71c66b-dd4c-50ff-8666-412b1acf414e"
+                  },
+                  "content": [
+                    {
+                      "text": "The launch is scheduled for Friday at noon.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Shortens \u201cscheduled\u201d to \u201cset\u201d while preserving the timing.",
+              "block_id": "df71c66b-dd4c-50ff-8666-412b1acf414e",
+              "citations": [],
+              "hash_after": [
+                "7ce3889e94c7ed3eca139edaaa0a6592db6be419f2fc8d79a8385c1d8b0acbee"
+              ],
+              "unsupported": false
+            },
+            {
+              "op": 1,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "f690d656-2b1e-51cf-9b2e-d1aabf3b9e51"
+                  },
+                  "content": [
+                    {
+                      "text": "The estimated budget is $40,000 and remains unapproved.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "f690d656-2b1e-51cf-9b2e-d1aabf3b9e51"
+                  },
+                  "content": [
+                    {
+                      "text": "The budget is estimated at forty thousand dollars and is not yet approved.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Condenses the estimate and approval status without changing either.",
+              "block_id": "f690d656-2b1e-51cf-9b2e-d1aabf3b9e51",
+              "citations": [],
+              "hash_after": [
+                "cc6f1fd7284c8be898687fc74470ee00f93443c49e53f2821e7bef39a512bbf0"
+              ],
+              "unsupported": false
+            },
+            {
+              "op": 2,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "276c3034-4292-52f9-bb7a-8821e95fb6c2"
+                  },
+                  "content": [
+                    {
+                      "text": "Support will move to the new queue if migration finishes by June.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "276c3034-4292-52f9-bb7a-8821e95fb6c2"
+                  },
+                  "content": [
+                    {
+                      "text": "Support will move to the new queue if the migration finishes by June.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Removes an unnecessary article while retaining the condition and deadline.",
+              "block_id": "276c3034-4292-52f9-bb7a-8821e95fb6c2",
+              "citations": [],
+              "hash_after": [
+                "2a3dcd45748e17211381f5f32e46d7cae456ed3f93388d95cf5066f97a6ddadb"
+              ],
+              "unsupported": false
+            }
+          ],
+          "summary": "Tightened the sentences that could be shortened without changing their meaning.",
+          "inserted_chars": 157
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "rewrite-qualified-dev",
+        "split": "dev",
+        "finding": "F5",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "blocks": {
+            "1": {
+              "found": [
+                "scheduled",
+                "friday",
+                "noon"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 3,
+              "before": "The launch is scheduled for Friday at noon.",
+              "after": "The launch is set for Friday at noon.",
+              "length_ratio": 0.86
+            },
+            "3": {
+              "found": [
+                "estimated",
+                "amount",
+                "not-approved"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 3,
+              "before": "The budget is estimated at forty thousand dollars and is not yet approved.",
+              "after": "The estimated budget is $40,000 and remains unapproved.",
+              "length_ratio": 0.74
+            },
+            "4": {
+              "found": [
+                "conditional",
+                "june",
+                "queue"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 3,
+              "before": "Support will move to the new queue if the migration finishes by June.",
+              "after": "Support will move to the new queue if migration finishes by June.",
+              "length_ratio": 0.94
+            }
+          },
+          "lost": {},
+          "lost_and_flagged": {}
+        },
+        "finding_met": true,
+        "explain": [
+          "3 sentences changed; facts lost: none; flagged by the app: n/a"
+        ]
+      },
+      "chat_text": "Proposed 3 changes to \u201cPlan\u201d: Tightened the sentences that could be shortened without changing their meaning.\nOpen the review card to preview the change.",
+      "gaps": [],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 4,
+          "ranges": 0,
+          "insert_at": null
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_only",
+          "scope": "edit",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 5,
+          "blocks_included": 4,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "compare-depots-release",
+      "split": "dev",
+      "finding": "F6",
+      "kind": "answer",
+      "instruction": "Compare how the depot report and the release process assign responsibilities.",
+      "sources": [
+        "depots.pdf",
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "7e79b94b-e585-410c-b9d6-df2f0c70f628",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 6.524196899990784,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 2509,
+        "output_tokens": 547,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 3,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "text": "The depot report assigns recurring work by role: shift leads inspect loading bays, sorting belts and the returns desk each morning; drivers collect routes and scan parcels; supervisors summarize delays weekly. It does not identify individual employees as owners of these duties in the cited report passages.",
+            "type": "paragraph",
+            "citations": [
+              1
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "The release process says every release passes through three gates. Its owner table names Alice for Build and Bob for Deploy; Build involves compiling sources and running unit tests, while Deploy restarts workers one at a time. Thus, unlike the depot report\u2019s role-based recurring duties, the release process assigns named owners to stages.",
+            "type": "paragraph",
+            "citations": [
+              2,
+              3,
+              4,
+              5
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "Both files describe responsibility for operational tasks, but the depot report is silent on named stage owners, and the release process is silent on the depot report\u2019s specific roles and recurring checks. The release process also mentions three gates but the provided evidence names owners for only Build and Deploy.",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3
+            ],
+            "unsupported": false
+          }
+        ],
+        "evidence_gaps": [
+          "The release process evidence does not identify the third gate or its owner."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "compare",
+      "routing": {
+        "hint": "compare",
+        "failure": null,
+        "degraded": false,
+        "final_route": "compare",
+        "model_route": null,
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": false,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "compare-depots-release",
+        "split": "dev",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "depots",
+              "release"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 2,
+            "needed": 2
+          },
+          "placeholder_hits": [],
+          "cited_sources": [
+            "depots.pdf",
+            "release.md"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['depots.pdf', 'release.md'] (need ['depots.pdf', 'release.md']); concepts 2/2"
+        ]
+      },
+      "chat_text": "The depot report assigns recurring work by role: shift leads inspect loading bays, sorting belts and the returns desk each morning; drivers collect routes and scan parcels; supervisors summarize delays weekly. It does not identify individual employees as owners of these duties in the cited report passages. [1]\nThe release process says every release passes through three gates. Its owner table names Alice for Build and Bob for Deploy; Build involves compiling sources and running unit tests, while Deploy restarts workers one at a time. Thus, unlike the depot report\u2019s role-based recurring duties, the release process assigns named owners to stages. [2][3][4][5]\nBoth files describe responsibility for operational tasks, but the depot report is silent on named stage owners, and the release process is silent on the depot report\u2019s specific roles and recurring checks. The release process also mentions three gates but the provided evidence names owners for only Build and Deploy. [1][2][3]\nNot found in the sources: The release process evidence does not identify the third gate or its owner.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The release process evidence does not identify the third gate or its owner."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [],
+          "excerpt": "in the tracking system, and the Berlin supervisors wrote a short summary of delays at the end of every week.\nLisbon depot report for May. The Lisbon depot handled 3100 parcels in May. The Lisbon depot closed early twice because of storms. Shift leads at the Lisbon depot reviewed loading bays, sortin",
+          "locator": {
+            "page_end": 2,
+            "page_start": 2,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "c70eb354-b861-4f72-b6cb-1c9f55d8cf86"
+          ],
+          "extraction": "text_layer",
+          "source_name": "depots.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "ae148998-f518-4b3b-9c20-41a2366e6046"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P9",
+          "quotes": [],
+          "excerpt": "Release process\nEvery release goes through three gates.",
+          "locator": {
+            "heading_path": [
+              "Release process"
+            ]
+          },
+          "chunk_ids": [
+            "a4f909ee-df27-4bbf-91ab-2aeec29af928"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P10",
+          "quotes": [],
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "80852550-d64d-43d8-a3c0-e09db8d5a703"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P11",
+          "quotes": [],
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "a33a556c-62b6-4857-84ab-98a38757d6ab"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 5,
+          "kind": "passage",
+          "label": "P12",
+          "quotes": [],
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "9c37d14d-8eda-4299-8cba-57ed2864f913"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        },
+        "5": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "compare",
+        "routing": {
+          "hint": "compare",
+          "failure": null,
+          "degraded": false,
+          "final_route": "compare",
+          "model_route": null,
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": false,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "depots.pdf",
+            "figures_total": 0,
+            "passages_used": 8,
+            "sections_read": 1,
+            "sections_total": 1,
+            "figures_examined": 0,
+            "source_version_id": "ae148998-f518-4b3b-9c20-41a2366e6046"
+          },
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "release.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 3,
+            "sections_total": 3,
+            "figures_examined": 0,
+            "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 3,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "draft-release-checklist",
+      "split": "dev",
+      "finding": "F6",
+      "kind": "draft",
+      "instruction": "Draft a short checklist for a new release owner from the release notes.",
+      "sources": [
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "883095aa-7d5b-4dd0-a8d2-d3171390d1a7",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 7.72371380002005,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1135,
+        "output_tokens": 745,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "A short checklist based on the documented release process.",
+        "preview": {
+          "kind": "draft",
+          "title": "Release Owner Checklist",
+          "summary": "A short checklist based on the documented release process.",
+          "document": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "heading",
+                "attrs": {
+                  "id": "f1710509-bac6-47c9-9ac9-e1847e8970aa"
+                },
+                "content": [
+                  {
+                    "text": "Release checklist",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "3305aa8a-1602-4a37-81df-46fb86990ad5"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "33669d84-6421-42b0-b79f-cd5454a9371d"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "46c30242-1ce6-4370-a5fe-044731655913"
+                        },
+                        "content": [
+                          {
+                            "text": "[ ] Confirm the release goes through all three gates.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "42ec22f1-f452-44c8-b16d-996556bbc516"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "f6b286a8-6704-4abc-aeb7-be6f5ee8c57e"
+                        },
+                        "content": [
+                          {
+                            "text": "[ ] Build: compile the sources and run the unit tests. The notes list Alice as the Build owner.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "38e310b8-9a05-43e0-baa9-f24a9df7c110"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "e169e0cc-4bcc-4f08-a30a-bdc921feead9"
+                        },
+                        "content": [
+                          {
+                            "text": "[ ] Deploy: confirm Bob is the Deploy owner; the step restarts workers one at a time.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "e1835a6a-7801-476b-9885-f91f7d70285d"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "c28b6c29-8570-4395-ad40-efa1c9734f78"
+                        },
+                        "content": [
+                          {
+                            "text": "[ ] Check the notes or team process for details of the remaining gate; it is not described here.",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "attrs": {
+                  "id": "53a913ff-1831-452f-b872-1f1eb6389e7b",
+                  "level": 2
+                },
+                "content": [
+                  {
+                    "text": "Sources",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "28f673e9-be29-489c-8e55-1794e75bcebb"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "aca99c5f-3fa8-44b0-94e3-13f30de92059"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "def58c43-b69c-4c16-854f-05ffd36d95e8"
+                        },
+                        "content": [
+                          {
+                            "text": "release.md, Release process",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "5217c49f-7630-4c60-b9b5-1e4e6120afe8"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "ae004c71-c6b9-4797-b28b-3dd255729640"
+                        },
+                        "content": [
+                          {
+                            "text": "release.md, Release process > Deploy",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "4950f4ac-2efb-42dc-a8c3-9d78b2f82858"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "0cc6c748-dbeb-42c3-abdc-f52ca830c1fb"
+                        },
+                        "content": [
+                          {
+                            "text": "release.md, Release process > Build",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "block_citations": [
+            [],
+            [
+              1,
+              2,
+              3,
+              4
+            ]
+          ],
+          "unsupported_blocks": 0
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "draft",
+      "routing": null,
+      "score": {
+        "id": "draft-release-checklist",
+        "split": "dev",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "gates",
+              "build",
+              "tests",
+              "deploy",
+              "owners"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 5,
+            "needed": 4
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "names_third_gate": false,
+          "cited_sources": [
+            "release.md"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['release.md'] (need n/a); concepts 5/5"
+        ]
+      },
+      "chat_text": "Drafted \u201cRelease Owner Checklist\u201d: A short checklist based on the documented release process.\nOpen the review card to preview the change.",
+      "gaps": [
+        "The notes say every release has three gates, but provide details only for Build and Deploy; the third gate and its criteria or owner are unspecified."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [],
+          "excerpt": "Release process\nEvery release goes through three gates.",
+          "locator": {
+            "heading_path": [
+              "Release process"
+            ]
+          },
+          "chunk_ids": [
+            "a4f909ee-df27-4bbf-91ab-2aeec29af928"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [],
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "80852550-d64d-43d8-a3c0-e09db8d5a703"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [],
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "a33a556c-62b6-4857-84ab-98a38757d6ab"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P4",
+          "quotes": [],
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "9c37d14d-8eda-4299-8cba-57ed2864f913"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "draft",
+        "sources": 1,
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-release-answer",
+      "split": "dev",
+      "finding": "F4",
+      "kind": "answer",
+      "instruction": "Draw a flowchart of the build and deploy steps.",
+      "sources": [
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "164d04ee-6fde-4a0f-b6b6-5e709fae9187",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 9.216296900005545,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 997,
+        "output_tokens": 371,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "type": "diagram",
+            "title": "",
+            "mermaid": "flowchart TD\n    A[Build \u2014 Alice] --> B[Compile the sources]\n    B --> C[Run the unit tests]\n    C --> D[Deploy \u2014 Bob]\n    D --> E[Restart workers one at a time]",
+            "citations": [
+              1,
+              2,
+              3
+            ],
+            "unsupported": false,
+            "render_error": null,
+            "render_status": "ok"
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "diagram-release-answer",
+        "split": "dev",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "names_third_gate": false,
+          "diagrams": [
+            {
+              "draws_order": true,
+              "order_disclosed": false,
+              "possibly_invented_labels": []
+            }
+          ]
+        },
+        "finding_met": false,
+        "explain": [
+          "diagram checks [{'draws_order': True, 'order_disclosed': False, 'possibly_invented_labels': []}]"
+        ]
+      },
+      "chat_text": "[Diagram: untitled]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [],
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "80852550-d64d-43d8-a3c0-e09db8d5a703"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [],
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "9c37d14d-8eda-4299-8cba-57ed2864f913"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [],
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "a33a556c-62b6-4857-84ab-98a38757d6ab"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "qa",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "release.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 3,
+            "sections_total": 3,
+            "figures_examined": 0,
+            "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-release-edit",
+      "split": "dev",
+      "finding": "F4",
+      "kind": "edit",
+      "instruction": "Draw a flowchart of the build and deploy steps.",
+      "sources": [
+        "release.md"
+      ],
+      "document": "launch-plan",
+      "request_id": "57b83ba4-83ff-40d5-9bf8-fcaca935c42d",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.994687399972463,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1474,
+        "output_tokens": 515,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Proposed a flowchart showing the build steps followed by deployment.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "diagram",
+                  "attrs": {
+                    "id": "a15153db-eb84-43c2-abdc-ee20cc1c9236"
+                  },
+                  "content": [
+                    {
+                      "text": "flowchart TD\n  A[Build] --> B[Compile the sources] --> C[Run the unit tests] --> D[Deploy] --> E[Restart workers one at a time]",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": "260cd359-f37b-52f2-86ec-7b9f0ef0737e",
+              "before": [],
+              "reason": "Shows the documented build steps followed by the deploy step and its worker restart procedure.",
+              "block_id": null,
+              "citations": [
+                1,
+                2
+              ],
+              "hash_after": [
+                "71b900c4e29b7811987eb681d7adbca198ba4b6b9f81485ae3eeefebb035ff5f"
+              ],
+              "unsupported": false
+            }
+          ],
+          "summary": "Proposed a flowchart showing the build steps followed by deployment.",
+          "inserted_chars": 127
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "diagram-release-edit",
+        "split": "dev",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "names_third_gate": false,
+          "diagrams": [
+            {
+              "draws_order": true,
+              "order_disclosed": false,
+              "possibly_invented_labels": []
+            }
+          ]
+        },
+        "finding_met": false,
+        "explain": [
+          "diagram checks [{'draws_order': True, 'order_disclosed': False, 'possibly_invented_labels': []}]"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Proposed a flowchart showing the build steps followed by deployment.\nOpen the review card to preview the change.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [
+            "run the unit tests",
+            "compile the sources"
+          ],
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "9c37d14d-8eda-4299-8cba-57ed2864f913"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [
+            "The deploy step restarts the workers one at a time."
+          ],
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "a33a556c-62b6-4857-84ab-98a38757d6ab"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 1,
+          "ranges": 0,
+          "insert_at": null
+        },
+        "sources": 1,
+        "document": {
+          "mode": "target_only",
+          "scope": "edit",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 5,
+          "blocks_included": 1,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "review-launch-risks",
+      "split": "dev",
+      "finding": "F7",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [],
+      "document": "launch-plan",
+      "request_id": "1be6834d-753b-4ac4-90c6-7965bbaa8812",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 4.316534600016894,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 956,
+        "output_tokens": 174,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "Vendor delays could slip the schedule.",
+                "citations": [
+                  1
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "document_review",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "document_review",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "review-launch-risks",
+        "split": "dev",
+        "finding": "F7",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "vendor-risk"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 1,
+            "needed": 1
+          },
+          "placeholder_hits": [],
+          "claims_effect_missing": false,
+          "invented_risks": []
+        },
+        "finding_met": true,
+        "explain": [
+          "concepts 1/1; effect wrongly called missing: False; invented risks: []"
+        ]
+      },
+      "chat_text": "- Vendor delays could slip the schedule. [1]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "document",
+          "label": "D5",
+          "quotes": [
+            "Vendor delays could slip the schedule."
+          ],
+          "excerpt": "Vendor delays could slip the schedule.",
+          "locator": {
+            "block_id": "276c3034-4292-52f9-bb7a-8821e95fb6c2",
+            "block_type": "paragraph"
+          },
+          "chunk_ids": [],
+          "extraction": "plain",
+          "source_name": "the open document",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": null
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "document_review",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "document_review",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "document": {
+          "mode": "full",
+          "scope": "whole",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 5,
+          "blocks_included": 5,
+          "captured_update_counter": 7
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "missing-context-review",
+      "split": "dev",
+      "finding": "F2",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [
+        "release.md"
+      ],
+      "document": null,
+      "request_id": "7e319bae-03f3-4f7f-b7b6-762bd12e77c0",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.192469500005245,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 986,
+        "output_tokens": 549,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 4,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "The release process mentions three gates but does not define their criteria or approvals, so it is unclear how effective they are at catching release problems.",
+                "citations": [
+                  1
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "The documented build checks are compilation and unit tests only; the document does not state whether other validation is performed, so the adequacy of test coverage is unclear.",
+                "citations": [
+                  2
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Workers are restarted one at a time, but no health checks, failure handling, or rollback procedure is described, leaving deployment recovery unclear.",
+                "citations": [
+                  3
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Build and deploy each have a named owner, but no backup ownership is documented, creating a potential continuity risk if an owner is unavailable.",
+                "citations": [
+                  4
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": [
+          "The document does not provide enough information to assess the likelihood or impact of these risks, whether additional controls exist elsewhere, or how the three gates work."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": true
+      },
+      "score": {
+        "id": "missing-context-review",
+        "split": "dev",
+        "finding": "F2",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "placeholder_hits": []
+        },
+        "finding_met": false,
+        "explain": [
+          "notices []; document read: False"
+        ]
+      },
+      "chat_text": "- The release process mentions three gates but does not define their criteria or approvals, so it is unclear how effective they are at catching release problems. [1]\n- The documented build checks are compilation and unit tests only; the document does not state whether other validation is performed, so the adequacy of test coverage is unclear. [2]\n- Workers are restarted one at a time, but no health checks, failure handling, or rollback procedure is described, leaving deployment recovery unclear. [3]\n- Build and deploy each have a named owner, but no backup ownership is documented, creating a potential continuity risk if an owner is unavailable. [4]\nNot found in the sources: The document does not provide enough information to assess the likelihood or impact of these risks, whether additional controls exist elsewhere, or how the three gates work.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The document does not provide enough information to assess the likelihood or impact of these risks, whether additional controls exist elsewhere, or how the three gates work."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [],
+          "excerpt": "Release process\nEvery release goes through three gates.",
+          "locator": {
+            "heading_path": [
+              "Release process"
+            ]
+          },
+          "chunk_ids": [
+            "a4f909ee-df27-4bbf-91ab-2aeec29af928"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P4",
+          "quotes": [],
+          "excerpt": "Build\n- compile the sources\n- run the unit tests",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Build"
+            ]
+          },
+          "chunk_ids": [
+            "9c37d14d-8eda-4299-8cba-57ed2864f913"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [],
+          "excerpt": "The deploy step restarts the workers one at a time.",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "a33a556c-62b6-4857-84ab-98a38757d6ab"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [],
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Release process",
+              "Deploy"
+            ]
+          },
+          "chunk_ids": [
+            "80852550-d64d-43d8-a3c0-e09db8d5a703"
+          ],
+          "extraction": "plain",
+          "source_name": "release.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": true
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "release.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 3,
+            "sections_total": 3,
+            "figures_examined": 0,
+            "source_version_id": "c05d7797-4ac2-446c-bdee-d9ea2eeb2102"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 4,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "closing-summary-hiring",
+      "split": "heldout",
+      "finding": "F1",
+      "kind": "edit",
+      "instruction": "Add a closing summary paragraph.",
+      "sources": [],
+      "document": "hiring",
+      "request_id": "c5ba1a25-81ce-467a-82a0-cd0ffdf8718b",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.070465800003149,
+      "ledger": {
+        "answer_calls": 2,
+        "calls": 2,
+        "input_tokens": 2588,
+        "output_tokens": 644,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Proposed a closing paragraph; the document content was not provided, so it is a neutral rather than content-specific summary.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "e6bfd451-e759-4209-b8e0-36f30de4c7e0"
+                  },
+                  "content": [
+                    {
+                      "text": "In summary, the information presented above brings this discussion to a close.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": "5a4ffb3f-7321-5e89-b646-e566c9265648",
+              "before": [],
+              "reason": "Add a concise closing paragraph after the final listed block.",
+              "block_id": null,
+              "citations": [],
+              "hash_after": [
+                "5cd828c025dfaa90f411d3ff2175d3ef26543a416f52963637f2be3c4208f818"
+              ],
+              "unsupported": false
+            }
+          ],
+          "summary": "Proposed a closing paragraph; the document content was not provided, so it is a neutral rather than content-specific summary.",
+          "inserted_chars": 78
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "closing-summary-hiring",
+        "split": "heldout",
+        "finding": "F1",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": false,
+          "repaired": true,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [],
+            "missing": [
+              "what",
+              "deadline",
+              "budget",
+              "pending",
+              "open",
+              "owners"
+            ],
+            "share": 0.0,
+            "of": 6,
+            "needed": 4
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": []
+        },
+        "finding_met": false,
+        "explain": [
+          "concepts 0/6 (need 4), missing ['what', 'deadline', 'budget', 'pending', 'open', 'owners']"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Proposed a closing paragraph; the document content was not provided, so it is a neutral rather than content-specific summary.\nOpen the review card to preview the change.",
+      "gaps": [
+        "No document text or evidence was provided, so a content-specific summary could not be written."
+      ],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 0,
+          "ranges": 0,
+          "insert_at": "end"
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_only",
+          "scope": "edit",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 6,
+          "blocks_included": 0,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "repaired": true,
+          "first_problems": [
+            "wrong_operation_count"
+          ],
+          "first_try_valid": false
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "rewrite-qualified-heldout",
+      "split": "heldout",
+      "finding": "F5",
+      "kind": "edit",
+      "instruction": "Make these sentences shorter and clearer.",
+      "sources": [],
+      "document": "qualified-heldout",
+      "request_id": "8e7750ab-17f9-4b67-9179-c7787e9f3e41",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 6.767883299995447,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 1,
+        "input_tokens": 1387,
+        "output_tokens": 781,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Shortened and clarified the sentences while preserving their meaning.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "260cd359-f37b-52f2-86ec-7b9f0ef0737e"
+                  },
+                  "content": [
+                    {
+                      "text": "Deliveries will resume when the strike ends, possibly in two weeks.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "260cd359-f37b-52f2-86ec-7b9f0ef0737e"
+                  },
+                  "content": [
+                    {
+                      "text": "Deliveries will not resume until the strike ends, which may take two weeks.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Makes the timing more direct and concise.",
+              "block_id": "260cd359-f37b-52f2-86ec-7b9f0ef0737e",
+              "citations": [],
+              "hash_after": [
+                "9ce9d693e31417eeab278b3d66d8036546421e842d0672f2b8328e007969c63b"
+              ],
+              "unsupported": false
+            },
+            {
+              "op": 1,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "f690d656-2b1e-51cf-9b2e-d1aabf3b9e51"
+                  },
+                  "content": [
+                    {
+                      "text": "If approved, the grant would cover about 60% of the cost.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "f690d656-2b1e-51cf-9b2e-d1aabf3b9e51"
+                  },
+                  "content": [
+                    {
+                      "text": "The grant, if approved, would cover about 60 percent of the cost.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Moves the condition up front and shortens the sentence.",
+              "block_id": "f690d656-2b1e-51cf-9b2e-d1aabf3b9e51",
+              "citations": [],
+              "hash_after": [
+                "e4aa63b6828047f05126b37c48ba361b6a4ac399960a72f038efef9ca590ead3"
+              ],
+              "unsupported": false
+            },
+            {
+              "op": 2,
+              "kind": "replace_block_text",
+              "after": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "276c3034-4292-52f9-bb7a-8821e95fb6c2"
+                  },
+                  "content": [
+                    {
+                      "text": "The safety officer says the east exit is closed for repairs.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": null,
+              "before": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "276c3034-4292-52f9-bb7a-8821e95fb6c2"
+                  },
+                  "content": [
+                    {
+                      "text": "According to the safety officer, the east exit is closed for repairs.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "reason": "Replaces the longer attribution with a clearer, shorter one.",
+              "block_id": "276c3034-4292-52f9-bb7a-8821e95fb6c2",
+              "citations": [],
+              "hash_after": [
+                "fceb3dc41dd926b34c610f87c7379d8784d58e4330d0d972d3bf97ef7ef3bea9"
+              ],
+              "unsupported": false
+            }
+          ],
+          "summary": "Shortened and clarified the sentences while preserving their meaning.",
+          "inserted_chars": 184
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "rewrite-qualified-heldout",
+        "split": "heldout",
+        "finding": "F5",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "blocks": {
+            "2": {
+              "found": [
+                "strike",
+                "hedge",
+                "two-weeks"
+              ],
+              "missing": [
+                "not-resume",
+                "until"
+              ],
+              "share": 0.6,
+              "of": 5,
+              "before": "Deliveries will not resume until the strike ends, which may take two weeks.",
+              "after": "Deliveries will resume when the strike ends, possibly in two weeks.",
+              "length_ratio": 0.89
+            },
+            "3": {
+              "found": [
+                "conditional",
+                "approved",
+                "sixty",
+                "about"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 4,
+              "before": "The grant, if approved, would cover about 60 percent of the cost.",
+              "after": "If approved, the grant would cover about 60% of the cost.",
+              "length_ratio": 0.88
+            },
+            "4": {
+              "found": [
+                "attribution",
+                "east-exit",
+                "closed",
+                "repairs"
+              ],
+              "missing": [],
+              "share": 1.0,
+              "of": 4,
+              "before": "According to the safety officer, the east exit is closed for repairs.",
+              "after": "The safety officer says the east exit is closed for repairs.",
+              "length_ratio": 0.87
+            }
+          },
+          "lost": {
+            "2": [
+              "not-resume",
+              "until"
+            ]
+          },
+          "lost_and_flagged": {
+            "2": false
+          }
+        },
+        "finding_met": false,
+        "explain": [
+          "3 sentences changed; facts lost: {'2': ['not-resume', 'until']}; flagged by the app: {'2': False}"
+        ]
+      },
+      "chat_text": "Proposed 3 changes to \u201cPlan\u201d: Shortened and clarified the sentences while preserving their meaning.\nOpen the review card to preview the change.",
+      "gaps": [],
+      "citations": [],
+      "citation_origins": {},
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 4,
+          "ranges": 0,
+          "insert_at": null
+        },
+        "sources": 0,
+        "document": {
+          "mode": "target_only",
+          "scope": "edit",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 5,
+          "blocks_included": 4,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 0,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "compare-handbook-scan",
+      "split": "heldout",
+      "finding": "F6",
+      "kind": "answer",
+      "instruction": "Compare what the handbook and the scanned report say about operations and deliveries.",
+      "sources": [
+        "handbook.docx",
+        "march-scan.pdf"
+      ],
+      "document": null,
+      "request_id": "a99a7f95-c7c1-4406-b104-1a94bd72b2df",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 7.615597900003195,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1820,
+        "output_tokens": 717,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 3,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "text": "**Handbook:** It describes a deployment pipeline and specifies Build and Deploy owners as Alice and Bob. Its details also say to build the release candidate. It does not provide delivery or warehouse-operation information in the cited passages.",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "**Scanned report:** The OCR text reports that the northern-region warehouse processed 12,000 orders in March, and that driver shortages caused delivery delays; management approved additional summer hiring. It also reports improved customer satisfaction after a tracking-system launch and fewer returns after packaging standards were updated. These details come from machine-read OCR and may contain errors.",
+            "type": "paragraph",
+            "citations": [
+              4
+            ],
+            "unsupported": false
+          },
+          {
+            "text": "**Comparison:** The handbook focuses on deployment work and assigned owners, while the scanned report focuses on warehouse operations, deliveries, maintenance, and employee training. They offer no direct comparison of the same delivery process: the report discusses delivery delays, but the cited handbook passages are silent on deliveries; conversely, the report does not describe the handbook\u2019s Build/Deploy ownership or release-candidate steps.",
+            "type": "paragraph",
+            "citations": [
+              1,
+              3,
+              2,
+              4,
+              5
+            ],
+            "unsupported": false
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "compare",
+      "routing": {
+        "hint": "compare",
+        "failure": null,
+        "degraded": false,
+        "final_route": "compare",
+        "model_route": null,
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": false,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "compare-handbook-scan",
+        "split": "heldout",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "handbook",
+              "scan"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 2,
+            "needed": 2
+          },
+          "placeholder_hits": [],
+          "cited_sources": [
+            "handbook.docx",
+            "march-scan.pdf"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['handbook.docx', 'march-scan.pdf'] (need ['handbook.docx', 'march-scan.pdf']); concepts 2/2"
+        ]
+      },
+      "chat_text": "**Handbook:** It describes a deployment pipeline and specifies Build and Deploy owners as Alice and Bob. Its details also say to build the release candidate. It does not provide delivery or warehouse-operation information in the cited passages. [1][2][3]\n**Scanned report:** The OCR text reports that the northern-region warehouse processed 12,000 orders in March, and that driver shortages caused delivery delays; management approved additional summer hiring. It also reports improved customer satisfaction after a tracking-system launch and fewer returns after packaging standards were updated. These details come from machine-read OCR and may contain errors. [4]\n**Comparison:** The handbook focuses on deployment work and assigned owners, while the scanned report focuses on warehouse operations, deliveries, maintenance, and employee training. They offer no direct comparison of the same delivery process: the report discusses delivery delays, but the cited handbook passages are silent on deliveries; conversely, the report does not describe the handbook\u2019s Build/Deploy ownership or release-candidate steps. [1][3][2][4][5]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [
+            "Stage | Owner Build | Alice Deploy | Bob"
+          ],
+          "excerpt": "Stage | Owner\nBuild | Alice\nDeploy | Bob",
+          "locator": {
+            "heading_path": [
+              "Section 2 overview",
+              "Details"
+            ]
+          },
+          "chunk_ids": [
+            "1c8b1a4a-50d2-4649-86f3-72e605f42cee"
+          ],
+          "extraction": "docx",
+          "source_name": "handbook.docx",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "6ba9ed4f-ca2c-44d6-bf34-67f032d58c0c"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [
+            "Section 1 describes the deployment pipeline."
+          ],
+          "excerpt": "Section 1 overview\nSection 1 describes the deployment pipeline. alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha al",
+          "locator": {
+            "heading_path": [
+              "Section 1 overview"
+            ]
+          },
+          "chunk_ids": [
+            "2c5c2bf1-71a8-4b56-aed4-12b5163abf94"
+          ],
+          "extraction": "docx",
+          "source_name": "handbook.docx",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "6ba9ed4f-ca2c-44d6-bf34-67f032d58c0c"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P4",
+          "quotes": [
+            "- Build the release candidate"
+          ],
+          "excerpt": "Details\n- Build the release candidate",
+          "locator": {
+            "heading_path": [
+              "Section 1 overview",
+              "Details"
+            ]
+          },
+          "chunk_ids": [
+            "4f009c63-471d-4094-8112-5818b660cbe6"
+          ],
+          "extraction": "docx",
+          "source_name": "handbook.docx",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "6ba9ed4f-ca2c-44d6-bf34-67f032d58c0c"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P7",
+          "quotes": [],
+          "excerpt": "Quarterly operations review for the northern region\nThe warehouse processed twelve thousand orders in March.\nDelivery delays were caused by a shortage of drivers.\nManagement approved additional hiring for the summer season. Customer satisfaction improved after the new tracking system launched. Retur",
+          "locator": {
+            "page_end": 2,
+            "page_start": 1,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "a4a01a8a-e8e9-44da-8dfd-ae690c0ca2f9"
+          ],
+          "extraction": "tesseract",
+          "source_name": "march-scan.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": true,
+          "source_version_id": "73aa85d6-87b2-4c53-8928-162ade7e8957"
+        },
+        {
+          "n": 5,
+          "kind": "passage",
+          "label": "P8",
+          "quotes": [],
+          "excerpt": "extinguishers were checked by the safety officer.\nThe maintenance budget stayed within the agreed limit.\nTraining plan for new employees\nNew drivers complete two days of route practice.\nPackers learn the handling rules for fragile items.\nEvery trainee receives a printed guide to the tracking system.",
+          "locator": {
+            "page_end": 3,
+            "page_start": 3,
+            "heading_path": []
+          },
+          "chunk_ids": [
+            "9d88a09f-4cf4-4f19-af21-ddcabf614a7e"
+          ],
+          "extraction": "tesseract",
+          "source_name": "march-scan.pdf",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": true,
+          "source_version_id": "73aa85d6-87b2-4c53-8928-162ade7e8957"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        },
+        "5": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "compare",
+        "routing": {
+          "hint": "compare",
+          "failure": null,
+          "degraded": false,
+          "final_route": "compare",
+          "model_route": null,
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": false,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "handbook.docx",
+            "figures_total": 1,
+            "passages_used": 6,
+            "sections_read": 4,
+            "sections_total": 5,
+            "figures_examined": 1,
+            "source_version_id": "6ba9ed4f-ca2c-44d6-bf34-67f032d58c0c"
+          },
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "march-scan.pdf",
+            "figures_total": 0,
+            "passages_used": 2,
+            "sections_read": 1,
+            "sections_total": 1,
+            "figures_examined": 0,
+            "source_version_id": "73aa85d6-87b2-4c53-8928-162ade7e8957"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 3,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "draft-onboarding-welcome",
+      "split": "heldout",
+      "finding": "F6",
+      "kind": "draft",
+      "instruction": "Draft a short welcome message for new hires from the onboarding notes.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "f345e741-7473-4cdb-ad4f-31db4ee9dcb3",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 4.858256600011373,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1138,
+        "output_tokens": 308,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "A short welcome for new hires with key onboarding details.",
+        "preview": {
+          "kind": "draft",
+          "title": "Welcome to the Team",
+          "summary": "A short welcome for new hires with key onboarding details.",
+          "document": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "id": "e2903979-deb7-4458-8a9b-5bc50a00ba5e"
+                },
+                "content": [
+                  {
+                    "text": "Welcome to the team! As you get started, you\u2019ll meet the team and tour the warehouse. Dana handles payroll setup, and the IT desk issues laptops and badges; Sam approves equipment requests.",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "attrs": {
+                  "id": "c1de1d14-5912-47b2-9cce-aae621207364",
+                  "level": 2
+                },
+                "content": [
+                  {
+                    "text": "Sources",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "id": "461ef315-0364-46f3-b007-8d80633b1729"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "cdb6ccd4-0065-4de2-b67c-aebc1f6f4eed"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "fdd1e448-e186-4ff3-a672-70c10eef66e8"
+                        },
+                        "content": [
+                          {
+                            "text": "onboarding.md, Onboarding > Orientation",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "9108bc19-ed68-4071-96ec-20f834f15970"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "9a4e91a5-3b69-44c2-8077-bbb871a00874"
+                        },
+                        "content": [
+                          {
+                            "text": "onboarding.md, Onboarding > Payroll",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "id": "88d7fe87-de3a-47f5-9f56-f939fd55812b"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "id": "8e0ee8b5-70ae-4816-b266-e843bb0b99b4"
+                        },
+                        "content": [
+                          {
+                            "text": "onboarding.md, Onboarding > Equipment",
+                            "type": "text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "block_citations": [
+            [
+              1,
+              2,
+              3
+            ]
+          ],
+          "unsupported_blocks": 0
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "draft",
+      "routing": null,
+      "score": {
+        "id": "draft-onboarding-welcome",
+        "split": "heldout",
+        "finding": "F6",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "orientation",
+              "payroll",
+              "equipment",
+              "welcome"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 4,
+            "needed": 3
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "cited_sources": [
+            "onboarding.md"
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "cites ['onboarding.md'] (need n/a); concepts 4/4"
+        ]
+      },
+      "chat_text": "Drafted \u201cWelcome to the Team\u201d: A short welcome for new hires with key onboarding details.\nOpen the review card to preview the change.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [],
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "7003cfca-291d-42e9-bd77-521b05b3e435"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [],
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "0fefe1e7-b16e-43af-ae9a-d0767b4c6cd1"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P4",
+          "quotes": [],
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "d107ec1e-e6ac-4506-b20d-515b9de927e3"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "draft",
+        "sources": 1,
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-onboarding-answer",
+      "split": "heldout",
+      "finding": "F4",
+      "kind": "answer",
+      "instruction": "Draw a diagram of the onboarding steps.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "37289642-582d-4cb0-bfa7-36c760d60386",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 8.773964899999555,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 991,
+        "output_tokens": 328,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "type": "diagram",
+            "title": "Onboarding items",
+            "mermaid": "flowchart TD\n    A[Onboarding items] --> B[Orientation]\n    B --> B1[Meet the team]\n    B --> B2[Tour the warehouse]\n    A --> C[Equipment]\n    C --> C1[Sam approves equipment requests]\n    C --> C2[IT desk issues laptops and badges]\n    A --> D[Payroll setup]\n    D --> D1[Handled by Dana]",
+            "citations": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "unsupported": false,
+            "render_error": null,
+            "render_status": "ok"
+          }
+        ],
+        "evidence_gaps": [
+          "The source lists onboarding items but does not specify the order in which they occur."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "qa",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "diagram-onboarding-answer",
+        "split": "heldout",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "diagrams": [
+            {
+              "draws_order": true,
+              "order_disclosed": true,
+              "possibly_invented_labels": [
+                "Sam approves equipment requests"
+              ]
+            }
+          ]
+        },
+        "finding_met": false,
+        "explain": [
+          "diagram checks [{'draws_order': True, 'order_disclosed': True, 'possibly_invented_labels': ['Sam approves equipment requests']}]"
+        ]
+      },
+      "chat_text": "[Diagram: Onboarding items]\nNot found in the sources: The source lists onboarding items but does not specify the order in which they occur.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The source lists onboarding items but does not specify the order in which they occur."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [],
+          "excerpt": "Onboarding\nNew hires complete several onboarding items.",
+          "locator": {
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "37e750c8-4e77-43ff-ac72-646818c623e9"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [],
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "7003cfca-291d-42e9-bd77-521b05b3e435"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [],
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "d107ec1e-e6ac-4506-b20d-515b9de927e3"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P4",
+          "quotes": [],
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "0fefe1e7-b16e-43af-ae9a-d0767b4c6cd1"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "qa",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "onboarding.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 4,
+            "sections_total": 4,
+            "figures_examined": 0,
+            "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "diagram-onboarding-edit",
+      "split": "heldout",
+      "finding": "F4",
+      "kind": "edit",
+      "instruction": "Draw a diagram of the onboarding steps.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": "rollout",
+      "request_id": "c06964c6-ddd6-4cc9-ab3b-a832c850a082",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 9.023675699980231,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1443,
+        "output_tokens": 461,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "summary": "Add a diagram of the onboarding areas and their documented tasks, without implying a sequence that the source does not specify.",
+        "preview": {
+          "kind": "edit",
+          "changes": [
+            {
+              "op": 0,
+              "kind": "insert_blocks_after",
+              "after": [
+                {
+                  "type": "diagram",
+                  "attrs": {
+                    "id": "086074d9-df3a-4870-a419-ebf5a6485732"
+                  },
+                  "content": [
+                    {
+                      "text": "flowchart TB\n    A[Onboarding] --> B[Orientation]\n    A --> C[Equipment]\n    A --> D[Payroll]\n    B --> B1[Meet the team]\n    B --> B2[Tour the warehouse]\n    C --> C1[IT desk issues laptops and badges]\n    C --> C2[Requests approved by Sam]\n    D --> D1[Setup handled by Dana]",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "anchor": "276c3034-4292-52f9-bb7a-8821e95fb6c2",
+              "before": [],
+              "reason": "Visualize the documented onboarding areas and their associated tasks without suggesting a step order.",
+              "block_id": null,
+              "citations": [
+                1,
+                2,
+                3,
+                4
+              ],
+              "hash_after": [
+                "aaf756c3ba03301ffee47b999d19ee7b638c1d580ddcbea8c3ff560cb98998f2"
+              ],
+              "unsupported": false
+            }
+          ],
+          "summary": "Add a diagram of the onboarding areas and their documented tasks, without implying a sequence that the source does not specify.",
+          "inserted_chars": 277
+        }
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "edit_proposal",
+      "routing": null,
+      "score": {
+        "id": "diagram-onboarding-edit",
+        "split": "heldout",
+        "finding": "F4",
+        "structural": {
+          "published": true,
+          "diagram_renders": true,
+          "first_try_valid": true,
+          "repaired": false,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "unsupported_figures": [],
+          "placeholder_hits": [],
+          "diagrams": [
+            {
+              "draws_order": true,
+              "order_disclosed": true,
+              "possibly_invented_labels": []
+            }
+          ]
+        },
+        "finding_met": true,
+        "explain": [
+          "diagram checks [{'draws_order': True, 'order_disclosed': True, 'possibly_invented_labels': []}]"
+        ]
+      },
+      "chat_text": "Proposed 1 change to \u201cPlan\u201d: Add a diagram of the onboarding areas and their documented tasks, without implying a sequence that the source does not specify.\nOpen the review card to preview the change.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [],
+          "excerpt": "Onboarding\nNew hires complete several onboarding items.",
+          "locator": {
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "37e750c8-4e77-43ff-ac72-646818c623e9"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [],
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "7003cfca-291d-42e9-bd77-521b05b3e435"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [],
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "d107ec1e-e6ac-4506-b20d-515b9de927e3"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P4",
+          "quotes": [],
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "0fefe1e7-b16e-43af-ae9a-d0767b4c6cd1"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "edit_proposal",
+        "target": {
+          "blocks": 0,
+          "ranges": 0,
+          "insert_at": "end"
+        },
+        "sources": 1,
+        "document": {
+          "mode": "target_only",
+          "scope": "edit",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 5,
+          "blocks_included": 0,
+          "captured_update_counter": 7
+        },
+        "validation": {
+          "repaired": false,
+          "first_try_valid": true
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "summarize-onboarding",
+      "split": "heldout",
+      "finding": "F3",
+      "kind": "answer",
+      "instruction": "Summarize the onboarding notes.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "e69e6590-3135-4c7d-b0b4-0e2127a72a27",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 3.9554175000230316,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 1083,
+        "output_tokens": 216,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "text": "New hires complete several onboarding items. Orientation includes meeting the team and touring the warehouse. Dana handles payroll setup, and the IT desk issues laptops and badges while Sam approves equipment requests.",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "unsupported": false
+          }
+        ],
+        "evidence_gaps": []
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "summarize",
+      "routing": {
+        "hint": "summarize",
+        "failure": null,
+        "degraded": false,
+        "final_route": "summarize",
+        "model_route": null,
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": false,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "summarize-onboarding",
+        "split": "heldout",
+        "finding": "F3",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "orientation",
+              "payroll",
+              "equipment"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 3,
+            "needed": 3
+          },
+          "unsupported_figures": [],
+          "placeholder_hits": []
+        },
+        "finding_met": false,
+        "explain": [
+          "derived citations resolve: None; provenance incomplete: None",
+          "concepts 3/3 (need 3)"
+        ]
+      },
+      "chat_text": "New hires complete several onboarding items. Orientation includes meeting the team and touring the warehouse. Dana handles payroll setup, and the IT desk issues laptops and badges while Sam approves equipment requests. [1][2][3][4]\nOpen the answer card for the full text and the citations.",
+      "gaps": [],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "section",
+          "label": "S1",
+          "quotes": [],
+          "excerpt": "New hires complete several onboarding items.",
+          "locator": {
+            "section_key": "Onboarding",
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "37e750c8-4e77-43ff-ac72-646818c623e9"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 2,
+          "kind": "section",
+          "label": "S2",
+          "quotes": [],
+          "excerpt": "Orientation includes meeting the team and touring the warehouse.",
+          "locator": {
+            "section_key": "Onboarding > Orientation",
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "7003cfca-291d-42e9-bd77-521b05b3e435"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 3,
+          "kind": "section",
+          "label": "S3",
+          "quotes": [],
+          "excerpt": "Dana handles payroll setup.",
+          "locator": {
+            "section_key": "Onboarding > Payroll",
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "0fefe1e7-b16e-43af-ae9a-d0767b4c6cd1"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 4,
+          "kind": "section",
+          "label": "S4",
+          "quotes": [],
+          "excerpt": "The IT desk issues laptops and badges; Sam approves equipment requests.",
+          "locator": {
+            "section_key": "Onboarding > Equipment",
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "d107ec1e-e6ac-4506-b20d-515b9de927e3"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "summarize",
+        "routing": {
+          "hint": "summarize",
+          "failure": null,
+          "degraded": false,
+          "final_route": "summarize",
+          "model_route": null,
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": false,
+          "route_adjusted_to_context": false
+        },
+        "sources": [
+          {
+            "mode": "full",
+            "version_no": 1,
+            "source_name": "onboarding.md",
+            "figures_total": 0,
+            "sections_read": 4,
+            "sections_total": 4,
+            "figures_examined": 0,
+            "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "review-rollout-risks",
+      "split": "heldout",
+      "finding": "F7",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [],
+      "document": "rollout",
+      "request_id": "4b3a51c2-366b-4b23-b654-03ccebc90cf0",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 5.367299600009574,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 2,
+        "input_tokens": 964,
+        "output_tokens": 243,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 1,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "Trainer shortages could delay the rollout by several weeks.",
+                "citations": [
+                  1
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": [
+          "The document gives a training budget of 18,000 dollars but does not say whether it is sufficient, so a budget risk cannot be assessed from the evidence provided.",
+          "No other risks are specified in the document."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "document_review",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "document_review",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": false
+      },
+      "score": {
+        "id": "review-rollout-risks",
+        "split": "heldout",
+        "finding": "F7",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "concepts": {
+            "found": [
+              "trainer-risk"
+            ],
+            "missing": [],
+            "share": 1.0,
+            "of": 1,
+            "needed": 1
+          },
+          "placeholder_hits": [],
+          "claims_effect_missing": false,
+          "invented_risks": []
+        },
+        "finding_met": true,
+        "explain": [
+          "concepts 1/1; effect wrongly called missing: False; invented risks: []"
+        ]
+      },
+      "chat_text": "- Trainer shortages could delay the rollout by several weeks. [1]\nNot found in the sources: The document gives a training budget of 18,000 dollars but does not say whether it is sufficient, so a budget risk cannot be assessed from the evidence provided.; No other risks are specified in the document.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The document gives a training budget of 18,000 dollars but does not say whether it is sufficient, so a budget risk cannot be assessed from the evidence provided.",
+        "No other risks are specified in the document."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "document",
+          "label": "D3",
+          "quotes": [
+            "A shortage of trainers could delay the rollout by several weeks."
+          ],
+          "excerpt": "A shortage of trainers could delay the rollout by several weeks.",
+          "locator": {
+            "block_id": "260cd359-f37b-52f2-86ec-7b9f0ef0737e",
+            "block_type": "paragraph"
+          },
+          "chunk_ids": [],
+          "extraction": "plain",
+          "source_name": "the open document",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": null
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "document_review",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "document_review",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": false
+        },
+        "document": {
+          "mode": "full",
+          "scope": "whole",
+          "document_id": "7104960a-ae0c-4de7-ac0f-31a60e5b5ec7",
+          "blocks_total": 5,
+          "blocks_included": 5,
+          "captured_update_counter": 7
+        },
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 1,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    },
+    {
+      "id": "missing-context-onboarding",
+      "split": "heldout",
+      "finding": "F2",
+      "kind": "answer",
+      "instruction": "Review this document and list its risks.",
+      "sources": [
+        "onboarding.md"
+      ],
+      "document": null,
+      "request_id": "74427382-9ae6-4b32-b173-b9d455d5cff7",
+      "outcomes": [
+        "request:published"
+      ],
+      "latency_s": 7.159068700013449,
+      "ledger": {
+        "answer_calls": 1,
+        "calls": 3,
+        "input_tokens": 995,
+        "output_tokens": 597,
+        "cost_micros": 0,
+        "failed_calls": 0
+      },
+      "output_raw": {
+        "stats": {
+          "claims": 5,
+          "unsupported": 0,
+          "dropped_quotes": 0,
+          "invalid_citations": 0
+        },
+        "blocks": [
+          {
+            "text": "Potential risks in the document are documentation gaps; it does not establish that these problems have occurred.",
+            "type": "paragraph",
+            "citations": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "unsupported": false
+          },
+          {
+            "type": "bullet_list",
+            "items": [
+              {
+                "text": "Onboarding coverage is unclear: the document says there are \u201cseveral onboarding items\u201d but specifies only orientation, equipment, and payroll, so it is not clear whether the list is complete.",
+                "citations": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Orientation lacks logistics: it names meeting the team and touring the warehouse but gives no timing, organizer, or completion criteria.",
+                "citations": [
+                  2
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Equipment requests may be delayed or inconsistently handled because Sam is named as approver, but the request process, approval criteria, and timing are not described.",
+                "citations": [
+                  3
+                ],
+                "unsupported": false
+              },
+              {
+                "text": "Payroll setup may be delayed or inconsistently handled because Dana is named as responsible, but the steps and timing are not specified.",
+                "citations": [
+                  4
+                ],
+                "unsupported": false
+              }
+            ]
+          }
+        ],
+        "evidence_gaps": [
+          "The document provides no information about actual incidents, timelines, approval criteria, or safeguards, so the likelihood and impact of these potential risks cannot be assessed."
+        ]
+      },
+      "published": true,
+      "outcome": "published",
+      "task_type": "qa",
+      "routing": {
+        "hint": "auto",
+        "failure": null,
+        "degraded": false,
+        "final_route": "qa",
+        "model_route": "document_review",
+        "failure_code": null,
+        "fallback_used": false,
+        "fallback_reason": null,
+        "classification_attempted": true,
+        "route_adjusted_to_context": true
+      },
+      "score": {
+        "id": "missing-context-onboarding",
+        "split": "heldout",
+        "finding": "F2",
+        "structural": {
+          "published": true,
+          "diagram_renders": null,
+          "first_try_valid": null,
+          "repaired": null,
+          "provenance_incomplete": null,
+          "invalid_citations": 0
+        },
+        "semantic": {
+          "placeholder_hits": []
+        },
+        "finding_met": false,
+        "explain": [
+          "notices []; document read: False"
+        ]
+      },
+      "chat_text": "Potential risks in the document are documentation gaps; it does not establish that these problems have occurred. [1][2][3][4]\n- Onboarding coverage is unclear: the document says there are \u201cseveral onboarding items\u201d but specifies only orientation, equipment, and payroll, so it is not clear whether the list is complete. [1][2][3][4]\n- Orientation lacks logistics: it names meeting the team and touring the warehouse but gives no timing, organizer, or completion criteria. [2]\n- Equipment requests may be delayed or inconsistently handled because Sam is named as approver, but the request process, approval criteria, and timing are not described. [3]\n- Payroll setup may be delayed or inconsistently handled because Dana is named as responsible, but the steps and timing are not specified. [4]\nNot found in the sources: The document provides no information about actual incidents, timelines, approval criteria, or safeguards, so the likelihood and impact of these potential risks cannot be assessed.\nOpen the answer card for the full text and the citations.",
+      "gaps": [
+        "The document provides no information about actual incidents, timelines, approval criteria, or safeguards, so the likelihood and impact of these potential risks cannot be assessed."
+      ],
+      "citations": [
+        {
+          "n": 1,
+          "kind": "passage",
+          "label": "P1",
+          "quotes": [
+            "New hires complete several onboarding items."
+          ],
+          "excerpt": "Onboarding\nNew hires complete several onboarding items.",
+          "locator": {
+            "heading_path": [
+              "Onboarding"
+            ]
+          },
+          "chunk_ids": [
+            "37e750c8-4e77-43ff-ac72-646818c623e9"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 2,
+          "kind": "passage",
+          "label": "P2",
+          "quotes": [],
+          "excerpt": "Orientation\n- meet the team\n- tour the warehouse",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Orientation"
+            ]
+          },
+          "chunk_ids": [
+            "7003cfca-291d-42e9-bd77-521b05b3e435"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 3,
+          "kind": "passage",
+          "label": "P3",
+          "quotes": [],
+          "excerpt": "Equipment\nThe IT desk issues laptops and badges. Equipment requests are approved by Sam.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Equipment"
+            ]
+          },
+          "chunk_ids": [
+            "d107ec1e-e6ac-4506-b20d-515b9de927e3"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        },
+        {
+          "n": 4,
+          "kind": "passage",
+          "label": "P4",
+          "quotes": [],
+          "excerpt": "Payroll\nPayroll setup is handled by Dana.",
+          "locator": {
+            "heading_path": [
+              "Onboarding",
+              "Payroll"
+            ]
+          },
+          "chunk_ids": [
+            "0fefe1e7-b16e-43af-ae9a-d0767b4c6cd1"
+          ],
+          "extraction": "plain",
+          "source_name": "onboarding.md",
+          "low_agreement": false,
+          "figure_chunk_id": null,
+          "machine_generated": false,
+          "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+        }
+      ],
+      "citation_origins": {
+        "1": {
+          "status": 404
+        },
+        "2": {
+          "status": 404
+        },
+        "3": {
+          "status": 404
+        },
+        "4": {
+          "status": 404
+        }
+      },
+      "coverage": {
+        "task": "qa",
+        "routing": {
+          "hint": "auto",
+          "failure": null,
+          "degraded": false,
+          "final_route": "qa",
+          "model_route": "document_review",
+          "failure_code": null,
+          "fallback_used": false,
+          "fallback_reason": null,
+          "classification_attempted": true,
+          "route_adjusted_to_context": true
+        },
+        "sources": [
+          {
+            "mode": "retrieval",
+            "version_no": 1,
+            "source_name": "onboarding.md",
+            "figures_total": 0,
+            "passages_used": 4,
+            "sections_read": 4,
+            "sections_total": 4,
+            "figures_examined": 0,
+            "source_version_id": "35fab6b8-0453-4b43-8c56-cefadb4c66e0"
+          }
+        ],
+        "chat_messages_included": 0
+      },
+      "stats": {
+        "claims": 5,
+        "unsupported": 0,
+        "dropped_quotes": 0,
+        "invalid_citations": 0
+      },
+      "placeholder_hits": []
+    }
+  ]
+}

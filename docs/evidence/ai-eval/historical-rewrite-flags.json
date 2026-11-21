@@ -1,0 +1,123 @@
+{
+ "run1-proposal/edit-rewrite": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for noon on Friday.",
+  "flags": []
+ },
+ "run1-proposal/edit-range": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for Thursday at noon.",
+  "flags": [
+   "figure_changed: no longer in the text: day friday; new in the text: day thursday"
+  ]
+ },
+ "run1-proposal/edit-two-operations": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "Launch is set for Friday at noon.",
+  "flags": []
+ },
+ "run1-proposal/edit-wrong-label-repaired": {
+  "before": "The budget is forty thousand dollars.",
+  "after": "The budget is $40,000.",
+  "flags": []
+ },
+ "run1-proposal/edit-wrong-range-repaired": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for Thursday at noon.",
+  "flags": [
+   "figure_changed: no longer in the text: day friday; new in the text: day thursday"
+  ]
+ },
+ "run1-proposal/edit-not-json-repaired": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is set for Friday at noon.",
+  "flags": []
+ },
+ "run1-proposal/edit-never-valid": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is set for Friday at noon.",
+  "flags": []
+ },
+ "run2-proposal/edit-rewrite": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for noon on Friday.",
+  "flags": []
+ },
+ "run2-proposal/edit-range": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for Thursday at noon.",
+  "flags": [
+   "figure_changed: no longer in the text: day friday; new in the text: day thursday"
+  ]
+ },
+ "run2-proposal/edit-two-operations": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "Launch is Friday at noon.",
+  "flags": [
+   "status_changed: “scheduled” (planned) is gone: the text no longer says the work is planned"
+  ]
+ },
+ "run2-proposal/edit-wrong-label-repaired": {
+  "before": "The budget is forty thousand dollars.",
+  "after": "The budget amounts to $40,000.",
+  "flags": []
+ },
+ "run2-proposal/edit-wrong-range-repaired": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for Thursday at noon.",
+  "flags": [
+   "figure_changed: no longer in the text: day friday; new in the text: day thursday"
+  ]
+ },
+ "run2-proposal/edit-not-json-repaired": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is set for Friday at noon.",
+  "flags": []
+ },
+ "run2-proposal/edit-never-valid": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is planned for Friday at noon.",
+  "flags": []
+ },
+ "postfix-proposal/edit-rewrite": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled to take place at noon on Friday.",
+  "flags": []
+ },
+ "postfix-proposal/edit-range": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for Thursday at noon.",
+  "flags": [
+   "figure_changed: no longer in the text: day friday; new in the text: day thursday"
+  ]
+ },
+ "postfix-proposal/edit-two-operations": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "Launch is Friday at noon.",
+  "flags": [
+   "status_changed: “scheduled” (planned) is gone: the text no longer says the work is planned"
+  ]
+ },
+ "postfix-proposal/edit-wrong-label-repaired": {
+  "before": "The budget is forty thousand dollars.",
+  "after": "The budget is $40,000.",
+  "flags": []
+ },
+ "postfix-proposal/edit-wrong-range-repaired": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is scheduled for Thursday at noon.",
+  "flags": [
+   "figure_changed: no longer in the text: day friday; new in the text: day thursday"
+  ]
+ },
+ "postfix-proposal/edit-not-json-repaired": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is planned for Friday at noon.",
+  "flags": []
+ },
+ "postfix-proposal/edit-never-valid": {
+  "before": "The launch is scheduled for Friday at noon.",
+  "after": "The launch is set for Friday at 12:00 p.m.",
+  "flags": []
+ }
+}

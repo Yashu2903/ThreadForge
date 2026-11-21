@@ -9,6 +9,21 @@ Providers: OpenAI `gpt-6-luna` (generation, classification, vision and map calls
 (embeddings). **Cost is unknown/unconfigured** in every run: no price settings exist, so a ledger or table cost of 0 means "could not be
 priced", never "free". Tokens are provider-reported. The account is in `docs/ai.md` 22.2 and 22.7-22.9.
 
+## Fifth stage: the review follow-up (2026-11-20)
+
+| Files | What they are |
+|---|---|
+| `new-quality-dev.*`, `new-quality-heldout.*` | The task-quality dataset `quality-v1` on the new build (`eval-3`), dev split first, held-out once afterwards. Criteria were committed before any run (`backend/tests/eval/quality.py`). Records keep the output, citations, what each opened to, scores and the manifest of what was sent |
+| `baseline-quality.*` | The same dataset and checks on the build that was reviewed (`0fe9a95`): a worktree of that commit with the new evaluation harness overlaid (the manifest lists the overlay files as changed paths) |
+| `new-answer.*`, `baseline-answer.*` | The 13 acceptance questions on the new and on the reviewed build, both with the current harness, so metrics that did not exist before (`evidence-v1`, ranked original candidates) can be compared. `none-answer.*` (earlier harness) is the historical record |
+| `new-proposal.*` | The proposal gate (16 items) on the new build; records now keep the context, the proposal as stored and what every citation opens to. Its manifest lists untracked evidence files and the then-uncommitted comparison builder as changed paths; no application or harness code differed from `4c41a40` |
+| `followup-comparison.md` / `.json` | Baseline against new build, metric versions named, guards G1-G3. Regenerate: `PYTHONPATH=. uv run python -m tests.eval.build_followup_comparison` from `backend/` |
+| `historical-rewrite-flags.json` | What the new qualification check says about every rewrite in runs 1, 2 and the post-fix run (it flags the dropped "scheduled" of the reviewed P5 and not the valid paraphrases) |
+| `review-2026-11-20/` | The review material v2: `human-review-sheet.md` (index), `items/*.md` (one file per item, complete), `fixtures/` (synthetic originals incl. the architecture figure, which has no arrowheads). Regenerate: `PYTHONPATH=. uv run python -m tests.eval.build_review_sheet_v2` |
+| `real-browser-evidence.json` | Identifiers and outcomes of the six real-browser checks (`frontend/e2e/ai-real-evidence.spec.ts`) |
+
+Metric names: `required_phrase_coverage` (phrase-v1) is the old "recall" (share of required phrases in the top-k passages); `evidence_recall` (evidence-v1) is recall of gold evidence units. The first review sheet (`human-review-sheet.md`) and every earlier file are unchanged.
+
 ## Fourth stage: classifier effort `none`, the repeat check, the review sheet (2026-11-19, later)
 
 | Files | What they are |

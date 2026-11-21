@@ -357,7 +357,7 @@ def kv(rows: list[tuple[str, Any]]) -> str:
 def sources_md(coverage: dict[str, Any], manifest: dict[str, Any] | None = None) -> str:
     rows = []
     versions = {s["source_version_id"]: s for s in (manifest or {}).get("sources", [])}
-    for s in coverage.get("sources") or []:
+    for s in (coverage.get("sources") if isinstance(coverage.get("sources"), list) else []):
         rows.append(
             f"`{s['source_name']}` version {s.get('version_no')} (`{s.get('source_version_id')}`), read as **{s.get('mode')}**: "
             f"{s.get('sections_read')} of {s.get('sections_total')} sections"
