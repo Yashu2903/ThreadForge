@@ -23,7 +23,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.ai.answer.answer import CitationTable, ClaimStats, EvidenceSet
+from app.ai.answer.answer import CitationTable, ClaimStats, EvidenceSet, read_assumptions
 from app.ai.edit.target import START, Linearized
 
 MAX_OPERATIONS = 50
@@ -39,6 +39,8 @@ MARK_TYPES = ("bold", "italic", "underline", "strike", "link")
 BLOCK_TYPES = ("paragraph", "heading", "quote", "bullet_list", "numbered_list", "table", "diagram")
 OPERATIONS = ("replace_block_text", "replace_range", "insert_blocks_after", "delete_blocks")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+ASSUMPTION_NOTE = "Assumed, not stated in the source: "
 
 EDIT_SCHEMA_NAME = "document_edit"
 DRAFT_SCHEMA_NAME = "document_draft"
@@ -84,6 +86,7 @@ _BLOCK = {
         },
         "header_row": {"type": ["boolean", "null"]},
         "mermaid": {"type": ["string", "null"]},
+        "assumptions": {"type": ["array", "null"], "items": {"type": "string"}},
         "citations": {"type": "array", "items": _CITATION},
     },
     "required": [
@@ -95,6 +98,7 @@ _BLOCK = {
         "rows",
         "header_row",
         "mermaid",
+        "assumptions",
         "citations",
     ],
     "additionalProperties": False,
@@ -276,6 +280,18 @@ def normalize_block(raw: Any, path: str, op: int | None) -> dict[str, Any]:
     return {"type": "diagram", "mermaid": _text(source, 40_000, f"{path} mermaid", op)}
 
 
+def assumption_note(assumptions: list[str]) -> dict[str, Any]:
+    """The paragraph the SERVER adds after a diagram that draws something the sources do not state, so the
+    caveat travels with the diagram into the document instead of staying in a side panel. Italic, plain text;
+    it is not a claim of the model, so it carries no citation and is not counted as one."""
+    return {
+        "type": "paragraph",
+        "inline": [
+            {"text": ASSUMPTION_NOTE + " ".join(assumptions), "marks": [{"type": "italic"}]}
+        ],
+    }
+
+
 @dataclass
 class NormalizedEdit:
     summary: str
@@ -335,6 +351,7 @@ def normalize_edit(raw: Any, view: Linearized, evidence: EvidenceSet) -> Normali
                 )
             kind = op["op"]
             reason = _text(op.get("reason", ""), MAX_REASON, "reason", i).strip()
+            op_assumptions: list[str] = []
             built: dict[str, Any]
             claims: list[Any] = [op.get("citations")]
             if kind == "replace_block_text":
@@ -367,10 +384,17 @@ def normalize_edit(raw: Any, view: Linearized, evidence: EvidenceSet) -> Normali
                         [problem(i, "invalid_operation", f"insert 1 to {MAX_BLOCKS_PER_OP} blocks")]
                     )
                 blocks = [normalize_block(b, f"blocks[{n}]", i) for n, b in enumerate(blocks_raw)]
+                with_notes: list[dict[str, Any]] = []
                 for n, b in enumerate(blocks):
+                    with_notes.append(b)
                     if b["type"] == "diagram":
                         diagrams.append((i, b["mermaid"]))
+                        listed = read_assumptions(blocks_raw[n])
+                        if listed:
+                            op_assumptions.extend(listed)
+                            with_notes.append(assumption_note(listed))
                     claims.append(blocks_raw[n].get("citations"))
+                blocks = with_notes
                 built = {"op": kind, "anchor_block_id": anchor_id, "blocks": blocks}
             else:  # delete_blocks
                 refs = op.get("block_refs")
@@ -393,7 +417,13 @@ def normalize_edit(raw: Any, view: Linearized, evidence: EvidenceSet) -> Normali
                 nums, unsupported = table.claim(merged)
             operations.append(built)
             meta.append(
-                {"op": kind, "reason": reason, "citations": nums, "unsupported": unsupported}
+                {
+                    "op": kind,
+                    "reason": reason,
+                    "citations": nums,
+                    "unsupported": unsupported,
+                    "assumptions": op_assumptions,
+                }
             )
         except BadProposal as bad:
             errors.extend(bad.errors)
@@ -451,9 +481,14 @@ def normalize_draft(raw: Any, evidence: EvidenceSet) -> NormalizedDraft:
                 meta.append({"citations": [], "unsupported": False})
                 continue
             nums, unsupported = table.claim(b.get("citations"))
+            listed: list[str] = []
             if block["type"] == "diagram":
-                diagrams.append((n, block["mermaid"]))
-            meta.append({"citations": nums, "unsupported": unsupported})
+                diagrams.append((len(blocks) - 1, block["mermaid"]))
+                listed = read_assumptions(b)
+            meta.append({"citations": nums, "unsupported": unsupported, "assumptions": listed})
+            if listed:
+                blocks.append(assumption_note(listed))
+                meta.append({"citations": [], "unsupported": False, "generated": "assumption_note"})
         except BadProposal as bad:
             errors.extend(bad.errors)
             blocks.append({})

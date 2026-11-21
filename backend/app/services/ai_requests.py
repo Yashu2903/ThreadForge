@@ -1620,6 +1620,127 @@ def _scrub_manifest(data: dict, wanted: set[str]) -> dict:
     return out
 
 
+async def resolve_origin(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    room_id: uuid.UUID,
+    request_id: uuid.UUID,
+    citation: dict[str, Any],
+) -> dict[str, Any]:
+    """The ORIGINAL material behind one citation, read now from the stored index (never from the model's text).
+
+    Scope is enforced in the query, not afterwards: a chunk is returned only if it belongs to a generation that THIS
+    request pinned (`ai_request_sources`), in THIS room, of a file that is still active. A chunk of any other file or
+    room, a removed file, or one the request never selected is simply not found. Each chunk's text is hashed and compared
+    with the hash recorded when the evidence was built: `verified` (the stored text is what the answer stood on),
+    `changed` (it is not: it is shown, marked, never silently), or `unavailable`.
+
+    Open-document origins come from the request's manifest (what was sent to the model), because the live document
+    has moved on; they carry the update counter they were captured at.
+    """
+    origin = list(citation.get("origin") or [])
+    chunk_ids = [o["chunk_id"] for o in origin if o.get("chunk_id")]
+    found: dict[str, Any] = {}
+    if chunk_ids:
+        async with sessionmaker() as db:
+            rows = (
+                await db.execute(
+                    text(
+                        """SELECT c.id, c.ordinal, c.text, c.kind, c.extraction, c.page_start, c.page_end, c.locator,
+                                  v.id AS version_id, v.version_no, v.kind AS file_kind, s.id AS source_id,
+                                  s.display_name
+                             FROM chunks c
+                             JOIN ai_request_sources rs ON rs.generation_id = c.generation_id
+                                                       AND rs.room_id = c.room_id AND rs.request_id = :r
+                             JOIN source_versions v ON v.id = rs.source_version_id AND v.room_id = rs.room_id
+                             JOIN sources s ON s.id = v.source_id AND s.room_id = v.room_id
+                            WHERE c.room_id = :room AND c.id = ANY(CAST(:ids AS uuid[]))
+                              AND v.analysis_state <> 'removed' AND s.state = 'active'"""
+                    ),
+                    {"r": request_id, "room": room_id, "ids": chunk_ids},
+                )
+            ).all()
+        found = {str(r.id): r for r in rows}
+    blocks: dict[str, Any] = {}
+    if any(o.get("block_id") for o in origin):
+        async with sessionmaker() as db:
+            man = (
+                await db.execute(
+                    text(
+                        "SELECT data FROM ai_manifests WHERE request_id = :r ORDER BY attempt DESC LIMIT 1"
+                    ),
+                    {"r": request_id},
+                )
+            ).scalar_one_or_none()
+        for b in ((man or {}).get("document") or {}).get("blocks") or []:
+            blocks[str(b.get("id"))] = b
+    items: list[dict[str, Any]] = []
+    for o in origin:
+        if o.get("chunk_id"):
+            row = found.get(o["chunk_id"])
+            if row is None:
+                items.append({**_origin_stub(o), "integrity": "unavailable"})
+                continue
+            digest = hashlib.sha256(row.text.encode("utf-8")).hexdigest()
+            items.append(
+                {
+                    "kind": "chunk",
+                    "chunk_id": str(row.id),
+                    "chunk_kind": row.kind,
+                    "source_id": str(row.source_id),
+                    "source_version_id": str(row.version_id),
+                    "source_name": row.display_name,
+                    "file_kind": row.file_kind,
+                    "version_no": row.version_no,
+                    "ordinal": row.ordinal,
+                    "extraction": row.extraction,
+                    "page_start": row.page_start,
+                    "page_end": row.page_end or row.page_start,
+                    "heading_path": (row.locator or {}).get("heading_path", []),
+                    "text": row.text,
+                    "text_sha256": digest,
+                    "integrity": "verified" if digest == o.get("text_sha256") else "changed",
+                }
+            )
+        elif o.get("block_id"):
+            block = blocks.get(str(o["block_id"]))
+            items.append(
+                {
+                    "kind": "document_block",
+                    "document_id": o.get("document_id"),
+                    "update_counter": o.get("update_counter"),
+                    "block_id": o["block_id"],
+                    "text": (block or {}).get("text"),
+                    "integrity": "manifest_copy" if block else "unavailable",
+                }
+            )
+    return {
+        "n": citation.get("n"),
+        "label": citation.get("label"),
+        "kind": citation.get("kind"),
+        "derived": bool(citation.get("derived")),
+        "derivation": citation.get("derivation"),
+        "provenance": citation.get("provenance", "incomplete"),
+        "extraction": citation.get("extraction"),
+        "origin": items,
+        "unavailable": sum(1 for i in items if i["integrity"] == "unavailable"),
+    }
+
+
+def _origin_stub(o: dict[str, Any]) -> dict[str, Any]:
+    """What is still known about an origin whose text can no longer be read (identity and locator, no text)."""
+    keep = (
+        "chunk_id",
+        "source_version_id",
+        "version_no",
+        "ordinal",
+        "extraction",
+        "page_start",
+        "page_end",
+        "heading_path",
+    )
+    return {"kind": "chunk", **{k: o.get(k) for k in keep}, "text": None}
+
+
 async def figure_of(
     sessionmaker: async_sessionmaker[AsyncSession], room_id: uuid.UUID, chunk_id: uuid.UUID
 ) -> Any:

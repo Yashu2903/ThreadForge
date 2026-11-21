@@ -54,6 +54,7 @@ from app.ai.answer.answer import (
     EvidenceSet,
     ValidatedAnswer,
     needs_repair,
+    provenance_incomplete,
     render_plain_text,
     validate_answer,
 )
@@ -413,6 +414,9 @@ async def _work(
         gathered = await _gather(
             sessionmaker, settings, storage, gateway, row, sources, task, captured, selection, check
         )
+        notices = context_notices(row, classification, task)
+        if notices:
+            gathered.coverage = {**gathered.coverage, "notices": notices}
 
         # ---- 4. manifest (before generation) ---------------------------------------------------------------
         # the routing outcome travels with the result (safe fields only) and, with the numbers, in the manifest
@@ -443,6 +447,26 @@ async def _work(
         return result
     finally:
         await gateway.aclose()
+
+
+DOCUMENT_NOT_INCLUDED = {
+    "code": "document_not_included",
+    "message": (
+        "You asked about the open document, but it was not included in this request, so this answer uses only "
+        "the files you selected."
+    ),
+    "action": "To include the document, turn on “Use open document” and ask again.",
+}
+
+
+def context_notices(row: Any, classification: Classification, task: str) -> list[dict[str, str]]:
+    """Notices about context the request ASKED FOR BY ITS WORDS but did not enable. The server never adds context the
+    person did not switch on (a sources-only request stays sources-only); it says what is missing and how to add it.
+    Only the classifier's own reading triggers this (`document_review` needs the open document); an explicit task
+    hint never does."""
+    if classification.route == "document_review" and not row.include_document_content:
+        return [dict(DOCUMENT_NOT_INCLUDED)]
+    return []
 
 
 def _has_other_context(row: Any, gathered: strategies.Gathered) -> bool:
@@ -839,6 +863,7 @@ def _publication(
                 "unsupported": v.stats.unsupported,
                 "invalid_citations": v.stats.invalid_citations,
                 "dropped_quotes": v.stats.dropped_quotes,
+                "provenance_incomplete": provenance_incomplete(v.citations),
             },
         },
         citations=v.citations,
@@ -849,7 +874,12 @@ def _publication(
             "embedding": settings.ai_embed_model,
             "prompt": prompts.PROMPT_TEMPLATE_VERSION,
         },
-        body=render_plain_text(v, 4000, POINTER),
+        body=render_plain_text(
+            v,
+            4000,
+            POINTER,
+            notes=[f"{n['message']} {n['action']}" for n in g.coverage.get("notices", [])],
+        ),
     )
 
 

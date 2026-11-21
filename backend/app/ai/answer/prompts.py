@@ -1,7 +1,10 @@
 """The prompts, and how untrusted content is presented to the model.
 
-PROMPT TEMPLATE VERSION `answer-v1` is recorded in every manifest, so a later reader knows exactly
-which instructions produced an answer.
+PROMPT TEMPLATE VERSION `answer-v2` is recorded in every manifest, so a later reader knows exactly
+which instructions produced an answer. answer-v2 (2026-11-20) adds to answer-v1 the grounding rule for diagrams (what
+the sources name, what they state, what is only inferred) and a structured reading of the open document for reviews
+(the stated risk, its stated effect, what is really missing, and what is the model's own analysis); docs/ai.md
+section 24 says why.
 
 UNTRUSTED CONTENT. Sources, the document, chat messages, OCR text, figure descriptions, file names and
 earlier model output are DATA. They reach the model only inside a block delimited by a boundary line
@@ -22,7 +25,8 @@ from app.ai.answer.answer import EvidenceItem, EvidenceSet
 from app.ai.answer.mermaid import ALLOWED_TYPES
 from app.ai.types import ImagePart, Part, TextPart
 
-PROMPT_TEMPLATE_VERSION = "answer-v1"
+PROMPT_TEMPLATE_VERSION = "answer-v2"
+PREVIOUS_PROMPT_TEMPLATE_VERSIONS = ("answer-v1",)
 CLASSIFY_SCHEMA_NAME = "task_kind"
 CLASSIFY_SCHEMA = {
     "type": "object",
@@ -57,6 +61,30 @@ MAP_SCHEMA = {
     "additionalProperties": False,
 }
 
+DIAGRAM_GROUNDING = (
+    "- GROUNDING OF DIAGRAMS: draw only what the evidence supports. Keep three things apart: (a) the steps and "
+    "things the evidence NAMES; (b) the order or connections it STATES; (c) an order you would only INFER (from the "
+    "order a list happens to be written in, or from convention). Never draw (c) as if it were (b): either group the "
+    "named items without arrows (for example in a subgraph, or side by side) or draw the inferred order and put "
+    "each inferred relation in the block's assumptions, one short sentence each (assumptions is null when the "
+    "diagram draws only stated relations). Never invent a step the evidence does not name: if it says there are "
+    "three stages but names two, show the third only as unnamed or leave it out. A line in a figure may carry no "
+    "arrowhead: do not state a direction you cannot see; use a line without an arrow or list the direction as an "
+    "assumption."
+)
+
+REVIEW_FOCUS = (
+    "Review the user's open document as asked. Refer to what you discuss by its block label. Keep four things "
+    "apart, and say which is which: (1) what the document STATES (cite it); (2) what the document says about the "
+    "effect or consequence of something: a qualitative effect such as 'could slip the schedule' IS a stated effect, "
+    "so never say effects are missing when one is stated; (3) what the document does NOT state, said precisely and "
+    "only where it matters to the request (for example the likelihood, a size or amount, an owner, a mitigation); "
+    "(4) your own analysis or questions that go beyond the document: put these in a separate paragraph that begins "
+    "'Beyond the document:' and cite the block you are extending. Do not invent risks or issues to make the answer "
+    "longer: if the document names one risk, review that one. In evidence_gaps list only what is really absent, "
+    "naming it specifically."
+)
+
 EXTRACTION_LABELS = {
     "text_layer": "text layer",
     "docx": "Word document text",
@@ -73,8 +101,7 @@ def system_prompt(task: str) -> str:
         "summarize": "Write a summary of the material, covering it fairly; do not favour the start of a file.",
         "compare": "Compare the files the user named. Cover each file in turn and say where they agree, "
         "differ, or where one is silent. Do not let one file dominate.",
-        "document_review": "Review the user's open document as asked. Quote what you refer to by citing "
-        "its block label.",
+        "document_review": REVIEW_FOCUS,
     }[task]
     return (
         f"You are the writing assistant of a team workspace. {focus}\n\n"
@@ -98,7 +125,7 @@ def system_prompt(task: str) -> str:
         "Its mermaid field must be valid Mermaid of one of these types: "
         + ", ".join(ALLOWED_TYPES)
         + ". No %%{ }%% directives, no click/href/link lines, no HTML tags, no URLs. At most 500 lines. "
-        "Cite the evidence the diagram is drawn from.\n"
+        "Cite the evidence the diagram is drawn from.\n" + DIAGRAM_GROUNDING + "\n"
         "7. Use paragraph blocks for prose and bullet_list blocks for lists. Be concise and specific. Set "
         "unused fields of a block to null.\n"
         "Reply with the JSON object described by the schema, and nothing else."

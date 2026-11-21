@@ -29,6 +29,8 @@ WHAT IS RECORDED (and copied into the proposal, so nothing depends on a snapshot
 
 from __future__ import annotations
 
+import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -235,11 +237,58 @@ def _top_level(captured: Captured) -> dict[str, str]:
 
 
 @dataclass
+class ContextDecision:
+    """What the model was shown of the rest of the document, and why (recorded in the manifest and the
+    coverage statement, so a reader can tell a complete read from a partial one).
+
+    mode  full     every block with text is shown (blocks in the changeable scope are listed under CHANGEABLE BLOCKS)
+          clipped  every block is shown but long ones are cut to CLIP_CHARS characters
+          sampled  headings plus an even spread of the other blocks (the first and the last always kept)
+          none     the document has no text, so there is nothing to show
+    """
+
+    mode: str
+    blocks_total: int  # blocks with text (leaves)
+    blocks_shown: (
+        int  # blocks whose text (all, or the start of it) is in the prompt, scope blocks included
+    )
+    chars_shown: int
+    tokens_shown: int
+    budget_tokens: int
+    clipped_blocks: int = 0
+    omitted_blocks: int = 0
+
+    @property
+    def complete(self) -> bool:
+        return self.mode in ("full", "none")
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "mode": self.mode,
+            "complete": self.complete,
+            "blocks_total": self.blocks_total,
+            "blocks_shown": self.blocks_shown,
+            "chars_shown": self.chars_shown,
+            "tokens_shown": self.tokens_shown,
+            "budget_tokens": self.budget_tokens,
+            "clipped_blocks": self.clipped_blocks,
+            "omitted_blocks": self.omitted_blocks,
+        }
+
+
+@dataclass
 class Linearized:
     labels: dict[str, str]  # "B12" -> block id
     scope_lines: list[str]  # "[B12] (paragraph) text" for every block in scope, in order
     toc_lines: list[str]  # headings of the whole document, for orientation in a large document
     anchor_labels: list[str]  # labels the model may use as insertion anchors ("start" is literal)
+    # the READ-ONLY rest of the document: "(B7 paragraph) text". Deliberately not the "[B7] (kind)" shape of
+    # the changeable blocks, so nothing here can be mistaken for something the model may change.
+    context_lines: list[str] = field(default_factory=list)
+    context: ContextDecision | None = None
+
+
+CLIP_CHARS = 400
 
 
 def label_for(index: int) -> str:
@@ -247,13 +296,22 @@ def label_for(index: int) -> str:
 
 
 def linearize(
-    captured: Captured, target: EditTarget, *, toc_when_blocks_over: int = 40
+    captured: Captured,
+    target: EditTarget,
+    *,
+    toc_when_blocks_over: int = 40,
+    context_budget_tokens: int | None = None,
+    measure: Callable[[str], int] | None = None,
 ) -> Linearized:
     """Short labels instead of UUIDs: the model never sees or emits an id, a hash, HTML or Yjs bytes.
 
     Labels number EVERY block with an id in document order, so a label means the same thing in the table of
     contents and in the scope. The server maps labels back to ids; a label that is not in the map is an
     out-of-scope reference and is refused by validation.
+
+    With a `context_budget_tokens`, the rest of the document is added as READ-ONLY context (see
+    `document_context`). It never widens the scope: only the CHANGEABLE BLOCKS can be touched, whatever the
+    context says.
     """
     labels = {label_for(i): b.id for i, b in enumerate(captured.blocks)}
     reverse = {v: k for k, v in labels.items()}
@@ -273,7 +331,126 @@ def linearize(
         else:
             scope_lines.append(f"[{reverse[b.id]}] ({kind})")
     anchor_labels = [reverse[a] for a in target.anchors if a != START]
-    return Linearized(labels, scope_lines, toc, anchor_labels)
+    out = Linearized(labels, scope_lines, toc, anchor_labels)
+    if context_budget_tokens is not None:
+        out.context_lines, out.context = document_context(
+            captured, target, reverse, context_budget_tokens, measure or _rough_tokens
+        )
+    return out
+
+
+def _rough_tokens(text: str) -> int:
+    return max(1, len(text) // 3)
+
+
+def document_context(
+    captured: Captured,
+    target: EditTarget,
+    reverse: dict[str, str],
+    budget_tokens: int,
+    measure: Callable[[str], int],
+) -> tuple[list[str], ContextDecision]:
+    """The whole document as read-only lines, within a token budget, and the decision about what was shown.
+
+    Blocks inside the changeable scope are not repeated (they are listed in full under CHANGEABLE BLOCKS); a
+    short marker keeps the order readable. When everything does not fit: long blocks are clipped first; then
+    only the headings and an even spread of the other blocks are kept (the first and the last always), and
+    every gap says how many blocks it hides. Nothing here is hidden from the person: the decision is stored
+    with the proposal and shown in the coverage statement.
+    """
+    leaves = captured.leaves()
+    total = len(leaves)
+    if total == 0:
+        return [], ContextDecision("none", 0, 0, 0, 0, budget_tokens)
+
+    def kind_of(b: Any) -> str:
+        return f"heading {b.level or 1}" if b.type == "heading" else b.type
+
+    def line_for(b: Any, limit: int | None) -> str:
+        label = reverse[b.id]
+        if b.id in target.scope_ids:
+            return f"({label} {kind_of(b)}) [changeable: shown in full above]"
+        text = " ".join(b.text.split())
+        if limit is not None and len(text) > limit:
+            text = text[: limit - 1] + "…"
+        return f"({label} {kind_of(b)}) {text}"
+
+    def cost(lines: list[str]) -> int:
+        return sum(measure(x) + 1 for x in lines)
+
+    def shown_text_chars(lines: list[str]) -> int:
+        return sum(len(x) for x in lines)
+
+    full = [line_for(b, None) for b in leaves]
+    if cost(full) <= budget_tokens:
+        return full, ContextDecision(
+            "full", total, total, shown_text_chars(full), cost(full), budget_tokens
+        )
+    clipped = [line_for(b, None if b.level else CLIP_CHARS) for b in leaves]
+    n_clipped = sum(1 for a, b in zip(full, clipped, strict=True) if a != b)
+    if cost(clipped) <= budget_tokens:
+        return clipped, ContextDecision(
+            "clipped",
+            total,
+            total,
+            shown_text_chars(clipped),
+            cost(clipped),
+            budget_tokens,
+            clipped_blocks=n_clipped,
+        )
+    # sampled: every heading, the first and the last block, then an even spread of the rest
+    keep = {i for i, b in enumerate(leaves) if b.level} | {0, total - 1}
+    used = sum(measure(clipped[i]) + 1 for i in keep)
+    rest = [i for i in range(total) if i not in keep]
+    if rest:
+        step = max(
+            1, math.ceil(len(rest) / max(1, int(len(rest) * budget_tokens / max(1, cost(clipped)))))
+        )
+        for offset in range(step):
+            for i in rest[offset::step]:
+                c = measure(clipped[i]) + 1
+                if used + c > budget_tokens:
+                    continue
+                keep.add(i)
+                used += c
+
+    def assemble() -> list[str]:
+        lines: list[str] = []
+        gap = 0
+        for i in range(total):
+            if i in keep:
+                if gap:
+                    lines.append(f"… {gap} block{'s' if gap != 1 else ''} not shown …")
+                    gap = 0
+                lines.append(clipped[i])
+            else:
+                gap += 1
+        if gap:
+            lines.append(f"… {gap} block{'s' if gap != 1 else ''} not shown …")
+        return lines
+
+    lines = assemble()
+    # the gap markers cost tokens too: give back the blocks added last until the whole thing fits
+    # the budget is a hard cap: middle blocks go first, then the first and last block, then headings from the end
+    ordered = sorted(keep, reverse=True)
+    middle = [i for i in ordered if i not in {0, total - 1} and not leaves[i].level]
+    ends = [i for i in ordered if i in {0, total - 1} and not leaves[i].level]
+    heads = [i for i in ordered if leaves[i].level]
+    droppable = [*reversed(heads), *reversed(ends), *reversed(middle)]
+    while cost(lines) > budget_tokens and droppable:
+        keep.discard(droppable.pop())
+        lines = assemble()
+    shown = len(keep)
+    return lines, ContextDecision(
+        "sampled",
+        total,
+        shown,
+        shown_text_chars(lines),
+        cost(lines),
+        budget_tokens,
+        clipped_blocks=sum(1 for i in keep if full[i] != clipped[i]),
+        omitted_blocks=total - shown,
+    )
 
 
 def _clip(text: str, limit: int) -> str:

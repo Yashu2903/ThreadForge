@@ -39,6 +39,7 @@ REVIEWED_ROUTES = {
     ("POST", "/rooms/{room_id}/ai-requests/{request_id}/cancel"),
     ("GET", "/rooms/{room_id}/ai-requests/{request_id}/citations/{n}"),
     ("GET", "/rooms/{room_id}/ai-requests/{request_id}/citations/{n}/image"),
+    ("GET", "/rooms/{room_id}/ai-requests/{request_id}/citations/{n}/origin"),
     ("GET", "/rooms/{room_id}/ai-requests/{request_id}/context"),
     ("GET", "/rooms/{room_id}/ai-requests/{request_id}/result"),
     ("POST", "/rooms/{room_id}/ai-requests/{request_id}/retry"),

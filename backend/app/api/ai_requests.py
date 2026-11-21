@@ -418,6 +418,43 @@ async def resolve_citation(
 
 
 @router.get(
+    "/rooms/{room_id}/ai-requests/{request_id}/citations/{n}/origin",
+    responses={403: {"model": ErrorBody}, 404: {"model": ErrorBody}},
+)
+async def citation_origin(
+    request: Request, access: MemberAccess, request_id: str, n: int
+) -> dict[str, Any]:
+    """The original material behind a citation: for a passage, the stored chunk; for a section summary the model
+    wrote, every chunk it stands on (with page or heading locator, extraction method and an integrity check against
+    the hash recorded when it was built); for the open document, the blocks as they were sent. Roles in
+    SOURCE_DOWNLOAD_ROLES, the same as the excerpt. Only material of files THIS request pinned and that are still
+    active is returned; a removed file leaves a stub with no text."""
+    rid = _request_id(request_id)
+    if not _may_read_citations(request.app.state.settings, access):
+        raise insufficient_role()
+    row = await svc.get_result(request.app.state.sessionmaker, access.room_id, rid)
+    if row is None:
+        raise ai_request_not_found()
+    cite = next((c for c in (row.citations or []) if c.get("n") == n), None)
+    if cite is None:
+        raise AppError(404, "citation_not_found", "Citation not found.")
+    if cite.get("source_removed") or row.redacted_at is not None:
+        return {
+            "n": n,
+            "label": cite.get("label"),
+            "kind": cite.get("kind"),
+            "derived": bool(cite.get("derived")),
+            "derivation": cite.get("derivation"),
+            "provenance": cite.get("provenance", "incomplete"),
+            "extraction": cite.get("extraction"),
+            "origin": [],
+            "unavailable": 0,
+            "source_removed": True,
+        }
+    return await svc.resolve_origin(request.app.state.sessionmaker, access.room_id, rid, cite)
+
+
+@router.get(
     "/rooms/{room_id}/ai-requests/{request_id}/citations/{n}/image",
     responses={403: {"model": ErrorBody}, 404: {"model": ErrorBody}},
 )

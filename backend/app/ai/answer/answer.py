@@ -19,6 +19,14 @@ WHAT THE SERVER CHECKS (the model's output is untrusted, like every input):
     fails. The share is computed over claims, never over characters.
 A citation shows which passage the answer REFERENCED. It does not prove that the passage supports the
 claim; the UI says so.
+
+WHAT A CITATION POINTS AT. A `P` item is a stored passage of an original file (text layer, Word text, plain text, OCR
+or a machine-written figure description: `extraction` says which). An `S` item is NOT source text: it is a summary a
+model wrote from one or more stored sections (`derivation`), and the original chunks it stands on are listed in
+`origin`, each with the hash of the text it stood on, so the original text can be opened from the citation. A `D` item
+is a block of the captured open document. The excerpt of an `S` citation is therefore labelled derived and is never
+offered as a quotation. Provenance is checked for COMPLETENESS (`provenance`): it says the lineage can be followed,
+not that the original supports what the answer says about it.
 """
 
 from __future__ import annotations
@@ -34,6 +42,8 @@ MAX_TEXT = 4000
 MAX_GAPS = 20
 MAX_GAP_TEXT = 300
 MAX_CITATIONS_PER_CLAIM = 8
+MAX_ASSUMPTIONS = 6
+MAX_ASSUMPTION_TEXT = 240
 MAX_QUOTE = 400
 EXCERPT_LIMIT = 300  # what a published result keeps of a cited passage (retention rule)
 UNSUPPORTED_REPAIR_SHARE = 0.30
@@ -71,9 +81,18 @@ ANSWER_SCHEMA: dict[str, Any] = {
                     "items": {"type": ["array", "null"], "items": _ITEM},
                     "title": {"type": ["string", "null"]},
                     "mermaid": {"type": ["string", "null"]},
+                    "assumptions": {"type": ["array", "null"], "items": {"type": "string"}},
                     "citations": {"type": "array", "items": _CITATION},
                 },
-                "required": ["type", "text", "items", "title", "mermaid", "citations"],
+                "required": [
+                    "type",
+                    "text",
+                    "items",
+                    "title",
+                    "mermaid",
+                    "assumptions",
+                    "citations",
+                ],
                 "additionalProperties": False,
             },
         },
@@ -101,6 +120,28 @@ class EvidenceItem:
     figure_chunk_id: uuid.UUID | None = None
     low_agreement: bool = False
     is_figure: bool = False
+    # WHERE THE TEXT CAME FROM. `origin` lists the stored material the text stands on (a retrieved passage is its own
+    # origin; a section summary stands on the section's chunks; a document block on that block of that captured
+    # document). `derivation` is set only when the text was WRITTEN BY A MODEL from that material (a section summary): it
+    # says how, so the UI can label it as derived material instead of showing it as a source excerpt.
+    origin: list[dict[str, Any]] = field(default_factory=list)
+    derivation: dict[str, Any] | None = None
+
+    @property
+    def provenance(self) -> str:
+        """`complete` when the lineage is recorded well enough to open the original text, else `incomplete`. This is a
+        statement about RECORDS (every origin names a stored object and the hash of the text it stood on), never about
+        whether the original text supports a claim: lineage is not entailment."""
+        if self.kind == "chat":
+            return "not_applicable"
+        if self.kind == "section" and self.derivation is None:
+            return "incomplete"
+        if not self.origin:
+            return "incomplete"
+        for o in self.origin:
+            if not o.get("text_sha256") or not (o.get("chunk_id") or o.get("block_id")):
+                return "incomplete"
+        return "complete"
 
     @property
     def machine_generated(self) -> bool:
@@ -148,6 +189,21 @@ class ValidatedAnswer:
     evidence_gaps: list[str]
     stats: ClaimStats
     diagrams: list[int]  # indexes into blocks of diagram blocks (for the Mermaid check)
+
+
+def read_assumptions(raw_block: Any) -> list[str]:
+    """The assumptions the model listed for a diagram: short plain sentences, at most MAX_ASSUMPTIONS. A relation a
+    diagram draws that the sources do not state belongs here (docs/ai.md section 24)."""
+    raw = raw_block.get("assumptions") if isinstance(raw_block, dict) else None
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for item in raw:
+        if isinstance(item, str):
+            text = " ".join(_CONTROL.sub("", item).split())[:MAX_ASSUMPTION_TEXT].strip()
+            if text and text not in out:
+                out.append(text)
+    return out[:MAX_ASSUMPTIONS]
 
 
 def clean_text(value: Any, limit: int = MAX_TEXT) -> str:
@@ -226,6 +282,10 @@ class CitationTable:
                         "machine_generated": item.machine_generated,
                         "low_agreement": item.low_agreement,
                         "chunk_ids": [str(i) for i in item.chunk_ids],
+                        "derived": item.derivation is not None,
+                        "derivation": item.derivation,
+                        "origin": item.origin,
+                        "provenance": item.provenance,
                         "figure_chunk_id": str(item.figure_chunk_id)
                         if item.figure_chunk_id
                         else None,
@@ -305,6 +365,7 @@ def validate_answer(raw: Any, evidence: EvidenceSet) -> ValidatedAnswer:
                     "type": "diagram",
                     "title": title,
                     "mermaid": source.replace("\r\n", "\n").strip("\n"),
+                    "assumptions": read_assumptions(b),
                     "citations": nums,
                     "unsupported": unsupported,
                     "render_status": "unchecked",
@@ -316,6 +377,12 @@ def validate_answer(raw: Any, evidence: EvidenceSet) -> ValidatedAnswer:
     return ValidatedAnswer(blocks, table, gaps, stats, diagrams)
 
 
+def provenance_incomplete(citations: list[dict[str, Any]]) -> int:
+    """How many citations of a published result cannot be followed back to stored original material (a count of
+    records that lack lineage; says nothing about whether the originals support the claims)."""
+    return sum(1 for c in citations if c.get("provenance") == "incomplete")
+
+
 def needs_repair(stats: ClaimStats) -> bool:
     """More than 30 % of the claims lost their support (or there is not a single supported claim)."""
     return stats.claims > 0 and (
@@ -323,10 +390,14 @@ def needs_repair(stats: ClaimStats) -> bool:
     )
 
 
-def render_plain_text(answer: ValidatedAnswer, limit: int = 4000, pointer: str = "") -> str:
+def render_plain_text(
+    answer: ValidatedAnswer, limit: int = 4000, pointer: str = "", notes: list[str] | None = None
+) -> str:
     """The chat message body: a plain-text rendering of the answer, at most `limit` characters, ending
-    with `pointer` (a short note that the full card has the citations) when it had to be cut."""
-    lines: list[str] = []
+    with `pointer` (a short note that the full card has the citations) when it had to be cut. `notes` are the
+    server's own context notices (for example that the open document was not included): they come first, so a
+    cut never removes them, and so does a diagram's list of assumptions."""
+    lines: list[str] = [f"Note: {n}" for n in notes or []]
     for block in answer.blocks:
         if block["type"] == "paragraph":
             lines.append(block["text"] + _marks(block["citations"]))
@@ -334,6 +405,10 @@ def render_plain_text(answer: ValidatedAnswer, limit: int = 4000, pointer: str =
             lines.extend(f"- {it['text']}{_marks(it['citations'])}" for it in block["items"])
         else:
             lines.append(f"[Diagram: {block['title'] or 'untitled'}]")
+            if block.get("assumptions"):
+                lines.append(
+                    "Assumed, not stated in the sources: " + "; ".join(block["assumptions"]) + "."
+                )
     if answer.evidence_gaps:
         lines.append("Not found in the sources: " + "; ".join(answer.evidence_gaps))
     text = "\n".join(lines).strip() or "(empty answer)"

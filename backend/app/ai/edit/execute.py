@@ -25,6 +25,7 @@ from sqlalchemy import text
 
 from app.ai.answer import capture as cap
 from app.ai.answer import strategies
+from app.ai.answer.answer import provenance_incomplete
 from app.ai.edit import prompts
 from app.ai.edit.check import CheckUnavailable
 from app.ai.edit.generate import Generated, ProposalInvalid, generate_draft, generate_edit
@@ -82,7 +83,20 @@ async def run(
             insert_at=row.insert_at,
             skip_hash=row.regenerate_of is not None,
         )
-        view = linearize(captured, target)
+        doc_budget = strategies.budgets(settings, has_doc=True, has_chat=row.include_chat_context)[
+            "document"
+        ]
+        view = linearize(
+            captured,
+            target,
+            context_budget_tokens=doc_budget,
+            measure=lambda t: strategies.tokens(settings, t),
+        )
+        decision = view.context
+        if decision is not None and decision.blocks_total and not decision.blocks_shown:
+            # the document has text and the model would see none of it: refuse instead of letting it write a
+            # placeholder (this is what edit-v1 did for an insertion with no selection)
+            raise EditFail("document_context_unavailable", {"budget_tokens": doc_budget})
         async with sessionmaker() as db:
             title = (
                 await db.execute(
@@ -98,7 +112,7 @@ async def run(
         "generation": settings.ai_llm_model,
         "embedding": settings.ai_embed_model,
     }
-    budgets = strategies.budgets(settings, has_doc=False, has_chat=row.include_chat_context)
+    budgets = strategies.budgets(settings, has_doc=edit, has_chat=row.include_chat_context)
     async with sessionmaker() as db:
         chat, excl = await strategies.chat_items(
             db, room_id, list(row.chat_message_ids), out.evidence, budgets["chat"], settings
@@ -132,7 +146,10 @@ async def run(
             "scope": "edit",
             "blocks_total": len(captured.blocks),
             "blocks_included": len(target.scope_ids),
-            "mode": "target_only",
+            "mode": "target_plus_context"
+            if view.context and view.context.complete
+            else ("target_plus_partial_context"),
+            "context": view.context.to_json() if view.context else None,
         }
         out.manifest["document"] = {
             "document_id": str(captured.document_id),
@@ -140,7 +157,12 @@ async def run(
             "content_hash": captured.content_hash,
             "scope": target.scope_json(),
             "base_hashes": target.base_hashes,
+            "context": view.context.to_json() if view.context else None,
         }
+        if view.context is not None and not view.context.complete:
+            out.manifest.setdefault("exclusions", []).append(
+                f"document_context_{view.context.mode}:{view.context.omitted_blocks}_blocks_not_shown"
+            )
     out.coverage["sources"] = len(sources)
     out.manifest["task_type"] = task
 
@@ -247,6 +269,7 @@ def _publication(
             "unsupported": g.stats.unsupported,
             "invalid_citations": g.stats.invalid_citations,
             "dropped_quotes": g.stats.dropped_quotes,
+            "provenance_incomplete": provenance_incomplete(g.table),
         },
     }
     proposal = {
@@ -294,6 +317,7 @@ def preview_of(g: Generated) -> dict[str, Any]:
             "summary": g.summary,
             "document": g.doc,
             "block_citations": [m.get("citations", []) for m in g.meta],
+            "block_assumptions": [m.get("assumptions", []) for m in g.meta],
             "unsupported_blocks": sum(1 for m in g.meta if m.get("unsupported")),
         }
     changes = []
@@ -310,6 +334,8 @@ def preview_of(g: Generated) -> dict[str, Any]:
                 "reason": meta.get("reason", ""),
                 "citations": meta.get("citations", []),
                 "unsupported": bool(meta.get("unsupported")),
+                "assumptions": meta.get("assumptions", []),
+                "review_flags": change.get("review_flags", []),
                 "hash_after": [
                     g.hashes.get(str((n.get("attrs") or {}).get("id"))) for n in change["after"]
                 ],

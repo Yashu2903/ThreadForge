@@ -266,6 +266,13 @@ button.cite { padding: 0 3px; margin-left: 2px; border: 0; background: none; col
 .cite-detail { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-top: 6px; background: var(--panel); }
 .cite-detail blockquote { margin: 4px 0; padding-left: 8px; border-left: 3px solid var(--line); overflow-wrap: anywhere; }
 .cite-detail .quote { border-left-color: var(--accent); }
+.cite-detail .derived { border-left-color: #b7791f; background: rgba(183, 121, 31, 0.08); }
+.cite-detail .derived .label { font-weight: 600; margin-right: 6px; }
+.cite-detail .derived-note { margin: 4px 0; }
+.cite-detail .original { border-left-color: var(--accent); white-space: pre-wrap; max-height: 14em; overflow: auto; }
+.cite-detail .origin { margin: 6px 0; }
+.assumptions, .review-flags, .context-notice { border: 1px solid #b7791f; border-radius: 6px; padding: 6px 8px; margin: 6px 0; background: rgba(183, 121, 31, 0.08); }
+.assumptions ul, .review-flags ul { margin: 4px 0 4px 18px; padding: 0; }
 .figure-thumb { max-width: 100%; max-height: 180px; display: block; border: 1px solid var(--line); border-radius: 6px; }
 .small { font-size: 12px; }
 .gaps { margin-top: 6px; }

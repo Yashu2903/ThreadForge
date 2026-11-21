@@ -170,7 +170,10 @@ async def test_a_block_replacement_becomes_a_pending_proposal_and_the_document_i
     assert result["answer"]["kind"] == "edit" and result["answer"]["operation_count"] == 1
     assert await scalar(world.sm, "SELECT count(*) FROM messages WHERE kind = 'ai_answer'") == 1
     # a first-try valid reply used no repair
-    assert result["coverage"]["validation"] == {"first_try_valid": True, "repaired": False}
+    validation = result["coverage"]["validation"]
+    assert (validation["first_try_valid"], validation["repaired"]) == (True, False)
+    # the replacement changes the budget (forty -> fifty thousand): a figure change, noted on the change for the reviewer
+    assert validation["review_flags"] == 1 and validation["context"]["mode"] == "full"
     # the API serves it
     got = await world.owner.get(f"/rooms/{world.room_id}/ai-proposals/{prop['id']}")
     assert got.status_code == 200
@@ -181,9 +184,12 @@ async def test_a_block_replacement_becomes_a_pending_proposal_and_the_document_i
         world.document["title"],
     )
     assert body["operation_count"] == 1 and body["preview"]["changes"][0]["op"] == 0
+    assert [f["code"] for f in body["preview"]["changes"][0]["review_flags"]] == ["figure_changed"]
 
 
-async def test_the_model_sees_labels_the_scope_and_the_toc_but_never_an_id_or_a_hash(world):
+async def test_the_model_sees_labels_the_scope_and_read_only_context_but_never_an_id_or_a_hash(
+    world,
+):
     fc = collab_for(world)
     seen: list[str] = []
 
@@ -196,7 +202,10 @@ async def test_the_model_sees_labels_the_scope_and_the_toc_but_never_an_id_or_a_
     text = seen[0]
     assert "[B3] (paragraph) The budget is forty thousand dollars." in text
     assert "INSERTION POINTS" in text and "after [B3]" in text
-    assert "The launch is scheduled" not in text  # outside the selection: not sent
+    # edit-v2: the rest of the document is sent too, but only as READ-ONLY context (never as a changeable [B] block)
+    assert "(B2 paragraph) The launch is scheduled for Friday at noon." in text
+    assert "[B2]" not in text and "[B3] (paragraph)" in text
+    assert "(B3 paragraph) [changeable: shown in full above]" in text
     for block in fc.blocks:
         assert block.id not in text and block.hash not in text
     assert fc.content_hash not in text
@@ -832,7 +841,7 @@ async def test_the_manifest_records_the_target_and_the_prompt_version(world):
     rid, _ = await go(world, fc, 2)
     [manifest] = await rows(world.sm, "SELECT data FROM ai_manifests")
     data = manifest["data"]
-    assert data["prompt_template"] == "edit-v1" and data["operation"] == "edit"
+    assert data["prompt_template"] == "edit-v2" and data["operation"] == "edit"
     assert data["document"]["yjs_update_counter"] == fc.counter
     assert data["document"]["scope"]["block_ids"] == fc.block_ids(2)
     summary = (await world.request(world.owner, rid, "/context")).json()

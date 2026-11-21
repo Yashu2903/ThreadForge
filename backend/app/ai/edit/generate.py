@@ -23,7 +23,7 @@ from app.ai import errors as perr
 from app.ai.analysis.gateway import AnalysisAbort, AnalysisGateway
 from app.ai.answer import mermaid
 from app.ai.answer.answer import ClaimStats, EvidenceSet, needs_repair
-from app.ai.edit import prompts
+from app.ai.edit import prompts, qualifiers
 from app.ai.edit.check import CheckOutcome, run_check
 from app.ai.edit.schema import (
     DRAFT_SCHEMA,
@@ -72,6 +72,42 @@ class Generated:
     doc: dict[str, Any] | None = None
     inserted_chars: int = 0
     metrics: dict[str, Any] = field(default_factory=dict)
+
+
+def node_text(nodes: Any) -> str:
+    """The plain text of ProseMirror JSON nodes: text runs joined, one space between blocks."""
+    parts: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if isinstance(node.get("text"), str):
+                parts.append(node["text"])
+            children = node.get("content")
+            if isinstance(children, list):
+                for child in children:
+                    walk(child)
+                if node.get("type") not in ("text", None):
+                    parts.append(" ")
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(nodes)
+    return " ".join("".join(parts).split())
+
+
+def review_flags(changes: list[dict[str, Any]]) -> None:
+    """Attach `review_flags` to every change that REPLACES text: the qualifications (hedges, the state of the work,
+    negation, conditions, attribution, figures) the new text lost or changed. A note for the person reviewing the
+    preview, never a rejection (app/ai/edit/qualifiers.py says what it can and cannot see)."""
+    for change in changes:
+        if change.get("kind") in ("replace_block_text", "replace_range"):
+            found = qualifiers.compare(
+                node_text(change.get("before")), node_text(change.get("after"))
+            )
+            change["review_flags"] = [f.to_json() for f in found]
+        else:
+            change["review_flags"] = []
 
 
 def _codes(errors: list[dict[str, Any]]) -> list[str]:
@@ -218,6 +254,9 @@ async def generate_edit(
         )
 
     (edit, outcome), metrics = await _generate(call, validate, check)
+    review_flags(outcome.changes)
+    metrics["review_flags"] = sum(len(c.get("review_flags", [])) for c in outcome.changes)
+    metrics["context"] = view.context.to_json() if view.context else None
     return Generated(
         kind="edit",
         summary=edit.summary,

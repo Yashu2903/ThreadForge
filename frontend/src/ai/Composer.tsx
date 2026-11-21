@@ -319,7 +319,7 @@ export function Composer(props: {
           ))}
           {editing && (
             <span className="chip" data-testid="edit-chip">
-              Edit: {ctx.documentTitle ?? "document"} · {TARGETS.find((t) => t.value === target)?.label}
+              Edit: {ctx.documentTitle ?? "document"} · {TARGETS.find((t) => t.value === target)?.label} · the AI reads the whole document for context but can change only this target
             </span>
           )}
           {drafting && <span className="chip">New document draft</span>}

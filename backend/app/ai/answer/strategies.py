@@ -43,6 +43,7 @@ from app.services import messages
 from app.storage import Storage
 
 FIXED_OVERHEAD_TOKENS = 3500  # system prompt, schema, instruction
+MAP_METHOD = "map-v1"  # the section-summary step; recorded on every derived item
 CHAT_MESSAGE_CHARS = 1500
 DOC_BLOCK_CHARS = 6000
 MAP_OUTPUT_TOKENS = 3000
@@ -119,12 +120,64 @@ async def load_sources(
     ]
 
 
-def passage_item(ev: EvidenceSet, p: Passage, names: dict[uuid.UUID, str]) -> EvidenceItem:
+def text_sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def chunk_origin(
+    *,
+    chunk_id: uuid.UUID,
+    version_id: uuid.UUID | None,
+    version_no: int | None,
+    ordinal: int,
+    extraction: str,
+    text: str,
+    page_start: int | None,
+    page_end: int | None,
+    heading_path: list[str] | None,
+    kind: str = "text",
+) -> dict[str, Any]:
+    """One stored chunk an evidence item stands on: identity, immutable version, locator and the hash of its text."""
+    return {
+        "kind": "chunk",
+        "chunk_kind": kind,
+        "chunk_id": str(chunk_id),
+        "source_version_id": str(version_id) if version_id else None,
+        "version_no": version_no,
+        "ordinal": ordinal,
+        "extraction": extraction,
+        "page_start": page_start,
+        "page_end": page_end,
+        "heading_path": heading_path or [],
+        "text_sha256": text_sha256(text),
+    }
+
+
+def passage_item(
+    ev: EvidenceSet,
+    p: Passage,
+    names: dict[uuid.UUID, str],
+    versions: dict[uuid.UUID, int] | None = None,
+) -> EvidenceItem:
     loc = {
         k: v
         for k, v in (p.locator or {}).items()
         if k in ("heading_path", "page_start", "page_end", "figure_number")
     }
+    origin = [
+        chunk_origin(
+            chunk_id=p.id,
+            version_id=p.source_version_id,
+            version_no=(versions or {}).get(p.source_version_id),
+            ordinal=p.ordinal,
+            extraction=p.extraction,
+            text=p.text,
+            page_start=p.page_start,
+            page_end=p.page_end,
+            heading_path=(p.locator or {}).get("heading_path"),
+            kind=p.kind,
+        )
+    ]
     return ev.add(
         "P",
         kind="passage",
@@ -137,6 +190,7 @@ def passage_item(ev: EvidenceSet, p: Passage, names: dict[uuid.UUID, str]) -> Ev
         figure_chunk_id=p.id if p.kind == "figure" else None,
         low_agreement=bool((p.flags or {}).get("low_agreement")),
         is_figure=p.kind == "figure",
+        origin=origin,
     )
 
 
@@ -257,6 +311,15 @@ def doc_items(
             extraction="plain",
             source_name="the open document",
             locator={"block_id": b.id, "block_type": b.type},
+            origin=[
+                {
+                    "kind": "document_block",
+                    "document_id": str(captured.document_id),
+                    "update_counter": captured.counter,
+                    "block_id": b.id,
+                    "text_sha256": text_sha256(prefix + body),
+                }
+            ],
         )
     return included, True
 
@@ -277,6 +340,10 @@ class Section:
     source_name: str
     low_agreement: bool = False
     locator: dict[str, Any] = field(default_factory=dict)
+    version_no: int | None = None
+    origin: list[dict[str, Any]] = field(
+        default_factory=list
+    )  # one entry per chunk (see chunk_origin)
 
 
 _RANK = {"vision_ocr": 0, "vision": 0, "tesseract": 1, "text_layer": 2, "docx": 3, "plain": 3}
@@ -298,11 +365,23 @@ async def load_sections(db: AsyncSession, room_id: uuid.UUID, src: SourceInfo) -
     sections: list[Section] = []
     for r in rows:
         key = r.section_key or "part"
+        ref = chunk_origin(
+            chunk_id=r.id,
+            version_id=src.version_id,
+            version_no=src.version_no,
+            ordinal=r.ordinal,
+            extraction=r.extraction,
+            text=r.text,
+            page_start=r.page_start,
+            page_end=r.page_end or r.page_start,
+            heading_path=(r.locator or {}).get("heading_path"),
+        )
         if sections and sections[-1].key == key:
             s = sections[-1]
             s.text += "\n\n" + r.text
             s.tokens += r.token_count
             s.chunk_ids.append(r.id)
+            s.origin.append(ref)
             if r.page_start is not None:
                 s.page_start = (
                     r.page_start if s.page_start is None else min(s.page_start, r.page_start)
@@ -328,6 +407,8 @@ async def load_sections(db: AsyncSession, room_id: uuid.UUID, src: SourceInfo) -
                         "section_key": key,
                         "heading_path": (r.locator or {}).get("heading_path", []),
                     },
+                    version_no=src.version_no,
+                    origin=[ref],
                 )
             )
     return sections
@@ -423,6 +504,23 @@ async def summarize_sections(
             loc = dict(sec.locator)
             if sec.page_start is not None:
                 loc["page_start"], loc["page_end"] = sec.page_start, sec.page_end
+            input_chars = len(sec.text)
+            sent_chars = min(
+                input_chars,
+                int(settings.ai_summarize_section_tokens * settings.ai_chars_per_token / 1.1),
+            )
+            derivation = {
+                # a fallback "summary" is the section's own first characters, not model-written text
+                "kind": "section_opening" if fallback else "section_summary",
+                "of": "document" if doc_mode else "file",
+                "method": MAP_METHOD,
+                "prompt": prompts.PROMPT_TEMPLATE_VERSION,
+                "model": settings.ai_llm_model,
+                "input_chars": input_chars,
+                "chars_sent_to_model": 0 if fallback else sent_chars,
+                "input_truncated": (not fallback) and sent_chars < input_chars,
+                "origin_count": len(sec.origin) or len(sec.locator.get("block_ids") or []),
+            }
             item = ev.add(
                 "S",
                 kind="section",
@@ -433,6 +531,8 @@ async def summarize_sections(
                 locator=loc,
                 chunk_ids=list(sec.chunk_ids),
                 low_agreement=sec.low_agreement,
+                origin=list(sec.origin) or _block_origin(sec),
+                derivation=derivation,
             )
             records.append(
                 {
@@ -476,6 +576,7 @@ async def gather_retrieval(
     """qa / compare: hybrid retrieval over the frozen generations; `balanced` runs it once per source
     with an equal share of the budget (compare)."""
     names = {s.version_id: s.name for s in sources}
+    version_nos = {s.version_id: s.version_no for s in sources}
     vector = (await gateway.embed_query(instruction))[0]
     max_images = max(0, settings.ai_max_images)
     top_k = min(settings.ai_retrieval_figure_top_k, max_images)
@@ -512,7 +613,7 @@ async def gather_retrieval(
             figure_ids.add(p.id)
     sections_seen: dict[uuid.UUID, set[str]] = {}
     for p in chosen:
-        item = passage_item(out.evidence, p, names)
+        item = passage_item(out.evidence, p, names, version_nos)
         out.manifest.setdefault("passages", []).append(passage_record(item.label, p))
         if p.section_key:
             sections_seen.setdefault(p.source_version_id, set()).add(p.section_key)
@@ -587,6 +688,24 @@ async def gather_summary(
         out.empty = True
 
 
+def _block_origin(sec: Section) -> list[dict[str, Any]]:
+    """The origin of a section made of document blocks (no chunks): one entry per block, hashed over its text."""
+    blocks = (sec.locator or {}).get("block_ids") or []
+    texts = (sec.locator or {}).get("block_text_sha256") or []
+    document_id = (sec.locator or {}).get("document_id")
+    counter = (sec.locator or {}).get("update_counter")
+    return [
+        {
+            "kind": "document_block",
+            "document_id": document_id,
+            "update_counter": counter,
+            "block_id": b,
+            "text_sha256": texts[i] if i < len(texts) else None,
+        }
+        for i, b in enumerate(blocks)
+    ]
+
+
 def document_sections(captured: cap.Captured) -> list[Section]:
     """The captured document as heading-delimited sections (a section starts at each heading)."""
     sections: list[Section] = []
@@ -604,11 +723,18 @@ def document_sections(captured: cap.Captured) -> list[Section]:
                     extraction="plain",
                     version_id=None,
                     source_name="the open document",
-                    locator={"document_section": title, "block_ids": []},
+                    locator={
+                        "document_section": title,
+                        "block_ids": [],
+                        "block_text_sha256": [],
+                        "document_id": str(captured.document_id),
+                        "update_counter": captured.counter,
+                    },
                 )
             )
         s = sections[-1]
         s.text += b.text + "\n\n"
         s.tokens += max(1, len(b.text) // 3)
         s.locator["block_ids"].append(b.id)
+        s.locator["block_text_sha256"].append(text_sha256(b.text))
     return sections

@@ -160,6 +160,51 @@ export interface Citation {
   quotes?: string[];
   source_removed?: boolean;
   redacted?: boolean;
+  /** true when the text is a summary a MODEL wrote from the file (never source text) */
+  derived?: boolean;
+  derivation?: { kind: "section_summary" | "section_opening"; of?: "file" | "document"; method?: string; prompt?: string; model?: string; input_truncated?: boolean } | null;
+  /** can the lineage be followed back to stored original text? (records only, not whether the original supports the claim) */
+  provenance?: "complete" | "incomplete" | "not_applicable";
+  origin?: { chunk_id?: string; block_id?: string }[];
+}
+
+export interface OriginChunk {
+  kind: "chunk";
+  chunk_id: string;
+  chunk_kind?: string;
+  source_id?: string;
+  source_version_id?: string | null;
+  source_name?: string;
+  file_kind?: string;
+  version_no?: number | null;
+  ordinal?: number;
+  extraction?: string;
+  page_start?: number | null;
+  page_end?: number | null;
+  heading_path?: string[];
+  text: string | null;
+  integrity: "verified" | "changed" | "unavailable";
+}
+
+export interface OriginBlock {
+  kind: "document_block";
+  block_id: string;
+  update_counter?: number | null;
+  text: string | null;
+  integrity: "manifest_copy" | "unavailable";
+}
+
+export interface CitationOrigin {
+  n: number;
+  label: string;
+  kind: string;
+  derived: boolean;
+  derivation: Citation["derivation"];
+  provenance: "complete" | "incomplete" | "not_applicable";
+  extraction: string;
+  origin: (OriginChunk | OriginBlock)[];
+  unavailable: number;
+  source_removed?: boolean;
 }
 
 export type AnswerBlock =
@@ -173,6 +218,8 @@ export type AnswerBlock =
       unsupported: boolean;
       render_status: "ok" | "unchecked" | "failed";
       render_error: string | null;
+      /** relations the diagram draws that the sources do not state */
+      assumptions?: string[];
     };
 
 export interface Coverage {
@@ -186,8 +233,18 @@ export interface Coverage {
     figures_total: number;
     figures_examined: number;
   }[];
-  document?: { mode: string; blocks_total: number; blocks_included: number; captured_update_counter: number; scope: string };
+  document?: {
+    mode: string;
+    blocks_total: number;
+    blocks_included: number;
+    captured_update_counter: number;
+    scope: string;
+    /** what the model saw of the rest of the document (edit requests) */
+    context?: { mode: string; complete: boolean; blocks_total: number; blocks_shown: number; omitted_blocks: number; clipped_blocks: number } | null;
+  };
   chat_messages_included?: number;
+  /** context the request's words asked for but that was not switched on */
+  notices?: { code: string; message: string; action: string }[];
 }
 
 export interface AiResult {
@@ -222,6 +279,10 @@ export interface ProposalChange {
   reason: string;
   citations: number[];
   unsupported: boolean;
+  /** relations a diagram in this change draws that the sources do not state */
+  assumptions?: string[];
+  /** qualifications of the old text the new text may have lost (a reviewer's note, not a verdict) */
+  review_flags?: { code: string; detail: string }[];
 }
 
 export type ProposalState = "pending" | "applying" | "applied" | "rejected" | "conflicted" | "expired" | "superseded";
@@ -242,6 +303,7 @@ export interface ProposalInfo {
     title?: string;
     document?: PMNode;
     block_citations?: number[][];
+    block_assumptions?: string[][];
     unsupported_blocks?: number;
     inserted_chars?: number;
   };
@@ -310,4 +372,5 @@ export const ERROR_TEXT: Record<string, string> = {
   document_busy: "Someone is editing the document right now. Try again in a few seconds.",
   collab_unavailable: "The editing service could not be reached. Nothing was changed; try again.",
   document_not_found: "The document no longer exists.",
+  document_context_unavailable: "The document could not be shown to the AI within its size limit, so no change was proposed instead of a guess.",
 };

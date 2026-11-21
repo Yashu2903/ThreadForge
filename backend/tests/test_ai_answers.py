@@ -784,7 +784,7 @@ async def test_the_context_summary_describes_the_request_without_its_text(world)
     assert (
         ctx["passages"] >= 1
         and ctx["models"]["generation"] == "test-llm"
-        and ctx["prompt_template"] == "answer-v1"
+        and ctx["prompt_template"] == "answer-v2"
     )
     assert "warehouse processed" not in str(ctx) and "Friday" not in str(ctx)
 

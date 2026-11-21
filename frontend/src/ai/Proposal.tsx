@@ -296,6 +296,27 @@ function ChangeView({ c, index, onPick }: { c: ProposalChange; index: number; on
         {index + 1}. {kindLabel(c)}
       </h4>
       {c.reason && <p className="muted small">Why: {c.reason}</p>}
+      {(c.review_flags ?? []).length > 0 && (
+        <div className="review-flags" role="note" aria-label="Check these before applying">
+          <strong>Check before applying: the new text may say something different.</strong>
+          <ul>
+            {(c.review_flags ?? []).map((f) => (
+              <li key={f.code}>{f.detail}</li>
+            ))}
+          </ul>
+          <span className="muted small">This is an automatic word-level check. It can miss a change and it can flag a harmless one.</span>
+        </div>
+      )}
+      {(c.assumptions ?? []).length > 0 && (
+        <div className="assumptions" role="note" aria-label="Assumptions in this diagram">
+          <strong>Assumed, not stated in the sources:</strong>
+          <ul>
+            {(c.assumptions ?? []).map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="small">
         <Cites numbers={c.citations} onPick={onPick} />
         {c.unsupported && <span className="unsupported"> (no citation)</span>}
