@@ -267,7 +267,7 @@ def _status(tokens: list[str]) -> set[str]:
     return found
 
 
-def _figures(text: str) -> set[str]:
+def figures(text: str) -> set[str]:
     """Numbers, amounts, times and dates as normalized strings: '$40,000', '40000 dollars' and 'forty thousand dollars'
     are one figure, and 'noon' is '12:00'."""
     raw = text.lower().replace("’", "'")
@@ -389,7 +389,7 @@ def compare(before: str, after: str) -> list[Flag]:
     if b_attr and not (aw & ATTRIBUTION):
         flags.append(Flag("attribution_dropped", f"“{sorted(b_attr)[0]}” (who said it) is gone"))
 
-    bf, af = _figures(before), _figures(after)
+    bf, af = figures(before), figures(after)
     missing, extra = sorted(bf - af), sorted(af - bf)
     if missing or extra:
         parts = []

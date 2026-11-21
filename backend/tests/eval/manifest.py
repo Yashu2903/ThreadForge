@@ -90,7 +90,17 @@ def sha256_json(obj: Any) -> str:
 
 
 def _git(*args: str) -> str:
-    out = subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=False)  # noqa: S603, S607
+    # utf-8 explicitly: on Windows `text=True` decodes with the ANSI code page, and a diff with a character outside it
+    # (an ellipsis in a prompt) made stdout None and the whole manifest fail
+    out = subprocess.run(  # noqa: S603
+        ["git", *args],  # noqa: S607
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
     # only trailing whitespace goes: `git status --porcelain` lines start with a significant space (" M path")
     return out.stdout.rstrip() if out.returncode == 0 else ""
 
@@ -125,6 +135,11 @@ def prompts_and_schemas() -> dict[str, Any]:
         "answer_schema_and_validation": BACKEND / "app/ai/answer/answer.py",
         "edit_prompts": BACKEND / "app/ai/edit/prompts.py",
         "edit_schema": BACKEND / "app/ai/edit/schema.py",
+        # added 2026-11-20 with answer-v2 / edit-v2: what decides what the model is shown and what is flagged
+        "answer_strategies": BACKEND / "app/ai/answer/strategies.py",
+        "edit_target_and_context": BACKEND / "app/ai/edit/target.py",
+        "edit_generate": BACKEND / "app/ai/edit/generate.py",
+        "edit_qualifiers": BACKEND / "app/ai/edit/qualifiers.py",
     }
     return {
         "answer_prompt_template_version": answer_prompts.PROMPT_TEMPLATE_VERSION,
@@ -150,7 +165,9 @@ def safe_config(settings: Any) -> dict[str, Any]:
     return cfg
 
 
-EVALUATOR_VERSION = "eval-2"
+EVALUATOR_VERSION = (
+    "eval-3"  # eval-3 (2026-11-20): evidence-v1, phrase coverage renamed, citation origins recorded
+)
 # eval-1: runs 1 and 2 (routing known only as "task type classified as expected"; cost shown as 0 when unpriced).
 # eval-2: routing outcomes with numerators and denominators, failed provider calls by category, explicit cost status,
 #         and manifests captured in two stages (start, completion).

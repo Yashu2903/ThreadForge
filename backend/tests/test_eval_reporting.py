@@ -357,7 +357,7 @@ def test_a_manifest_is_captured_in_two_stages_and_the_second_does_not_rewrite_th
         "models_requested",
     ):
         assert field in started["captured_at_start"]
-    assert started["evaluator_version"] == manifest.EVALUATOR_VERSION == "eval-2"
+    assert started["evaluator_version"] == manifest.EVALUATOR_VERSION == "eval-3"
     assert started["retry_and_repair"]["truncated_output_retried"] is False
     assert (
         started["retry_and_repair"]["max_attempts_per_call"] == ai_settings().ai_retry_max_attempts

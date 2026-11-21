@@ -42,9 +42,10 @@ from tests.analysis_helpers import (
     diagram,
 )
 from tests.doc_helpers import room_with_doc
-from tests.eval import corpus, manifest
+from tests.eval import corpus, evidence, manifest
 from tests.eval.corpus import GOLD, Gold
 from tests.eval.metrics import (
+    METRIC_VERSIONS,
     character_accuracy,
     contains,
     failed_calls,
@@ -193,7 +194,8 @@ async def ledger_of(world: World, request_id: str) -> dict[str, Any]:
     }
 
 
-async def evidence_of(world: World, request_id: str) -> list[dict[str, Any]]:
+async def manifest_of(world: World, request_id: str) -> dict[str, Any]:
+    """The request's own manifest: what was sent to the model, written BEFORE the answer was generated."""
     import uuid
 
     got = await rows(
@@ -201,8 +203,88 @@ async def evidence_of(world: World, request_id: str) -> list[dict[str, Any]]:
         "SELECT data FROM ai_manifests WHERE request_id = :r ORDER BY attempt DESC LIMIT 1",
         r=uuid.UUID(request_id),
     )
-    passages = (got[0]["data"].get("passages") or []) if got else []
+    return got[0]["data"] if got else {}
+
+
+async def evidence_of(world: World, request_id: str) -> list[dict[str, Any]]:
+    data = await manifest_of(world, request_id)
+    passages = data.get("passages") or []
     return sorted(passages, key=lambda p: -(p.get("score") or 0.0))
+
+
+def candidates_of(item: Gold, data: dict[str, Any]) -> list[dict[str, Any]]:
+    """The ORIGINAL material the request selected, as recorded in its manifest before any summarization: ranked passages (best
+    first) for the retrieval routes, the sections that were read for a summary, the blocks of the open document for a review.
+    Each carries the locator `evidence.covers` reads, and its full original text where the manifest holds it."""
+    names = {s["source_version_id"]: s["source_name"] for s in data.get("sources", [])}
+    strategy = evidence.STRATEGY_OF_TASK[item.task]
+    out: list[dict[str, Any]] = []
+    if strategy == evidence.RANKED:
+        for rank, p in enumerate(
+            sorted(data.get("passages") or [], key=lambda p: -(p.get("score") or 0.0)), start=1
+        ):
+            loc = p.get("locator") or {}
+            out.append(
+                {
+                    "rank": rank,
+                    "label": p.get("label"),
+                    "source_name": names.get(p.get("source_version_id"), ""),
+                    "page_start": loc.get("page_start"),
+                    "page_end": loc.get("page_end"),
+                    "heading_path": loc.get("heading_path"),
+                    "figure_number": loc.get("figure_number"),
+                    "kind": p.get("kind"),
+                    "extraction": p.get("extraction"),
+                    "score": p.get("score"),
+                    "text": p.get("text"),
+                }
+            )
+    elif strategy == evidence.FULL_SECTIONS:
+        for rank, sec in enumerate(data.get("sections") or [], start=1):
+            out.append(
+                {
+                    "rank": rank,
+                    "label": sec.get("label"),
+                    "source_name": sec.get("source_name")
+                    or names.get(sec.get("source_version_id"), ""),
+                    "page_start": sec.get("page_start"),
+                    "page_end": sec.get("page_end"),
+                    "heading_path": sec.get("heading_path"),
+                    "text": None,  # the section's original chunks are reached through the citation origins
+                    "fallback": sec.get("fallback"),
+                }
+            )
+    else:
+        for i, b in enumerate(((data.get("document") or {}).get("blocks")) or []):
+            out.append(
+                {"rank": i + 1, "block_index": i, "document": "launch-plan", "text": b.get("text")}
+            )
+    return out
+
+
+async def citation_origins(
+    world: World, request_id: str, citations: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Open every citation the way a reader does (GET .../citations/{n}/origin) and keep what came back."""
+    out: dict[str, Any] = {}
+    for c in citations:
+        r = await world.request(world.owner, request_id, f"/citations/{c['n']}/origin")
+        out[str(c["n"])] = r.json() if r.status_code == 200 else {"status": r.status_code}
+    return out
+
+
+def origin_resolves(origins: dict[str, Any], citations: list[dict[str, Any]]) -> bool | None:
+    """STRUCTURE ONLY: does every DERIVED citation open to at least one original text whose stored hash still matches? None when
+    nothing cited is derived. It does not say the originals support the summary."""
+    derived = [c for c in citations if c.get("derived")]
+    if not derived:
+        return None
+    for c in derived:
+        got = origins.get(str(c["n"])) or {}
+        items = got.get("origin") or []
+        if not items or any(i.get("integrity") != "verified" or not i.get("text") for i in items):
+            return False
+    return True
 
 
 async def run_item(world: EvalWorld, item: Gold, uploaded: dict[str, dict]) -> dict[str, Any]:
@@ -244,8 +326,12 @@ async def run_item(world: EvalWorld, item: Gold, uploaded: dict[str, dict]) -> d
         return record
     published = result.json()
     ledger = await ledger_of(world, rid)
-    evidence = await evidence_of(world, rid)
-    texts = [p["text"] for p in evidence]
+    data = await manifest_of(world, rid)
+    passages = await evidence_of(world, rid)
+    texts = [p["text"] for p in passages]
+    candidates = candidates_of(item, data)
+    strategy = evidence.STRATEGY_OF_TASK[item.task]
+    origins = await citation_origins(world, rid, published["citations"])
     citations = published["citations"]
     stats = published["answer"].get("stats", {})
     blocks = published["answer"]["blocks"]
@@ -264,8 +350,24 @@ async def run_item(world: EvalWorld, item: Gold, uploaded: dict[str, dict]) -> d
         "task_ok": published["task_type"] == EXPECTED_TASK[item.task],
         "expected_route": EXPECTED_TASK[item.task],
         "routing": (published.get("coverage") or {}).get("routing"),
+        # REQUIRED-PHRASE COVERAGE (metric phrase-v1): the share of the required phrases found in the top-k evidence passages.
+        # It is a diagnostic, not recall of relevant evidence; `recall` is its deprecated alias, kept so older readers still work.
+        "required_phrase_coverage": {f"@{k}": recall_at_k(texts, item.needles, k) for k in KS}
+        | {"@evidence": recall_at_k(texts, item.needles, len(texts) or 1)},
         "recall": {f"@{k}": recall_at_k(texts, item.needles, k) for k in KS}
         | {"@evidence": recall_at_k(texts, item.needles, len(texts) or 1)},
+        # EVIDENCE RECALL (metric evidence-v1) for ranked routes, evidence COVERAGE for routes that read whole sections or the
+        # whole document: gold evidence units against the original candidates recorded in the manifest before generation
+        "evidence": (
+            evidence.evidence_recall(item.id, candidates)
+            if strategy == evidence.RANKED
+            else evidence.evidence_coverage(item.id, candidates, strategy)
+        ),
+        "candidates": candidates,
+        "citation_origins": origins,
+        "derived_citations_resolve": origin_resolves(origins, citations),
+        "provenance_incomplete": stats.get("provenance_incomplete"),
+        "context_notices": coverage.get("notices") or [],
         "citation_clean": stats.get("invalid_citations", 0) == 0
         and stats.get("dropped_quotes", 0) == 0,
         "answer_calls": ledger["answer_calls"],
@@ -361,6 +463,34 @@ def ratio(f: dict) -> str:
     return f"{f['numerator']}/{f['denominator']} ({pct})"
 
 
+def evidence_lines(ev: dict[str, Any], records: list[dict[str, Any]]) -> list[str]:
+    """Evidence recall (ranked routes) and evidence coverage (whole-section and whole-document routes), kept apart."""
+    v = evidence.EVIDENCE_METRIC_VERSION
+    lines = []
+    for k in ("@1", "@3", "@5", "@all"):
+        r = ev["recall"][k]
+        lines.append(
+            f"| evidence_recall{k} ({v}: share of gold evidence units covered by the top-ranked ORIGINAL passages; "
+            f"{r['items']} ranked items with gold, {r['found_units']}/{r['needed_units']} units pooled) | "
+            f"{fmt(r['mean'], True)} | measured against evidence-gold ({evidence.GOLD_VERSION}) |"
+        )
+    c = ev["coverage"]
+    lines.append(
+        f"| evidence_coverage ({v}: gold units covered by the sections or document READ, unranked; {c['items']} items, "
+        f"{c['found_units']}/{c['needed_units']} units pooled; NOT comparable with recall) | {fmt(c['mean'], True)} | measured |"
+    )
+    lines.append(
+        f"| Derived citations that open to verified original text | "
+        f"{ratio_of([r.get('derived_citations_resolve') for r in records])} | structure only: lineage, not support |"
+    )
+    return lines
+
+
+def ratio_of(flags: list[bool | None]) -> str:
+    applicable = [f for f in flags if f is not None]
+    return f"{sum(1 for f in applicable if f)}/{len(applicable)}" if applicable else "n/a"
+
+
 def build_report(
     mode: str, ocr: float | None, analysis: dict, records: list[dict], run: dict | None = None
 ) -> str:
@@ -370,21 +500,22 @@ def build_report(
     for r in records:
         by_task[r["task"]].append(r)
     latencies = [r["latency_s"] for r in records if "latency_s" in r]
+
+    def pcov(
+        r: dict, k: str
+    ):  # the phrase coverage of a record; results written before 2026-11-20 call it `recall`
+        return (r.get("required_phrase_coverage") or r.get("recall") or {}).get(k)
+
     recall = {
-        k: share(
-            [
-                None if r["recall"][k] is None else r["recall"][k] == 1.0
-                for r in pub
-                if r["recall"][k] is not None
-            ]
-        )
+        k: share([pcov(r, k) == 1.0 for r in pub if pcov(r, k) is not None])
         for k in ("@1", "@3", "@5", "@evidence")
     }
-    # recall as the mean fraction of needles found (finer than "all found")
+    # phrase coverage as the mean fraction of needles found (finer than "all found")
     recall_mean = {
-        k: mean([r["recall"][k] for r in pub if r["recall"][k] is not None])
+        k: mean([pcov(r, k) for r in pub if pcov(r, k) is not None])
         for k in ("@1", "@3", "@5", "@evidence")
     }
+    ev = evidence.summarize_evidence(pub)
     model_note = "stub: NOT a model measurement" if stub else "measured"
     rm = routing_metrics(records)
     lines = [
@@ -397,12 +528,13 @@ def build_report(
         "|---|---|---|",
         f"| Requests that published an answer | {fmt(share([r.get('published') for r in records]), True)} "
         f"({len(pub)}/{len(records)}) | measured (real request pipeline) |",
-        f"| Retrieval recall@1 (mean share of required phrases found) | {fmt(recall_mean['@1'], True)} | "
+        f"| required_phrase_coverage@1 ({METRIC_VERSIONS['required_phrase_coverage']}: mean share of required phrases found in the top-1 evidence passages; NOT retrieval recall) | {fmt(recall_mean['@1'], True)} | "
         f"{'measured: real chunking, SQL full-text and ranking; vector part is a topic-bag stand-in' if stub else 'measured'} |",
-        f"| Retrieval recall@3 | {fmt(recall_mean['@3'], True)} | same |",
-        f"| Retrieval recall@5 | {fmt(recall_mean['@5'], True)} | same |",
-        f"| Evidence recall (anywhere in the evidence sent to the model) | {fmt(recall_mean['@evidence'], True)} | same |",
+        f"| required_phrase_coverage@3 | {fmt(recall_mean['@3'], True)} | same |",
+        f"| required_phrase_coverage@5 | {fmt(recall_mean['@5'], True)} | same |",
+        f"| required_phrase_coverage over all evidence sent to the model | {fmt(recall_mean['@evidence'], True)} | same |",
         f"| Items with every required phrase in the evidence | {fmt(recall['@evidence'], True)} | same |",
+        *evidence_lines(ev, pub),
         f"| OCR character accuracy (3 scanned pages) | {fmt(ocr, True)} | measured (real Tesseract, "
         f"{'identical in both modes' if stub else 'with the vision fallback available'}) |",
         f"| Final route matched the expected route (fallback included) | {ratio(rm['final_route_accuracy'])} | "
@@ -517,6 +649,17 @@ async def test_evaluate(make_actor, sessionmaker, tmp_path, redis_prefix):
             "gold_sha256": manifest.sha256_json(list(GOLD)),
             "corpus_py_sha256": manifest.sha256_file(Path(corpus.__file__)),
             "sources_sha256": {n: manifest.sha256_bytes(b) for n, b in corpus.sources().items()},
+            # added 2026-11-20: the evidence gold, the identity of the fixtures it names and the metric versions. A run
+            # that reports `evidence-v1` numbers is only comparable with another that has the same fingerprint.
+            "evidence_gold": {
+                "version": evidence.GOLD_VERSION,
+                "fingerprint": evidence.gold_fingerprint(),
+                "fixtures": evidence.FIXTURE_VERSION,
+                "fixture_identity": evidence.corpus_identity(),
+                "strategies": evidence.STRATEGY_OF_TASK,
+                "policies": evidence.policies(),
+            },
+            "metric_versions": METRIC_VERSIONS,
         },
     )
     started = dt.datetime.fromisoformat(run_manifest["started_utc"])

@@ -46,14 +46,33 @@ def character_accuracy(truth: str, got: str) -> float:
     return max(0.0, 1.0 - edit_distance(t, g) / len(t))
 
 
+# THE TWO RETRIEVAL-RELATED MEASURES AND THEIR VERSIONS. Both are recorded in every run's manifest and report so that a number is
+# never read under the other's name. Results written before 2026-11-20 call the first one "recall"; it is the same computation
+# (`recall` is kept as a deprecated alias of `required_phrase_coverage` in the records).
+METRIC_VERSIONS = {
+    "required_phrase_coverage": "phrase-v1",  # share of required phrases found in the top-k evidence passages (a diagnostic)
+    "evidence_recall": "evidence-v1",  # share of gold evidence units covered by the top-k ranked ORIGINAL candidates (tests/eval/evidence.py)
+}
+
+
 def recall_at_k(ranked_texts: Sequence[str], needles: Iterable[str], k: int) -> float | None:
-    """Share of the needles found in the first k ranked passages. None when there is nothing to find."""
+    """REQUIRED-PHRASE COVERAGE at k (metric `phrase-v1`; historically named "recall"): the share of the required phrases
+    found in the first k ranked passages. None when there is nothing to find. It is NOT recall of relevant evidence: a
+    paraphrase that answers the question scores 0, and an irrelevant passage that contains the phrase scores 1. For that,
+    see `tests/eval/evidence.py` (`evidence-v1`)."""
     wanted = list(needles)
     if not wanted:
         return None
     top = ranked_texts[:k]
     found = sum(1 for n in wanted if any(contains(t, n) for t in top))
     return found / len(wanted)
+
+
+def required_phrase_coverage_at_k(
+    ranked_texts: Sequence[str], needles: Iterable[str], k: int
+) -> float | None:
+    """The accurate name of `recall_at_k` (same computation, metric `phrase-v1`)."""
+    return recall_at_k(ranked_texts, needles, k)
 
 
 def percentile(values: Sequence[float], q: float) -> float | None:
