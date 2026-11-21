@@ -101,8 +101,12 @@ def diagram_source(node: dict[str, Any]) -> str:
 
 
 def is_note(node: dict[str, Any]) -> bool:
-    from app.ai.edit.schema import ASSUMPTION_NOTE
-
+    try:
+        from app.ai.edit.schema import ASSUMPTION_NOTE
+    except (
+        ImportError
+    ):  # a build from before the note existed (the baseline run): it never wrote one
+        ASSUMPTION_NOTE = "Assumed, not stated in the source: "
     return node.get("type") == "paragraph" and sentence_text([node]).startswith(
         ASSUMPTION_NOTE.strip()
     )

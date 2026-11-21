@@ -55,28 +55,132 @@ SAMPLE: list[tuple[str, str, str, str, str]] = [
     ("A2", "answer", "answer", "figure-handbook", "Question about a figure (qa, figure)"),
     ("A3", "answer", "answer", "summarize-release", "Summary (summarize): derived citations"),
     ("A4", "answer", "answer", "compare-depots-release", "Comparison of two files (compare)"),
-    ("A5", "answer", "answer", "review-launch-plan", "Review of the open document (document_review)"),
+    (
+        "A5",
+        "answer",
+        "answer",
+        "review-launch-plan",
+        "Review of the open document (document_review)",
+    ),
     ("A6", "answer", "answer", "diagram-release", "Diagram request: build and deploy"),
-    ("A7", "historical-answer", "postfix_answer", "diagram-release", "Same request in the earlier run at default effort (routed summarize)"),
+    (
+        "A7",
+        "historical-answer",
+        "postfix_answer",
+        "diagram-release",
+        "Same request in the earlier run at default effort (routed summarize)",
+    ),
     ("A8", "answer", "answer", "diagram-architecture", "Diagram of a figure"),
     ("P1", "proposal", "proposal", "edit-rewrite", "Edit: rewrite one paragraph"),
-    ("P2", "proposal", "proposal", "edit-insert-from-release", "Edit: insert blocks drawn from a source"),
+    (
+        "P2",
+        "proposal",
+        "proposal",
+        "edit-insert-from-release",
+        "Edit: insert blocks drawn from a source",
+    ),
     ("P3", "proposal", "proposal", "edit-delete", "Edit: delete a block"),
     ("P4", "proposal", "proposal", "edit-diagram", "Edit: insert a diagram"),
-    ("P5", "proposal", "proposal", "edit-two-operations", "Edit: two operations (a tightened sentence and a note)"),
+    (
+        "P5",
+        "proposal",
+        "proposal",
+        "edit-two-operations",
+        "Edit: two operations (a tightened sentence and a note)",
+    ),
     ("P6", "proposal", "proposal", "draft-proposal", "Draft: a new document from a source"),
-    ("P7", "proposal", "proposal", "edit-end-summary", "Edit: a closing summary (the review's P7, re-run on the new build)"),
-    ("P7h", "historical-proposal", "run1_proposal", "edit-end-summary", "The review's P7 as it was in run 1 (repaired reply)"),
-    ("P8h", "historical-proposal", "run2_proposal", "edit-diagram", "The review's P8 as it was in run 2 (repaired reply)"),
-    ("Q1", "quality", "quality_dev", "closing-summary-atlas", "Closing summary of a document with several facts (dev)"),
+    (
+        "P7",
+        "proposal",
+        "proposal",
+        "edit-end-summary",
+        "Edit: a closing summary (the review's P7, re-run on the new build)",
+    ),
+    (
+        "P7h",
+        "historical-proposal",
+        "run1_proposal",
+        "edit-end-summary",
+        "The review's P7 as it was in run 1 (repaired reply)",
+    ),
+    (
+        "P8h",
+        "historical-proposal",
+        "run2_proposal",
+        "edit-diagram",
+        "The review's P8 as it was in run 2 (repaired reply)",
+    ),
+    (
+        "Q1",
+        "quality",
+        "quality_dev",
+        "closing-summary-atlas",
+        "Closing summary of a document with several facts (dev)",
+    ),
     ("Q2", "quality", "quality_heldout", "closing-summary-hiring", "Closing summary (held-out)"),
-    ("Q3", "quality", "quality_dev", "rewrite-qualified-dev", "Rewrites that must keep qualifications (dev)"),
-    ("Q4", "quality", "quality_heldout", "rewrite-qualified-heldout", "Rewrites that must keep qualifications (held-out)"),
-    ("Q5", "quality", "quality_heldout", "diagram-onboarding-answer", "Diagram of steps whose order is not stated: answer (held-out)"),
-    ("Q6", "quality", "quality_heldout", "diagram-onboarding-edit", "Diagram of steps whose order is not stated: proposal (held-out)"),
-    ("Q7", "quality", "quality_heldout", "summarize-onboarding", "Summary with derived citations (held-out)"),
-    ("Q8", "quality", "quality_dev", "review-launch-risks", "Review wording: a stated effect (dev)"),
-    ("Q9", "quality", "quality_dev", "missing-context-review", "A request about the document that did not include it (dev)"),
+    (
+        "Q3",
+        "quality",
+        "quality_dev",
+        "rewrite-qualified-dev",
+        "Rewrites that must keep qualifications (dev)",
+    ),
+    (
+        "Q4",
+        "quality",
+        "quality_heldout",
+        "rewrite-qualified-heldout",
+        "Rewrites that must keep qualifications (held-out)",
+    ),
+    (
+        "Q5",
+        "quality",
+        "quality_heldout",
+        "diagram-onboarding-answer",
+        "Diagram of steps whose order is not stated: answer (held-out)",
+    ),
+    (
+        "Q6",
+        "quality",
+        "quality_heldout",
+        "diagram-onboarding-edit",
+        "Diagram of steps whose order is not stated: proposal (held-out)",
+    ),
+    (
+        "Q7",
+        "quality",
+        "quality_heldout",
+        "summarize-onboarding",
+        "Summary with derived citations (held-out)",
+    ),
+    (
+        "Q8",
+        "quality",
+        "quality_dev",
+        "review-launch-risks",
+        "Review wording: a stated effect (dev)",
+    ),
+    (
+        "Q9",
+        "quality",
+        "quality_dev",
+        "missing-context-review",
+        "A request about the document that did not include it (dev)",
+    ),
+    (
+        "Q10",
+        "quality",
+        "quality_heldout",
+        "compare-handbook-scan",
+        "Comparison that must address both selected files (held-out)",
+    ),
+    (
+        "Q11",
+        "quality",
+        "quality_heldout",
+        "draft-onboarding-welcome",
+        "Draft that must fulfil its purpose (held-out)",
+    ),
 ]
 
 # Where an item exists in the earlier runs too, its earlier output is shown for comparison (build 0fe9a95, the one that was reviewed).
@@ -116,6 +220,8 @@ FIXTURES_OF = {
     "summarize-onboarding": ["onboarding.md"],
     "review-launch-risks": ["launch-plan.md"],
     "missing-context-review": ["release.md"],
+    "compare-handbook-scan": ["handbook.docx", "march-scan-page-1.png"],
+    "draft-onboarding-welcome": ["onboarding.md"],
 }
 
 # AGENT ASSESSMENTS: my own reading of each output, written by hand after the run and labelled as such in every item. Filled in
@@ -165,21 +271,29 @@ def render_node(node: dict[str, Any], depth: int = 0) -> list[str]:
     kind = node.get("type")
     pad = "  " * depth
     if kind == "heading":
-        return [f"{'#' * min(6, int((node.get('attrs') or {}).get('level') or 1) + 3)} {node_text(node)}"]
+        return [
+            f"{'#' * min(6, int((node.get('attrs') or {}).get('level') or 1) + 3)} {node_text(node)}"
+        ]
     if kind == "diagram":
         return [fence(node_text(node), "mermaid")]
     if kind in ("bulletList", "orderedList"):
         out = []
         for i, item in enumerate(node.get("content") or [], start=1):
             marker = "-" if kind == "bulletList" else f"{i}."
-            first, *rest = [t for child in item.get("content") or [] for t in render_node(child, depth + 1)] or [""]
+            first, *rest = [
+                t for child in item.get("content") or [] for t in render_node(child, depth + 1)
+            ] or [""]
             out.append(f"{pad}{marker} {first.strip()}")
             out += [f"{pad}  {r.strip()}" for r in rest]
         return out
     if kind == "table":
         rows = []
         for r in node.get("content") or []:
-            rows.append("| " + " | ".join(node_text(c).replace("|", "\\|") for c in r.get("content") or []) + " |")
+            rows.append(
+                "| "
+                + " | ".join(node_text(c).replace("|", "\\|") for c in r.get("content") or [])
+                + " |"
+            )
         if rows:
             rows.insert(1, "|" + "---|" * (rows[0].count("|") - 1))
         return rows
@@ -200,23 +314,36 @@ def render_blocks(nodes: list[dict[str, Any]]) -> str:
     return "\n".join(lines).strip() or "(nothing)"
 
 
+def cite_marks(nums: list[int]) -> str:
+    return (
+        ("  *(cites " + ", ".join(f"[{n}]" for n in nums) + ")*") if nums else "  *(no citation)*"
+    )
+
+
 def answer_blocks_md(answer: dict[str, Any], citations_by_n: dict[int, dict]) -> str:
     out: list[str] = []
     for b in answer.get("blocks", []):
-        marks = lambda nums: ("  *(cites " + ", ".join(f"[{n}]" for n in nums) + ")*") if nums else "  *(no citation)*"  # noqa: E731
         if b["type"] == "paragraph":
-            out.append(b["text"] + marks(b.get("citations") or []))
+            out.append(b["text"] + cite_marks(b.get("citations") or []))
         elif b["type"] == "bullet_list":
-            out += [f"- {it['text']}{marks(it.get('citations') or [])}" for it in b["items"]]
+            out += [f"- {it['text']}{cite_marks(it.get('citations') or [])}" for it in b["items"]]
         else:
-            out.append(f"**Diagram: {b.get('title') or 'untitled'}** (render status: {b.get('render_status')}; cites {b.get('citations') or 'nothing'})")
+            out.append(
+                f"**Diagram: {b.get('title') or 'untitled'}** (render status: {b.get('render_status')}; cites {b.get('citations') or 'nothing'})"
+            )
             out.append(fence(b["mermaid"], "mermaid"))
             if b.get("assumptions"):
-                out.append("**Assumed, not stated in the sources** (shown with the diagram):\n" + "\n".join(f"- {a}" for a in b["assumptions"]))
+                out.append(
+                    "**Assumed, not stated in the sources** (shown with the diagram):\n"
+                    + "\n".join(f"- {a}" for a in b["assumptions"])
+                )
         out.append("")
     gaps = answer.get("evidence_gaps") or []
     if gaps:
-        out.append("**Not found in the sources** (the model's own list of gaps):\n" + "\n".join(f"- {g}" for g in gaps))
+        out.append(
+            "**Not found in the sources** (the model's own list of gaps):\n"
+            + "\n".join(f"- {g}" for g in gaps)
+        )
     return "\n".join(out).strip()
 
 
@@ -231,13 +358,25 @@ def sources_md(coverage: dict[str, Any], manifest: dict[str, Any] | None = None)
     rows = []
     versions = {s["source_version_id"]: s for s in (manifest or {}).get("sources", [])}
     for s in coverage.get("sources") or []:
-        rows.append(f"`{s['source_name']}` version {s.get('version_no')} (`{s.get('source_version_id')}`), read as **{s.get('mode')}**: "
-                    f"{s.get('sections_read')} of {s.get('sections_total')} sections"
-                    + (f", {s.get('passages_used')} passages used" if s.get("passages_used") is not None else "")
-                    + (f", {s.get('figures_examined')} of {s.get('figures_total')} figures examined" if s.get("figures_total") else ""))
+        rows.append(
+            f"`{s['source_name']}` version {s.get('version_no')} (`{s.get('source_version_id')}`), read as **{s.get('mode')}**: "
+            f"{s.get('sections_read')} of {s.get('sections_total')} sections"
+            + (
+                f", {s.get('passages_used')} passages used"
+                if s.get("passages_used") is not None
+                else ""
+            )
+            + (
+                f", {s.get('figures_examined')} of {s.get('figures_total')} figures examined"
+                if s.get("figures_total")
+                else ""
+            )
+        )
     if not rows:
         for v in versions.values():
-            rows.append(f"`{v['source_name']}` version {v.get('version_no')} (`{v['source_version_id']}`)")
+            rows.append(
+                f"`{v['source_name']}` version {v.get('version_no')} (`{v['source_version_id']}`)"
+            )
     return "\n".join(f"  * {r}" for r in rows) if rows else "  none selected"
 
 
@@ -258,9 +397,11 @@ def document_md(coverage: dict[str, Any], manifest: dict[str, Any] | None = None
         bits.append(f"content hash `{m['content_hash'][:16]}…`")
     s = ", ".join(b for b in bits if b)
     if ctx:
-        s += (f"; context shown to the model: **{ctx.get('mode')}** ({'complete' if ctx.get('complete') else 'PARTIAL'}), "
-              f"{ctx.get('blocks_shown')} of {ctx.get('blocks_total')} blocks, {ctx.get('omitted_blocks', 0)} not shown, "
-              f"{ctx.get('clipped_blocks', 0)} cut short")
+        s += (
+            f"; context shown to the model: **{ctx.get('mode')}** ({'complete' if ctx.get('complete') else 'PARTIAL'}), "
+            f"{ctx.get('blocks_shown')} of {ctx.get('blocks_total')} blocks, {ctx.get('omitted_blocks', 0)} not shown, "
+            f"{ctx.get('clipped_blocks', 0)} cut short"
+        )
     return s
 
 
@@ -271,7 +412,10 @@ def passages_md(candidates: list[dict[str, Any]], strategy_note: str) -> str:
     for c in candidates:
         place = []
         if c.get("page_start"):
-            place.append(f"page {c['page_start']}" + (f"-{c['page_end']}" if c.get("page_end") not in (None, c["page_start"]) else ""))
+            place.append(
+                f"page {c['page_start']}"
+                + (f"-{c['page_end']}" if c.get("page_end") not in (None, c["page_start"]) else "")
+            )
         if c.get("figure_number"):
             place.append(f"figure {c['figure_number']}")
         if c.get("heading_path"):
@@ -282,7 +426,11 @@ def passages_md(candidates: list[dict[str, Any]], strategy_note: str) -> str:
         head += (" · " + ", ".join(place)) if place else ""
         head += f" · extraction: {c.get('extraction')}" if c.get("extraction") else ""
         out.append(head)
-        out.append(quote(c["text"]) if c.get("text") else "> (the text of this section is reached through the citations below)")
+        out.append(
+            quote(c["text"])
+            if c.get("text")
+            else "> (the text of this section is reached through the citations below)"
+        )
         out.append("")
     return "\n".join(out)
 
@@ -297,42 +445,112 @@ def citations_md(item_dir: str, result: dict[str, Any] | None, origins: dict[str
         loc = c.get("locator") or {}
         where = []
         if loc.get("page_start"):
-            where.append(f"page {loc['page_start']}" + (f"-{loc['page_end']}" if loc.get("page_end") not in (None, loc["page_start"]) else ""))
+            where.append(
+                f"page {loc['page_start']}"
+                + (
+                    f"-{loc['page_end']}"
+                    if loc.get("page_end") not in (None, loc["page_start"])
+                    else ""
+                )
+            )
         if loc.get("figure_number"):
             where.append(f"figure {loc['figure_number']}")
         if loc.get("heading_path"):
             where.append(" > ".join(loc["heading_path"]))
-        out.append(f"#### [{c['n']}] `{c['label']}` · {c.get('kind')} · `{c.get('source_name') or 'the open document'}`" + (f" · {', '.join(where)}" if where else ""))
+        out.append(
+            f"#### [{c['n']}] `{c['label']}` · {c.get('kind')} · `{c.get('source_name') or 'the open document'}`"
+            + (f" · {', '.join(where)}" if where else "")
+        )
         derived = c.get("derived")
-        out.append(kv([
-            ("What the reader sees as the excerpt", ("**DERIVED: a summary written by the model, shown as such, never as a quotation**" if derived else "text of the cited passage")),
-            ("Extraction", c.get("extraction")),
-            ("Machine-generated", "yes (OCR, vision or figure description)" if c.get("machine_generated") else None),
-            ("Provenance recorded", c.get("provenance", "unavailable (this run predates provenance records)")),
-            ("Derivation", json.dumps(c.get("derivation")) if c.get("derivation") else None),
-            ("Validated quotations", "; ".join(f"“{q}”" for q in c.get("quotes") or []) or None),
-        ]))
+        out.append(
+            kv(
+                [
+                    (
+                        "What the reader sees as the excerpt",
+                        (
+                            "**DERIVED: a summary written by the model, shown as such, never as a quotation**"
+                            if derived
+                            else "text of the cited passage"
+                        ),
+                    ),
+                    ("Extraction", c.get("extraction")),
+                    (
+                        "Machine-generated",
+                        "yes (OCR, vision or figure description)"
+                        if c.get("machine_generated")
+                        else None,
+                    ),
+                    (
+                        "Provenance recorded",
+                        c.get("provenance", "unavailable (this run predates provenance records)"),
+                    ),
+                    (
+                        "Derivation",
+                        json.dumps(c.get("derivation")) if c.get("derivation") else None,
+                    ),
+                    (
+                        "Validated quotations",
+                        "; ".join(f"“{q}”" for q in c.get("quotes") or []) or None,
+                    ),
+                ]
+            )
+        )
         if c.get("excerpt"):
-            out.append(("**Model-written summary** shown to the reader:\n" if derived else "Excerpt shown to the reader (the first 300 characters the system keeps):\n") + quote(c["excerpt"]))
+            out.append(
+                (
+                    "**Model-written summary** shown to the reader:\n"
+                    if derived
+                    else "Excerpt shown to the reader (the first 300 characters the system keeps):\n"
+                )
+                + quote(c["excerpt"])
+            )
         got = origins.get(n)
         if got is None:
-            out.append("**Original evidence:** unavailable: this run did not open the citation's origin.")
+            out.append(
+                "**Original evidence:** unavailable: this run did not open the citation's origin."
+            )
         elif "origin" not in got:
-            out.append(f"**Original evidence:** unavailable (the origin route answered {got.get('status')}).")
+            out.append(
+                f"**Original evidence:** unavailable (the origin route answered {got.get('status')})."
+            )
         else:
             for i, o in enumerate(got["origin"], start=1):
                 if o["kind"] == "chunk":
-                    pg = f"page {o['page_start']}" + (f"-{o['page_end']}" if o.get("page_end") not in (None, o["page_start"]) else "") if o.get("page_start") else None
-                    head = f"**Original text {i} of {len(got['origin'])}** · `{o.get('source_name')}` version {o.get('version_no')} · " + ", ".join(
-                        x for x in (pg, " > ".join(o.get("heading_path") or []) or None, f"part {o.get('ordinal', 0) + 1}", f"extraction: {o.get('extraction')}") if x
-                    ) + f" · stored-text check: **{o.get('integrity')}**"
+                    pg = (
+                        f"page {o['page_start']}"
+                        + (
+                            f"-{o['page_end']}"
+                            if o.get("page_end") not in (None, o["page_start"])
+                            else ""
+                        )
+                        if o.get("page_start")
+                        else None
+                    )
+                    head = (
+                        f"**Original text {i} of {len(got['origin'])}** · `{o.get('source_name')}` version {o.get('version_no')} · "
+                        + ", ".join(
+                            x
+                            for x in (
+                                pg,
+                                " > ".join(o.get("heading_path") or []) or None,
+                                f"part {o.get('ordinal', 0) + 1}",
+                                f"extraction: {o.get('extraction')}",
+                            )
+                            if x
+                        )
+                        + f" · stored-text check: **{o.get('integrity')}**"
+                    )
                     out.append(head)
                     out.append(quote(o["text"]) if o.get("text") else "> (text not available)")
                 else:
-                    out.append(f"**Original text {i} of {len(got['origin'])}** · the open document block `{o.get('block_id')}` as captured (update {o.get('update_counter')}): **{o.get('integrity')}**")
+                    out.append(
+                        f"**Original text {i} of {len(got['origin'])}** · the open document block `{o.get('block_id')}` as captured (update {o.get('update_counter')}): **{o.get('integrity')}**"
+                    )
                     out.append(quote(o["text"]) if o.get("text") else "> (text not available)")
         if c.get("figure_chunk_id"):
-            out.append("Original figure image: see `../fixtures/architecture-figure.png` (the figure this citation points to, generated by `tests/analysis_files.py`).")
+            out.append(
+                "Original figure image: see `../fixtures/architecture-figure.png` (the figure this citation points to, generated by `tests/analysis_files.py`)."
+            )
         out.append("")
     return "\n".join(out)
 
@@ -342,37 +560,124 @@ def automated_md(kind: str, rec: dict[str, Any]) -> str:
     if kind in ("answer", "historical-answer"):
         rows += [
             ("Published", "the request produced a published answer", rec.get("published")),
-            ("Route", "what the model's classification chose, and what the request finally ran as (fallback included)", json.dumps({k: (rec.get("routing") or {}).get(k) for k in ("model_route", "final_route", "fallback_used")})),
-            ("required_phrase_coverage (phrase-v1)", "share of the item's required phrases found in the top-k evidence passages; a DIAGNOSTIC, not retrieval recall (a paraphrase scores 0; a phrase in an irrelevant passage scores 1)", json.dumps(rec.get("required_phrase_coverage") or rec.get("recall"))),
-            ("evidence (evidence-v1)", "gold evidence units (page / section / figure) covered by the top-ranked ORIGINAL candidates (recall@k) or by the sections/document read (coverage, unranked); see tests/eval/evidence.py", json.dumps(rec.get("evidence")) if rec.get("evidence") else "unavailable in this run"),
-            ("Citations without an invalid reference or dropped quote", "the system's own validation: every cited label exists, every quote occurs in its passage; does NOT require citing anything", rec.get("citation_clean")),
-            ("Cites the expected source(s)", "string check on the cited source names", rec.get("cites_expected_sources")),
-            ("Cited text contains the required phrase", "string check on the 300-character excerpts (a model-written summary can never contain a source phrase verbatim)", rec.get("cited_text_has_needles")),
-            ("Derived citations open to verified original text", "STRUCTURE only: every derived citation has an origin whose stored text hash still matches; says nothing about support", rec.get("derived_citations_resolve")),
-            ("Provenance incomplete (count)", "citations whose lineage cannot be followed to stored original text", rec.get("provenance_incomplete")),
-            ("Diagram published / renders", "a diagram block exists / its Mermaid parses (SYNTAX only)", f"{rec.get('diagram_published')} / {rec.get('diagram_renders')}"),
-            ("Diagram draws directed relations / says they are assumed", "what the output SAID about order (its assumptions, gaps); cannot tell whether it is true", f"{rec.get('diagram_draws_order')} / {rec.get('diagram_order_disclosed')}"),
-            ("Latency (s) / failed provider calls", "end to end for this request / calls that did not succeed", f"{round(rec['latency_s'], 1) if rec.get('latency_s') else 'n/a'} / {(rec.get('ledger') or {}).get('failed_calls')}"),
+            (
+                "Route",
+                "what the model's classification chose, and what the request finally ran as (fallback included)",
+                json.dumps(
+                    {
+                        k: (rec.get("routing") or {}).get(k)
+                        for k in ("model_route", "final_route", "fallback_used")
+                    }
+                ),
+            ),
+            (
+                "required_phrase_coverage (phrase-v1)",
+                "share of the item's required phrases found in the top-k evidence passages; a DIAGNOSTIC, NOT retrieval recall (a paraphrase scores 0; a phrase in an irrelevant passage scores 1)",
+                json.dumps(rec.get("required_phrase_coverage") or rec.get("recall")),
+            ),
+            (
+                "evidence (evidence-v1)",
+                "gold evidence units (page / section / figure) covered by the top-ranked ORIGINAL candidates (recall@k) or by the sections/document read (coverage, unranked); see tests/eval/evidence.py",
+                json.dumps(rec.get("evidence"))
+                if rec.get("evidence")
+                else "unavailable in this run",
+            ),
+            (
+                "Citations without an invalid reference or dropped quote",
+                "the system's own validation: every cited label exists, every quote occurs in its passage; does NOT require citing anything",
+                rec.get("citation_clean"),
+            ),
+            (
+                "Cites the expected source(s)",
+                "string check on the cited source names",
+                rec.get("cites_expected_sources"),
+            ),
+            (
+                "Cited text contains the required phrase",
+                "string check on the 300-character excerpts (a model-written summary can never contain a source phrase verbatim)",
+                rec.get("cited_text_has_needles"),
+            ),
+            (
+                "Derived citations open to verified original text",
+                "STRUCTURE only: every derived citation has an origin whose stored text hash still matches; says nothing about support",
+                rec.get("derived_citations_resolve"),
+            ),
+            (
+                "Provenance incomplete (count)",
+                "citations whose lineage cannot be followed to stored original text",
+                rec.get("provenance_incomplete"),
+            ),
+            (
+                "Diagram published / renders",
+                "a diagram block exists / its Mermaid parses (SYNTAX only)",
+                f"{rec.get('diagram_published')} / {rec.get('diagram_renders')}",
+            ),
+            (
+                "Diagram draws directed relations / says they are assumed",
+                "what the output SAID about order (its assumptions, gaps); cannot tell whether it is true",
+                f"{rec.get('diagram_draws_order')} / {rec.get('diagram_order_disclosed')}",
+            ),
+            (
+                "Latency (s) / failed provider calls",
+                "end to end for this request / calls that did not succeed",
+                f"{round(rec['latency_s'], 1) if rec.get('latency_s') else 'n/a'} / {(rec.get('ledger') or {}).get('failed_calls')}",
+            ),
         ]
     elif kind in ("proposal", "historical-proposal"):
         rows += [
             ("Published", "the request produced a pending proposal", rec.get("published")),
-            ("Valid on the first reply / repaired", "the first reply passed the shared document engine / one repair was used (codes of the first problems)", f"{rec.get('first_try_valid')} / {rec.get('repaired')} ({', '.join(rec.get('problems') or []) or 'none'})"),
-            ("Target blocks and anchors resolve", "the base hashes and anchors still match the captured document and a replay of the operations is valid", rec.get("resolves")),
-            ("Citation validity", "share of operations or blocks whose citations are valid (not a check of support)", rec.get("citation_valid")),
-            ("Qualification review flags", "the app's word-level review notes on rewrites (hedges, state of the work, negation, conditions, attribution, figures); a note, never a verdict", json.dumps(rec.get("review_flags")) if "review_flags" in rec else "unavailable in this run"),
-            ("Latency (s)", "end to end", round(rec["latency_s"], 1) if rec.get("latency_s") else "n/a"),
+            (
+                "Valid on the first reply / repaired",
+                "the first reply passed the shared document engine / one repair was used (codes of the first problems)",
+                f"{rec.get('first_try_valid')} / {rec.get('repaired')} ({', '.join(rec.get('problems') or []) or 'none'})",
+            ),
+            (
+                "Target blocks and anchors resolve",
+                "the base hashes and anchors still match the captured document and a replay of the operations is valid",
+                rec.get("resolves"),
+            ),
+            (
+                "Citation validity",
+                "share of operations or blocks whose citations are valid (not a check of support)",
+                rec.get("citation_valid"),
+            ),
+            (
+                "Qualification review flags",
+                "the app's word-level review notes on rewrites (hedges, state of the work, negation, conditions, attribution, figures); a note, never a verdict",
+                json.dumps(rec.get("review_flags"))
+                if "review_flags" in rec
+                else "unavailable in this run",
+            ),
+            (
+                "Latency (s)",
+                "end to end",
+                round(rec["latency_s"], 1) if rec.get("latency_s") else "n/a",
+            ),
         ]
     else:
         s = rec["score"]
         rows += [
             ("Finding", "the finding this item tests (tests/eval/quality.py)", rec["finding"]),
-            ("Finding met", "this item against its finding's criterion, from the structural and semantic results below (NOT a human judgement)", s["finding_met"]),
+            (
+                "Finding met",
+                "this item against its finding's criterion, from the structural and semantic results below (NOT a human judgement)",
+                s["finding_met"],
+            ),
             ("Why", "the checks behind the verdict", "; ".join(s["explain"])),
-            ("Structural", "valid, rendered, cited: says the output is VALID", json.dumps(s["structural"])),
-            ("Semantic", "deterministic content checks against a written rubric: concepts present, figures not in the material, placeholder, order disclosed, labels possibly invented", json.dumps(s["semantic"], default=str)),
+            (
+                "Structural",
+                "valid, rendered, cited: says the output is VALID",
+                json.dumps(s["structural"]),
+            ),
+            (
+                "Semantic",
+                "deterministic content checks against a written rubric: concepts present, figures not in the material, placeholder, order disclosed, labels possibly invented",
+                json.dumps(s["semantic"], default=str),
+            ),
         ]
-    return "| Check | What it is | Result |\n|---|---|---|\n" + "\n".join(f"| {a} | {b} | {str(c).replace('|', '/')} |" for a, b, c in rows)
+    return "| Check | What it is | Result |\n|---|---|---|\n" + "\n".join(
+        f"| {a} | {b} | {str(c).replace('|', '/')} |" for a, b, c in rows
+    )
 
 
 HUMAN = """| Field | Your assessment |
@@ -399,7 +704,9 @@ def fixtures_md(rid: str) -> str:
 # ---- one item -------------------------------------------------------------------------------------------------------------------
 
 
-def render_item(item_id: str, kind: str, run: str, rid: str, heading: str, runs: dict[str, dict]) -> str | None:
+def render_item(
+    item_id: str, kind: str, run: str, rid: str, heading: str, runs: dict[str, dict]
+) -> str | None:
     rec = runs.get(run, {}).get(rid)
     if rec is None:
         return None
@@ -407,13 +714,28 @@ def render_item(item_id: str, kind: str, run: str, rid: str, heading: str, runs:
     run_manifest = manifest_of(run)
     code = (run_manifest.get("code") or {}).get("commit", "unavailable")
     head = [f"# {item_id} · {heading}", ""]
-    meta = kv([
-        ("Item", f"`{rid}`"),
-        ("Run", f"`{RUNS[run]}`" + (" (HISTORICAL: the build that was reviewed; some evidence was not recorded then)" if historical else "")),
-        ("Code of that run", f"`{code[:10]}`" if code != "unavailable" else "unavailable"),
-        ("Request id", f"`{rec.get('request_id')}`" if rec.get("request_id") else "`not recorded` (this run did not keep it)"),
-        ("Outcome", rec.get("outcome")),
-    ])
+    meta = kv(
+        [
+            ("Item", f"`{rid}`"),
+            (
+                "Run",
+                f"`{RUNS[run]}`"
+                + (
+                    " (HISTORICAL: the build that was reviewed; some evidence was not recorded then)"
+                    if historical
+                    else ""
+                ),
+            ),
+            ("Code of that run", f"`{code[:10]}`" if code != "unavailable" else "unavailable"),
+            (
+                "Request id",
+                f"`{rec.get('request_id')}`"
+                if rec.get("request_id")
+                else "`not recorded` (this run did not keep it)",
+            ),
+            ("Outcome", rec.get("outcome")),
+        ]
+    )
     out = head + [meta, ""]
     result = rec.get("result") if isinstance(rec.get("result"), dict) else None
     coverage = (result or {}).get("coverage") or rec.get("coverage") or {}
@@ -422,19 +744,58 @@ def render_item(item_id: str, kind: str, run: str, rid: str, heading: str, runs:
     gold_a = next((g for g in corpus.GOLD if g.id == rid), None)
     gold_p = next((g for g in PGOLD if g.id == rid), None)
     qi = next((i for i in quality.ITEMS if i.id == rid), None)
-    instruction = rec.get("instruction") or (gold_a.instruction if gold_a else gold_p.instruction if gold_p else qi.instruction if qi else "unavailable")
-    out += ["## 1. The request", "", f"**Instruction, exactly as sent:**", "", quote(instruction), ""]
+    instruction = rec.get("instruction") or (
+        gold_a.instruction
+        if gold_a
+        else gold_p.instruction
+        if gold_p
+        else qi.instruction
+        if qi
+        else "unavailable"
+    )
+    out += [
+        "## 1. The request",
+        "",
+        "**Instruction, exactly as sent:**",
+        "",
+        quote(instruction),
+        "",
+    ]
     routing = rec.get("routing") or coverage.get("routing")
     target = rec.get("target")
-    out.append(kv([
-        ("Operation", "answer in chat" if kind in ("answer", "historical-answer") or (kind == "quality" and rec.get("kind") == "answer") else (rec.get("kind") or ("edit" if "edit" in rid else "draft"))),
-        ("Route", f"the model chose `{routing.get('model_route')}`, the request ran as `{routing.get('final_route')}` (fallback used: {'yes' if routing.get('fallback_used') else 'no'}; hint `{routing.get('hint')}`)" if routing else None),
-        ("Target of the edit", json.dumps(target) if target else None),
-        ("Sources selected", None),
-    ]))
-    out += ["* **Sources selected (names, immutable versions):**", sources_md(coverage, man), f"* **Open document:** {document_md(coverage, man)}", ""]
+    out.append(
+        kv(
+            [
+                (
+                    "Operation",
+                    "answer in chat"
+                    if kind in ("answer", "historical-answer")
+                    or (kind == "quality" and rec.get("kind") == "answer")
+                    else (rec.get("kind") or ("edit" if "edit" in rid else "draft")),
+                ),
+                (
+                    "Route",
+                    f"the model chose `{routing.get('model_route')}`, the request ran as `{routing.get('final_route')}` (fallback used: {'yes' if routing.get('fallback_used') else 'no'}; hint `{routing.get('hint')}`)"
+                    if routing
+                    else None,
+                ),
+                ("Target of the edit", json.dumps(target) if target else None),
+                ("Sources selected", None),
+            ]
+        )
+    )
+    out += [
+        "* **Sources selected (names, immutable versions):**",
+        sources_md(coverage, man),
+        f"* **Open document:** {document_md(coverage, man)}",
+        "",
+    ]
     if coverage.get("notices"):
-        out += ["**Context notices the request carried:**", *[f"* `{n['code']}`: {n['message']} {n['action']}" for n in coverage["notices"]], ""]
+        out += [
+            "**Context notices the request carried:**",
+            *[f"* `{n['code']}`: {n['message']} {n['action']}" for n in coverage["notices"]],
+            "",
+        ]
     # ---- 2 what it read
     out += ["## 2. What the request read (original material)", ""]
     cands = rec.get("candidates") or []
@@ -443,7 +804,15 @@ def render_item(item_id: str, kind: str, run: str, rid: str, heading: str, runs:
         "summarize": "The sections that were READ and summarized (no ranking: whole sections). Their original chunks are listed under each citation below.",
         "review": "The blocks of the open document that were sent, in order.",
     }.get(gold_a.task if gold_a and gold_a.task in ("summarize", "review") else "qa", "")
-    out.append(passages_md(cands, note) if cands else ("unavailable: this record has no ranked candidates (earlier run). The sources are in `../fixtures/`; the reader can open the cited passages below." if historical else "See the citations below: each lists the original text it opens to."))
+    out.append(
+        passages_md(cands, note)
+        if cands
+        else (
+            "unavailable: this record has no ranked candidates (earlier run). The sources are in `../fixtures/`; the reader can open the cited passages below."
+            if historical
+            else "See the citations below: each lists the original text it opens to."
+        )
+    )
     out += ["", "Fixture files for this item (synthetic):", fixtures_md(rid), ""]
     # ---- 3 the output
     out += ["## 3. The output, complete", ""]
@@ -457,19 +826,50 @@ def render_item(item_id: str, kind: str, run: str, rid: str, heading: str, runs:
     out += ["", ""]
     # ---- 4 citations
     out += ["## 4. Citations and what they open to", ""]
-    out.append(citations_md(rid, result or ({"citations": rec.get("citations")} if rec.get("citations") else None), rec.get("citation_origins") or {}))
+    out.append(
+        citations_md(
+            rid,
+            result or ({"citations": rec.get("citations")} if rec.get("citations") else None),
+            rec.get("citation_origins") or {},
+        )
+    )
     # ---- 5 automated results
-    out += ["## 5. Automated results (mechanical; none is a judgement of truth, completeness or usefulness)", "", automated_md(kind if kind != "quality" else "quality", rec), ""]
+    out += [
+        "## 5. Automated results (mechanical; none is a judgement of truth, completeness or usefulness)",
+        "",
+        automated_md(kind if kind != "quality" else "quality", rec),
+        "",
+    ]
     # ---- the earlier output of the same item
     if item_id in BASELINE_OF and not historical:
         b_run, b_id = BASELINE_OF[item_id]
         b = runs.get(b_run, {}).get(b_id)
         if b:
-            out += [f"## Earlier output of the same item (run `{RUNS[b_run]}`, the build that was reviewed)", "", earlier_md(b), ""]
+            out += [
+                f"## Earlier output of the same item (run `{RUNS[b_run]}`, the build that was reviewed)",
+                "",
+                earlier_md(b),
+                "",
+            ]
     # ---- 6, 7
-    out += ["## 6. Agent assessment (my own reading, written by hand after the run; it is NOT a human review and it can be wrong)", "", agent_md(item_id), ""]
-    extra = EDIT_SAFETY if kind in ("proposal", "historical-proposal") or (kind == "quality" and rec.get("kind") in ("edit", "draft")) else ""
-    out += ["## 7. Human review (leave blank until you assess it)", "", HUMAN.format(extra=extra), ""]
+    out += [
+        "## 6. Agent assessment (my own reading, written by hand after the run; it is NOT a human review and it can be wrong)",
+        "",
+        agent_md(item_id),
+        "",
+    ]
+    extra = (
+        EDIT_SAFETY
+        if kind in ("proposal", "historical-proposal")
+        or (kind == "quality" and rec.get("kind") in ("edit", "draft"))
+        else ""
+    )
+    out += [
+        "## 7. Human review (leave blank until you assess it)",
+        "",
+        HUMAN.format(extra=extra),
+        "",
+    ]
     return "\n".join(out)
 
 
@@ -481,9 +881,21 @@ def proposal_md(rec: dict[str, Any], pv: dict[str, Any]) -> list[str]:
     if (rec.get("proposal") or {}).get("before_content"):
         blocks = rec["proposal"]["before_content"].get("blocks") or {}
         if blocks:
-            out += ["**Target as captured (complete, before any change):**", "", render_blocks(list(blocks.values())), ""]
+            out += [
+                "**Target as captured (complete, before any change):**",
+                "",
+                render_blocks(list(blocks.values())),
+                "",
+            ]
     if pv.get("kind") == "draft":
-        out += [f"**Draft title:** {pv.get('title')}", "", "**The complete draft:**", "", render_blocks((pv.get("document") or {}).get("content") or []), ""]
+        out += [
+            f"**Draft title:** {pv.get('title')}",
+            "",
+            "**The complete draft:**",
+            "",
+            render_blocks((pv.get("document") or {}).get("content") or []),
+            "",
+        ]
         return out
     for c in pv.get("changes", []):
         out += [f"### Change {c['op'] + 1}: `{c['kind']}`", ""]
@@ -491,10 +903,28 @@ def proposal_md(rec: dict[str, Any], pv: dict[str, Any]) -> list[str]:
             out.append(f"*The model's reason:* {c['reason']}")
         out.append(f"*Cites:* {', '.join(f'[{n}]' for n in c.get('citations') or []) or 'nothing'}")
         if c.get("review_flags"):
-            out += ["", "**Review flags the app showed on this change** (a word-level note, not a verdict):", *[f"* `{f['code']}`: {f['detail']}" for f in c["review_flags"]]]
+            out += [
+                "",
+                "**Review flags the app showed on this change** (a word-level note, not a verdict):",
+                *[f"* `{f['code']}`: {f['detail']}" for f in c["review_flags"]],
+            ]
         if c.get("assumptions"):
-            out += ["", "**Assumed, not stated in the sources** (shown in the preview):", *[f"* {a}" for a in c["assumptions"]]]
-        out += ["", "**Before:**", "", render_blocks(c.get("before") or []), "", "**After:**", "", render_blocks(c.get("after") or []), ""]
+            out += [
+                "",
+                "**Assumed, not stated in the sources** (shown in the preview):",
+                *[f"* {a}" for a in c["assumptions"]],
+            ]
+        out += [
+            "",
+            "**Before:**",
+            "",
+            render_blocks(c.get("before") or []),
+            "",
+            "**After:**",
+            "",
+            render_blocks(c.get("after") or []),
+            "",
+        ]
     return out
 
 
@@ -502,7 +932,11 @@ def quality_output_md(rec: dict[str, Any]) -> str:
     raw = rec.get("output_raw") or {}
     if rec["kind"] == "answer":
         res = {"answer": raw, "citations": rec.get("citations") or []}
-        return answer_blocks_md(raw, {c["n"]: c for c in res["citations"]}) if raw else "(not published)"
+        return (
+            answer_blocks_md(raw, {c["n"]: c for c in res["citations"]})
+            if raw
+            else "(not published)"
+        )
     pv = raw.get("preview") or {}
     lines = proposal_md({"result": {"answer": {"summary": raw.get("summary")}}, "proposal": {}}, pv)
     return "\n".join(lines)
@@ -531,7 +965,10 @@ def write_fixtures() -> list[str]:
         "handbook.docx": srcs["handbook.docx"],
     }
     for name, items in quality.DOCUMENTS.items():
-        files[f"{name}.md"] = "\n\n".join(("#" * max(1, lvl) + " " if kind == "heading" else "") + text for kind, lvl, text in items).encode()
+        files[f"{name}.md"] = "\n\n".join(
+            ("#" * max(1, lvl) + " " if kind == "heading" else "") + text
+            for kind, lvl, text in items
+        ).encode()
     for i, lines in enumerate(corpus.SCAN_PAGES, start=1):
         import io
 
@@ -574,7 +1011,9 @@ def main() -> int:
         met = ""
         if kind == "quality":
             met = " · finding met: " + ("yes" if rec["score"]["finding_met"] else "NO")
-        index.append(f"| [{item_id}](items/{item_id}.md) | {heading} | `{RUNS[run]}` | {status}{met} | ☐ |")
+        index.append(
+            f"| [{item_id}](items/{item_id}.md) | {heading} | `{RUNS[run]}` | {status}{met} | ☐ |"
+        )
     sheet = SHEET_HEAD + "\n".join(index) + "\n" + SHEET_TAIL
     (OUT / "human-review-sheet.md").write_text(sheet, encoding="utf-8")
     print(f"wrote {len(index)} items to {OUT}; missing (no record): {missing or 'none'}")
@@ -606,7 +1045,7 @@ Where an earlier run did not record something, the item says `unavailable` and w
 """
 SHEET_TAIL = """
 `A7`, `P7h` and `P8h` are the outputs of the earlier runs that the first review found fault with, kept as they were. `P7` and `A6` are the same requests
-run again on the new build. Items `Q1`-`Q9` come from the task-quality evaluation (dev and held-out splits are named in each item).
+run again on the new build. Items `Q1`-`Q11` come from the task-quality evaluation (dev and held-out splits are named in each item).
 
 Run names: `new-*` are the runs of the build after the review follow-up; `baseline-quality` is the quality dataset run on the build that was reviewed
 (`0fe9a95`); `none-answer`, `postfix-answer`, `postfix-proposal`, `run1-proposal`, `run2-proposal` are the earlier runs, unchanged.

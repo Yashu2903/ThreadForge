@@ -233,8 +233,19 @@ class Flag:
         return {"code": self.code, "detail": self.detail}
 
 
+_IRREGULAR_CONTRACTIONS = {"won't": "will", "can't": "can", "shan't": "shall"}
+
+
 def _tokens(text: str) -> list[str]:
-    return _TOKEN.findall(text.lower().replace("’", "'"))
+    """Lower-cased word tokens; a negative contraction is split into its verb and `n't`, so "won't" is "will" + a negation (the same
+    as "will not") and "isn't" is "is" + a negation. Without this a rewrite of "will not" as "won't" looked like the plan was dropped."""
+    out: list[str] = []
+    for tok in _TOKEN.findall(text.lower().replace("\u2019", "'")):
+        if tok.endswith("n't") and len(tok) > 3:
+            out += [_IRREGULAR_CONTRACTIONS.get(tok, tok[:-3]), "n't"]
+        else:
+            out.append(tok)
+    return out
 
 
 def _words(tokens: list[str]) -> set[str]:

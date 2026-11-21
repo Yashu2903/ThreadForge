@@ -235,7 +235,9 @@ def test_the_right_source_retrieved_but_the_answer_uses_it_wrongly_retrieval_and
     material = [c["text"] for c in ranked]
     assert retrieval == 1.0  # retrieval succeeded for both answers
     assert unsupported_figures(good, material) == []  # 4,200 is 4200
-    assert unsupported_figures(bad, material) == ["5200 parcel"]  # but the second answer invented a figure
+    assert unsupported_figures(bad, material) == [
+        "5200 parcel"
+    ]  # but the second answer invented a figure
     assert concepts_found(
         bad, [Concept("berlin", (r"berlin",)), Concept("figure", (r"\b4,?200\b",))]
     )["missing"] == ["figure"]

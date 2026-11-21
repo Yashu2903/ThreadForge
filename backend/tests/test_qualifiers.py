@@ -144,3 +144,18 @@ def test_the_detail_names_what_changed_in_words_a_reviewer_can_read():
     flag = compare("The cost is estimated at 500 dollars.", "The cost is 600 dollars.")[-1]
     assert flag.code == "figure_changed"
     assert "500" in flag.detail and "600" in flag.detail
+
+
+def test_a_negative_contraction_is_the_same_as_the_words_it_stands_for():
+    # seen in the held-out evaluation: "will not resume" rewritten as "won't resume" was flagged as a dropped plan
+    before = "Deliveries will not resume until the strike ends, which may take two weeks."
+    assert (
+        codes(before, "Deliveries won't resume until the strike ends, which may take two weeks.")
+        == []
+    )
+    assert codes("The vendor is not ready.", "The vendor isn't ready.") == []
+    assert codes("We cannot ship on Friday.", "We can't ship on Friday.") == []
+    # and the contraction does not hide a real change: the negation really is gone
+    assert codes("Deliveries won't resume this week.", "Deliveries will resume this week.") == [
+        "negation_changed"
+    ]
