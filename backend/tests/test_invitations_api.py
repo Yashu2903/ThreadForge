@@ -65,7 +65,7 @@ async def test_create_returns_the_raw_token_once_and_stores_only_its_hash(alice,
     assert set(body) == {"id", "room_id", "role", "expires_at", "token", "url"}
     assert body["role"] == "editor" and body["room_id"] == room_id  # default role
     assert TOKEN_RE.fullmatch(body["token"])
-    assert body["url"] == f"http://localhost:8000/join#token={body['token']}"
+    assert body["url"] == f"http://localhost:8000/#/join/{body['token']}"
     assert response.headers["cache-control"] == "no-store"
 
     row = await inv_row(sessionmaker, body["id"])
@@ -561,3 +561,100 @@ async def test_a_join_link_get_never_joins_a_room(alice, bob, sessionmaker):
         assert (await bob.get(path)).status_code in (404, 405)
     assert (await bob.get(f"/rooms/{room_id}")).status_code == 404
     assert (await inv_row(sessionmaker, inv["id"]))["used_at"] is None
+
+
+# ---- the join link and the read-only preview ---------------------------------------------------------------
+
+
+async def preview(actor, token, **kw):
+    return await actor.post("/invitations/preview", json={"token": token}, **kw)
+
+
+async def test_the_link_matches_the_hash_router_and_carries_the_token_only_in_the_fragment(alice):
+    room_id = await new_room(alice)
+    body = await invite(alice, room_id)
+    # `{FRONTEND_BASE_URL}/#/join/<token>`: the app routes with the hash, so this opens the join page on any static host
+    assert body["url"] == f"http://localhost:8000/#/join/{body['token']}"
+    assert "?" not in body["url"].split("#")[0] and body["url"].count("#") == 1
+
+
+async def test_preview_says_which_room_and_role_and_changes_nothing(alice, bob, sessionmaker):
+    room_id = await new_room(alice, "Launch crew")
+    inv = await invite(alice, room_id, role="viewer")
+    response = await preview(bob, inv["token"])
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    body = response.json()
+    assert set(body) == {"room_name", "role", "expires_at", "already_member"}
+    assert (body["room_name"], body["role"], body["already_member"]) == (
+        "Launch crew",
+        "viewer",
+        False,
+    )
+    # nothing happened: not a member, not consumed, no epoch change, and the same token still joins
+    assert (await bob.get(f"/rooms/{room_id}")).status_code == 404
+    row = await inv_row(sessionmaker, inv["id"])
+    assert row["used_at"] is None and await epoch(sessionmaker, room_id) == 1
+    assert (await redeem(bob, inv["token"])).status_code == 200
+
+
+async def test_preview_requires_authentication_and_csrf(alice, bob, client):
+    room_id = await new_room(alice)
+    inv = await invite(alice, room_id)
+    assert (
+        await client.post("/invitations/preview", json={"token": inv["token"]})
+    ).status_code == 401
+    assert (await preview(bob, inv["token"], csrf=False)).json()["error"]["code"] == "csrf_failed"
+    assert (await preview(bob, inv["token"])).status_code == 200
+
+
+async def test_preview_gives_the_same_answer_for_every_kind_of_invalid_token(
+    alice, bob, carol, sessionmaker
+):
+    room_id = await new_room(alice)
+    revoked = await invite(alice, room_id)
+    await alice.delete(f"/rooms/{room_id}/invitations/{revoked['id']}")
+    expired = await invite(alice, room_id)
+    await expire(sessionmaker, expired["id"])
+    used = await invite(alice, room_id)
+    await redeem(carol, used["token"])  # carol used it; bob is somebody else
+    for token in ("A" * 43, "not-a-token", "", revoked["token"], expired["token"], used["token"]):
+        assert_invalid(await preview(bob, token))
+
+
+async def test_preview_of_a_used_token_by_a_removed_member_is_invalid_like_redeem(alice, bob):
+    room_id = await new_room(alice)
+    inv = await invite(alice, room_id)
+    await redeem(bob, inv["token"])
+    assert (await preview(bob, inv["token"])).json()[
+        "already_member"
+    ] is True  # a retry by the same member
+    await alice.delete(f"/rooms/{room_id}/members/{bob.id}")
+    assert_invalid(await preview(bob, inv["token"]))  # a removed member needs a NEW invitation
+    assert_invalid(await redeem(bob, inv["token"]))
+
+
+async def test_preview_tells_an_existing_member_they_are_already_in_without_naming_a_new_role(
+    alice, bob
+):
+    room_id = await new_room(alice, "Home")
+    inv = await invite(alice, room_id, role="viewer")
+    already = await preview(alice, inv["token"])  # the owner holds the link too
+    assert already.json()["already_member"] is True and already.json()["role"] == "owner"
+    assert (await preview(bob, inv["token"])).json()["already_member"] is False
+
+
+async def test_preview_never_logs_the_token(alice, bob, caplog):
+    room_id = await new_room(alice)
+    inv = await invite(alice, room_id)
+    caplog.set_level(logging.DEBUG)
+    await preview(bob, inv["token"])
+    await preview(bob, "B" * 43)
+    logged = " ".join(f"{r.getMessage()} {r.args!r} {r.exc_text or ''}" for r in caplog.records)
+    assert inv["token"] not in logged and sha256_hex(inv["token"]) not in logged
+
+
+async def test_preview_rejects_extra_fields_and_wrong_types(bob):
+    for payload in ({}, {"token": 5}, {"token": "x" * 43, "room_id": "r"}):
+        response = await bob.post("/invitations/preview", json=payload)
+        assert response.status_code == 422

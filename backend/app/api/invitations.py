@@ -1,8 +1,11 @@
-"""Invitation routes. The raw token is returned once (creation) and accepted once (redemption);
-the link carries it in the URL FRAGMENT (/join#token=...), which browsers never send to servers, so
-it stays out of access logs, Referer headers and proxy logs. A GET to the link never joins a room:
-joining is an authenticated, CSRF-protected POST /invitations/redeem. The future join page must
-read the fragment, then remove it from the address bar (history.replaceState)."""
+"""Invitation routes. The raw token is returned once (creation) and accepted once (redemption).
+The link carries it in the URL FRAGMENT (`{FRONTEND_BASE_URL}/#/join/<token>`: the frontend uses
+hash routes, so no server route is needed and any static host works). Browsers never send a
+fragment to servers, so it stays out of access logs, Referer headers and proxy logs. Opening the
+link never joins a room: the join page reads the fragment, removes the token from the address bar
+(history.replaceState), shows what the invitation is for (`POST /invitations/preview`, read-only)
+and joins only when the person presses Join (an authenticated, CSRF-protected
+`POST /invitations/redeem`)."""
 
 from __future__ import annotations
 
@@ -17,6 +20,8 @@ from app.schemas.invitations import (
     CreateInvitationRequest,
     InvitationCreatedOut,
     InvitationOut,
+    PreviewOut,
+    PreviewRequest,
     RedeemOut,
     RedeemRequest,
 )
@@ -67,7 +72,7 @@ async def create_invitation(
         expires_at=created.expires_at,
         token=created.token,
         # Built from configuration only; no client-supplied destination exists.
-        url=f"{settings.frontend_base_url}/join#token={created.token}",
+        url=f"{settings.frontend_base_url}/#/join/{created.token}",
     )
 
 
@@ -102,6 +107,26 @@ async def revoke_invitation(
         request.app.state.sessionmaker, access.user_id, access.room_id, parse_uuid(invitation_id)
     )
     return Response(status_code=204)
+
+
+@router.post(
+    "/invitations/preview",
+    response_model=PreviewOut,
+    responses={
+        401: {"model": ErrorBody},
+        403: {"model": ErrorBody, "description": "csrf_failed"},
+        404: {"model": ErrorBody, "description": "invitation_invalid (every failure reason)"},
+    },
+)
+async def preview_invitation(
+    body: PreviewRequest, request: Request, user: CsrfProtectedUser
+) -> PreviewOut:
+    """Authenticated + CSRF-protected and read-only: which room and role a token would give the
+    caller. Changes nothing."""
+    result = await invitations.preview_invitation(
+        request.app.state.sessionmaker, user.user.id, body.token
+    )
+    return PreviewOut(**result.__dict__)
 
 
 @router.post(

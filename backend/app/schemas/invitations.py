@@ -26,6 +26,22 @@ class RedeemRequest(_StrictRequest):
     token: str
 
 
+class PreviewRequest(_StrictRequest):
+    # a plain string, like RedeemRequest: a malformed token gets the same 404 as an unknown one
+    token: str
+
+
+class PreviewOut(BaseModel):
+    """What the person is being invited to. Shown ONLY to the holder of a currently valid token, who
+    is about to be told the same by joining. It reveals nothing about an invalid, used, revoked or
+    expired token (all of those are `invitation_invalid`)."""
+
+    room_name: str
+    role: str
+    expires_at: datetime
+    already_member: bool
+
+
 class InvitationCreatedOut(BaseModel):
     """The ONLY response that ever contains the raw token."""
 

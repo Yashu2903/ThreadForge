@@ -205,6 +205,67 @@ async def revoke_invitation(
         log_event("invitation_revoked", room_id, actor_id, None)
 
 
+@dataclass(frozen=True)
+class InvitationPreview:
+    room_name: str
+    role: str
+    expires_at: datetime
+    already_member: bool
+
+
+async def preview_invitation(
+    sessionmaker: async_sessionmaker[AsyncSession], user_id: uuid.UUID, token: str
+) -> InvitationPreview:
+    """What redeeming `token` would do for the caller, WITHOUT doing it (no lock, no write, nothing
+    consumed).
+
+    The rules are those of `redeem_invitation`, evaluated read-only, and every failure is the same
+    `invitation_invalid`: unknown or malformed; used by someone else; used by the caller who is no
+    longer a member (a removed member needs a new invitation); revoked; expired by the DATABASE
+    clock. A caller who is already an active member gets `already_member` (redeeming would return
+    the membership unchanged and consume nothing). The answer can be stale by the time the caller
+    redeems: the redeem is the authority; this only lets a person see where they are going.
+    """
+    if not TOKEN_FORMAT.fullmatch(token):
+        raise invitation_invalid()
+    async with sessionmaker() as db:
+        inv = (
+            await db.execute(
+                select(
+                    _INVITATIONS.c.room_id,
+                    _INVITATIONS.c.role,
+                    _INVITATIONS.c.expires_at,
+                    _INVITATIONS.c.used_at,
+                    _INVITATIONS.c.used_by,
+                    _INVITATIONS.c.revoked_at,
+                    (_INVITATIONS.c.expires_at <= func.now()).label("expired"),
+                    _ROOMS.c.name,
+                )
+                .join(_ROOMS, _ROOMS.c.id == _INVITATIONS.c.room_id)
+                .where(_INVITATIONS.c.token_hash == sha256_hex(token))
+            )
+        ).one_or_none()
+        if inv is None:
+            raise invitation_invalid()
+        state = (
+            await db.execute(
+                select(_MEMBERSHIPS.c.state, _MEMBERSHIPS.c.role).where(
+                    _MEMBERSHIPS.c.room_id == inv.room_id, _MEMBERSHIPS.c.user_id == user_id
+                )
+            )
+        ).one_or_none()
+    member = state is not None and state.state == "active"
+    if inv.used_by == user_id:
+        if not member:
+            raise invitation_invalid()
+        return InvitationPreview(inv.name, state.role, inv.expires_at, True)
+    if inv.used_at is not None or inv.revoked_at is not None or inv.expired:
+        raise invitation_invalid()
+    if member:
+        return InvitationPreview(inv.name, state.role, inv.expires_at, True)
+    return InvitationPreview(inv.name, inv.role, inv.expires_at, False)
+
+
 async def redeem_invitation(
     sessionmaker: async_sessionmaker[AsyncSession],
     settings: Settings,
