@@ -1,6 +1,34 @@
 import { LINE_SPACINGS } from "@threadforge/editor-schema";
 import type { Editor } from "@tiptap/core";
-import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Popover } from "../ui/Popover";
+import {
+  IconAlignCenter,
+  IconAlignJustify,
+  IconAlignLeft,
+  IconAlignRight,
+  IconBold,
+  IconClearFormat,
+  IconDiagram,
+  IconHighlight,
+  IconImage,
+  IconIndentIn,
+  IconIndentOut,
+  IconItalic,
+  IconLink,
+  IconListBullets,
+  IconListNumbers,
+  IconMore,
+  IconQuote,
+  IconRedo,
+  IconStrike,
+  IconSubscript,
+  IconSuperscript,
+  IconTable,
+  IconTextColor,
+  IconUnderline,
+  IconUndo,
+} from "../ui/icons";
 import {
   type BlockKind,
   applyLink,
@@ -134,169 +162,288 @@ export function Toolbar({ editor, revision, enabled, linkOpen, onLinkOpenChange,
     current === MIXED ? [{ value: MIXED, label: "(mixed)" }, ...items] : items;
   const numOrNull = (v: string): number | null => (v === "" || v === MIXED ? null : Number(v));
 
+  const colour = (label: string, testid: string, value: string, icon: ReactNode, onChange: (v: string) => void, swatch: string) => (
+    <label className="color-pick" title={label}>
+      <span className="sr-only">{label}</span>
+      <span className="color-icon" aria-hidden="true" style={{ borderBottomColor: swatch }}>
+        {icon}
+      </span>
+      <input
+        type="color"
+        data-toolbar-item
+        data-testid={testid}
+        aria-label={label}
+        aria-disabled={off ? true : undefined}
+        disabled={off}
+        value={value}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+      />
+    </label>
+  );
+  const textColour = typeof s.color === "string" && s.color !== MIXED ? s.color.toLowerCase() : "#000000";
+  const highlightColour = typeof s.highlight === "string" && s.highlight !== MIXED ? s.highlight.toLowerCase() : "#ffffff";
+
+  /** Every group of controls with a priority (lower stays visible longest). The groups that do not fit the width of the
+   *  toolbar move into the "More" panel, so nothing wraps into extra rows, nothing is clipped, and nothing is removed. */
+  const groups: { id: string; label: string; priority: number; node: ReactNode }[] = [
+    {
+      id: "history",
+      label: "History",
+      priority: 4,
+      node: (
+        <>
+          {btn("Undo", () => editor.chain().focus().undo().run(), { shortcut: `${mod}+Z`, disabled: !s.canUndo, children: <IconUndo />, testid: "tb-undo" })}
+          {btn("Redo", () => editor.chain().focus().redo().run(), { shortcut: `${mod}+Shift+Z`, disabled: !s.canRedo, children: <IconRedo />, testid: "tb-redo" })}
+        </>
+      ),
+    },
+    {
+      id: "style",
+      label: "Text style",
+      priority: 1,
+      node: (
+        <>
+          {select("Text style", str(s.block), withMixed(BLOCKS, str(s.block)), (v) => v !== MIXED && setBlock(editor, v as BlockKind), "tb-block")}
+          {btn("Quote", () => editor.chain().focus().toggleBlockquote().run(), { pressed: s.quote, children: <IconQuote />, testid: "tb-quote" })}
+        </>
+      ),
+    },
+    {
+      id: "font",
+      label: "Font",
+      priority: 6,
+      node: (
+        <>
+          {select(
+            "Font",
+            str(s.font),
+            withMixed([{ value: "", label: "Default font" }, ...FONT_OPTIONS.map((f) => ({ value: f.key, label: f.label }))], str(s.font)),
+            (v) => v !== MIXED && setTextStyle(editor, "fontKey", v === "" ? null : v),
+            "tb-font",
+          )}
+          {select(
+            "Font size",
+            str(s.size),
+            withMixed([{ value: "", label: "Size" }, ...SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))], str(s.size)),
+            (v) => v !== MIXED && setTextStyle(editor, "fontSizePt", v === "" ? null : Number(v)),
+            "tb-size",
+          )}
+        </>
+      ),
+    },
+    {
+      id: "inline",
+      label: "Character formatting",
+      priority: 0,
+      node: (
+        <>
+          {btn("Bold", () => editor.chain().focus().toggleBold().run(), { pressed: triPressed(s.bold), shortcut: `${mod}+B`, children: <IconBold />, testid: "tb-bold" })}
+          {btn("Italic", () => editor.chain().focus().toggleItalic().run(), { pressed: triPressed(s.italic), shortcut: `${mod}+I`, children: <IconItalic />, testid: "tb-italic" })}
+          {btn("Underline", () => editor.chain().focus().toggleUnderline().run(), { pressed: triPressed(s.underline), shortcut: `${mod}+U`, children: <IconUnderline />, testid: "tb-underline" })}
+          {btn("Strikethrough", () => editor.chain().focus().toggleStrike().run(), { pressed: triPressed(s.strike), shortcut: `${mod}+Shift+S`, children: <IconStrike />, testid: "tb-strike" })}
+        </>
+      ),
+    },
+    {
+      id: "colour",
+      label: "Colour",
+      priority: 3,
+      node: (
+        <>
+          {colour("Text colour", "tb-color", textColour, <IconTextColor />, (v) => setTextStyle(editor, "color", v), textColour)}
+          {colour("Highlight colour", "tb-highlight", highlightColour, <IconHighlight />, (v) => setHighlight(editor, v), highlightColour)}
+          {btn("Clear colours", () => clearColors(editor), { children: <IconClearFormat />, testid: "tb-clear-colors" })}
+        </>
+      ),
+    },
+    {
+      id: "script",
+      label: "Superscript and subscript",
+      priority: 9,
+      node: (
+        <>
+          {btn("Superscript", () => setScript(editor, s.script === "superscript" ? null : "superscript"), { pressed: s.script === MIXED ? "mixed" : s.script === "superscript", children: <IconSuperscript />, testid: "tb-sup" })}
+          {btn("Subscript", () => setScript(editor, s.script === "subscript" ? null : "subscript"), { pressed: s.script === MIXED ? "mixed" : s.script === "subscript", children: <IconSubscript />, testid: "tb-sub" })}
+        </>
+      ),
+    },
+    {
+      id: "align",
+      label: "Alignment",
+      priority: 5,
+      node: (
+        <>
+          {(["left", "center", "right", "justify"] as const).map((a) => {
+            const Icon = { left: IconAlignLeft, center: IconAlignCenter, right: IconAlignRight, justify: IconAlignJustify }[a];
+            return <Fragment key={a}>{btn(`Align ${a}`, () => setAlign(editor, a), { pressed: s.align === MIXED ? "mixed" : s.align === a, children: <Icon />, testid: `tb-align-${a}` })}</Fragment>;
+          })}
+        </>
+      ),
+    },
+    {
+      id: "spacing",
+      label: "Spacing",
+      priority: 10,
+      node: (
+        <>
+          {select(
+            "Line spacing",
+            str(s.lineSpacing),
+            withMixed([{ value: "", label: "Spacing" }, ...LINE_SPACINGS.map((n) => ({ value: String(n), label: `${n}×` }))], str(s.lineSpacing)),
+            (v) => v !== MIXED && setBlockAttrs(editor, { lineSpacing: numOrNull(v) }),
+            "tb-line-spacing",
+          )}
+          {select(
+            "Space before paragraph",
+            str(s.spaceBefore),
+            withMixed([{ value: "", label: "↑ default" }, ...SPACING.map((n) => ({ value: String(n), label: `↑ ${n} pt` }))], str(s.spaceBefore)),
+            (v) => v !== MIXED && setBlockAttrs(editor, { spaceBefore: numOrNull(v) }),
+            "tb-space-before",
+          )}
+          {select(
+            "Space after paragraph",
+            str(s.spaceAfter),
+            withMixed([{ value: "", label: "↓ default" }, ...SPACING.map((n) => ({ value: String(n), label: `↓ ${n} pt` }))], str(s.spaceAfter)),
+            (v) => v !== MIXED && setBlockAttrs(editor, { spaceAfter: numOrNull(v) }),
+            "tb-space-after",
+          )}
+        </>
+      ),
+    },
+    {
+      id: "lists",
+      label: "Lists and indentation",
+      priority: 2,
+      node: (
+        <>
+          {btn("Bulleted list", () => editor.chain().focus().toggleBulletList().run(), { pressed: !!s.list && !s.list.ordered, children: <IconListBullets />, testid: "tb-bullets" })}
+          {btn("Numbered list", () => editor.chain().focus().toggleOrderedList().run(), { pressed: !!s.list && s.list.ordered, children: <IconListNumbers />, testid: "tb-numbers" })}
+          {btn("Decrease indent", () => changeIndent(editor, -1), { shortcut: "Shift+Tab in a list", children: <IconIndentOut />, testid: "tb-outdent" })}
+          {btn("Increase indent", () => changeIndent(editor, 1), { shortcut: "Tab in a list", children: <IconIndentIn />, testid: "tb-indent" })}
+        </>
+      ),
+    },
+    {
+      id: "insert",
+      label: "Insert",
+      priority: 2,
+      node: (
+        <>
+          {btn("Link", () => onLinkOpenChange(!linkOpen), { pressed: linkOpen || !!s.link, shortcut: `${mod}+K`, children: <IconLink />, testid: "tb-link" })}
+          {uploadImage && btn("Insert image", () => fileInput.current?.click(), { disabled: uploading, children: uploading ? "…" : <IconImage />, testid: "tb-image" })}
+          {btn("Insert table", () => setTableOpen(!tableOpen), { pressed: tableOpen, children: <IconTable />, testid: "tb-table" })}
+          {btn("Insert diagram", () => insertDiagram(editor), { children: <IconDiagram />, testid: "tb-diagram" })}
+        </>
+      ),
+    },
+  ];
+
   return (
     <div role="toolbar" aria-label="Formatting" aria-orientation="horizontal" className="toolbar" ref={ref} onKeyDown={onKeyDown}>
-      <div className="tb-group" role="group" aria-label="History">
-        {btn("Undo", () => editor.chain().focus().undo().run(), { shortcut: `${mod}+Z`, disabled: !s.canUndo, children: "↶", testid: "tb-undo" })}
-        {btn("Redo", () => editor.chain().focus().redo().run(), { shortcut: `${mod}+Shift+Z`, disabled: !s.canRedo, children: "↷", testid: "tb-redo" })}
-      </div>
-
-      <div className="tb-group" role="group" aria-label="Text style">
-        {select("Text style", str(s.block), withMixed(BLOCKS, str(s.block)), (v) => v !== MIXED && setBlock(editor, v as BlockKind), "tb-block")}
-        {btn("Quote", () => editor.chain().focus().toggleBlockquote().run(), { pressed: s.quote, children: "❝", testid: "tb-quote" })}
-      </div>
-
-      <div className="tb-group" role="group" aria-label="Font">
-        {select(
-          "Font",
-          str(s.font),
-          withMixed([{ value: "", label: "Default font" }, ...FONT_OPTIONS.map((f) => ({ value: f.key, label: f.label }))], str(s.font)),
-          (v) => v !== MIXED && setTextStyle(editor, "fontKey", v === "" ? null : v),
-          "tb-font",
-        )}
-        {select(
-          "Font size",
-          str(s.size),
-          withMixed([{ value: "", label: "Size" }, ...SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))], str(s.size)),
-          (v) => v !== MIXED && setTextStyle(editor, "fontSizePt", v === "" ? null : Number(v)),
-          "tb-size",
-        )}
-      </div>
-
-      <div className="tb-group" role="group" aria-label="Character formatting">
-        {btn("Bold", () => editor.chain().focus().toggleBold().run(), { pressed: triPressed(s.bold), shortcut: `${mod}+B`, children: <b>B</b>, testid: "tb-bold" })}
-        {btn("Italic", () => editor.chain().focus().toggleItalic().run(), { pressed: triPressed(s.italic), shortcut: `${mod}+I`, children: <i>I</i>, testid: "tb-italic" })}
-        {btn("Underline", () => editor.chain().focus().toggleUnderline().run(), { pressed: triPressed(s.underline), shortcut: `${mod}+U`, children: <u>U</u>, testid: "tb-underline" })}
-        {btn("Strikethrough", () => editor.chain().focus().toggleStrike().run(), { pressed: triPressed(s.strike), shortcut: `${mod}+Shift+S`, children: <s>S</s>, testid: "tb-strike" })}
-        {btn("Superscript", () => setScript(editor, s.script === "superscript" ? null : "superscript"), { pressed: s.script === MIXED ? "mixed" : s.script === "superscript", children: "x²", testid: "tb-sup" })}
-        {btn("Subscript", () => setScript(editor, s.script === "subscript" ? null : "subscript"), { pressed: s.script === MIXED ? "mixed" : s.script === "subscript", children: "x₂", testid: "tb-sub" })}
-        <label className="color-pick" title="Text colour">
-          <span className="sr-only">Text colour</span>
-          <input
-            type="color"
-            data-toolbar-item
-            data-testid="tb-color"
-            aria-label="Text colour"
-            aria-disabled={off ? true : undefined}
-            disabled={off}
-            value={typeof s.color === "string" && s.color !== MIXED ? s.color.toLowerCase() : "#000000"}
-            onChange={(e) => setTextStyle(editor, "color", e.target.value.toUpperCase())}
-          />
-        </label>
-        <label className="color-pick" title="Highlight colour">
-          <span className="sr-only">Highlight colour</span>
-          <input
-            type="color"
-            data-toolbar-item
-            data-testid="tb-highlight"
-            aria-label="Highlight colour"
-            aria-disabled={off ? true : undefined}
-            disabled={off}
-            value={typeof s.highlight === "string" && s.highlight !== MIXED ? s.highlight.toLowerCase() : "#ffffff"}
-            onChange={(e) => setHighlight(editor, e.target.value.toUpperCase())}
-          />
-        </label>
-        {btn("Clear colours", () => clearColors(editor), { children: "⌫", testid: "tb-clear-colors" })}
-      </div>
-
-      <div className="tb-group" role="group" aria-label="Paragraph">
-        {(["left", "center", "right", "justify"] as const).map((a) => (
-          <Fragment key={a}>
-            {btn(`Align ${a}`, () => setAlign(editor, a), {
-              pressed: s.align === MIXED ? "mixed" : s.align === a,
-              children: { left: "⇤", center: "↔", right: "⇥", justify: "☰" }[a],
-              testid: `tb-align-${a}`,
-            })}
-          </Fragment>
-        ))}
-        {select(
-          "Line spacing",
-          str(s.lineSpacing),
-          withMixed([{ value: "", label: "Spacing" }, ...LINE_SPACINGS.map((n) => ({ value: String(n), label: `${n}×` }))], str(s.lineSpacing)),
-          (v) => v !== MIXED && setBlockAttrs(editor, { lineSpacing: numOrNull(v) }),
-          "tb-line-spacing",
-        )}
-        {select(
-          "Space before paragraph",
-          str(s.spaceBefore),
-          withMixed([{ value: "", label: "↑ default" }, ...SPACING.map((n) => ({ value: String(n), label: `↑ ${n} pt` }))], str(s.spaceBefore)),
-          (v) => v !== MIXED && setBlockAttrs(editor, { spaceBefore: numOrNull(v) }),
-          "tb-space-before",
-        )}
-        {select(
-          "Space after paragraph",
-          str(s.spaceAfter),
-          withMixed([{ value: "", label: "↓ default" }, ...SPACING.map((n) => ({ value: String(n), label: `↓ ${n} pt` }))], str(s.spaceAfter)),
-          (v) => v !== MIXED && setBlockAttrs(editor, { spaceAfter: numOrNull(v) }),
-          "tb-space-after",
-        )}
-        {btn("Decrease indent", () => changeIndent(editor, -1), { shortcut: "Shift+Tab in a list", children: "⇠", testid: "tb-outdent" })}
-        {btn("Increase indent", () => changeIndent(editor, 1), { shortcut: "Tab in a list", children: "⇢", testid: "tb-indent" })}
-      </div>
-
-      <div className="tb-group" role="group" aria-label="Lists and links">
-        {btn("Bulleted list", () => editor.chain().focus().toggleBulletList().run(), { pressed: !!s.list && !s.list.ordered, children: "•≡", testid: "tb-bullets" })}
-        {btn("Numbered list", () => editor.chain().focus().toggleOrderedList().run(), { pressed: !!s.list && s.list.ordered, children: "1.", testid: "tb-numbers" })}
-        {btn("Link", () => onLinkOpenChange(!linkOpen), { pressed: linkOpen || !!s.link, shortcut: `${mod}+K`, children: "🔗", testid: "tb-link" })}
-      </div>
-
-      {(uploadImage || s.image) && (
-        <div className="tb-group image-group" role="group" aria-label="Image">
-          {uploadImage &&
-            btn("Insert image", () => fileInput.current?.click(), {
-              disabled: uploading,
-              children: uploading ? "…" : "🖼",
-              testid: "tb-image",
-            })}
-          {uploadImage && (
-            <input
-              ref={fileInput}
-              type="file"
-              className="sr-only"
-              tabIndex={-1}
-              accept="image/png,image/jpeg,image/webp"
-              data-testid="image-file"
-              aria-label="Choose an image to insert"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                setUploading(true);
-                try {
-                  insertAssetImage(editor, await uploadImage(file));
-                } catch (err) {
-                  onNotice?.(err instanceof Error ? err.message : "The image could not be uploaded.");
-                } finally {
-                  setUploading(false);
-                }
-              }}
-            />
-          )}
-          {s.image && <AltText editor={editor} initial={s.image.alt} />}
+      <ToolbarGroups groups={groups} />
+      {uploadImage && (
+        <input
+          ref={fileInput}
+          type="file"
+          className="sr-only"
+          tabIndex={-1}
+          accept="image/png,image/jpeg,image/webp"
+          data-testid="image-file"
+          aria-label="Choose an image to insert"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            setUploading(true);
+            try {
+              insertAssetImage(editor, await uploadImage(file));
+            } catch (err) {
+              onNotice?.(err instanceof Error ? err.message : "The image could not be uploaded.");
+            } finally {
+              setUploading(false);
+            }
+          }}
+        />
+      )}
+      {s.image && (
+        <div className="tb-context" role="group" aria-label="Image">
+          <AltText editor={editor} initial={s.image.alt} />
         </div>
       )}
-
-      <div className="tb-group" role="group" aria-label="Diagram">
-        {btn("Insert diagram", () => insertDiagram(editor), { children: "⎇", testid: "tb-diagram" })}
-      </div>
-
-      <div className="tb-group" role="group" aria-label="Table">
-        {btn("Insert table", () => setTableOpen(!tableOpen), { pressed: tableOpen, children: "▦", testid: "tb-table" })}
-        {s.table && (
-          <>
-            {btn("Add row above", () => tableCommand.rowAbove(editor), { children: "⤒", testid: "tb-row-above" })}
-            {btn("Add row below", () => tableCommand.rowBelow(editor), { children: "⤓", testid: "tb-row-below" })}
-            {btn("Add column left", () => tableCommand.colLeft(editor), { children: "⇤▮", testid: "tb-col-left" })}
-            {btn("Add column right", () => tableCommand.colRight(editor), { children: "▮⇥", testid: "tb-col-right" })}
-            {btn("Delete row", () => tableCommand.deleteRow(editor), { disabled: s.table.rows === 1, children: "−row", testid: "tb-del-row" })}
-            {btn("Delete column", () => tableCommand.deleteColumn(editor), { disabled: s.table.cols === 1, children: "−col", testid: "tb-del-col" })}
-            {btn("Delete table", () => tableCommand.deleteTable(editor), { children: "🗑", testid: "tb-del-table" })}
-          </>
-        )}
-      </div>
-
+      {s.table && (
+        <div className="tb-context" role="group" aria-label="Table">
+          {btn("Add row above", () => tableCommand.rowAbove(editor), { children: "+ Row ↑", testid: "tb-row-above" })}
+          {btn("Add row below", () => tableCommand.rowBelow(editor), { children: "+ Row ↓", testid: "tb-row-below" })}
+          {btn("Add column left", () => tableCommand.colLeft(editor), { children: "+ Col ←", testid: "tb-col-left" })}
+          {btn("Add column right", () => tableCommand.colRight(editor), { children: "+ Col →", testid: "tb-col-right" })}
+          {btn("Delete row", () => tableCommand.deleteRow(editor), { disabled: s.table.rows === 1, children: "− Row", testid: "tb-del-row" })}
+          {btn("Delete column", () => tableCommand.deleteColumn(editor), { disabled: s.table.cols === 1, children: "− Col", testid: "tb-del-col" })}
+          {btn("Delete table", () => tableCommand.deleteTable(editor), { children: "Delete table", testid: "tb-del-table" })}
+        </div>
+      )}
       {linkOpen && <LinkForm editor={editor} initial={s.link?.href ?? ""} hasLink={!!s.link} onClose={() => onLinkOpenChange(false)} />}
       {tableOpen && <TableForm editor={editor} onClose={() => setTableOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * Lay the groups out on ONE row. Every group is rendered in the row; the row's width is measured (ResizeObserver, and after each
+ * render) and the groups that do not fit, lowest priority first, are collapsed: taken out of the layout (still measurable, not
+ * focusable) and offered again, in their original order, in a "More" panel. Nothing wraps into extra rows, nothing is clipped,
+ * and no control is removed.
+ */
+function ToolbarGroups(props: { groups: { id: string; label: string; priority: number; node: ReactNode }[] }) {
+  const host = useRef<HTMLDivElement>(null);
+  const widths = useRef(new Map<string, number>());
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+
+  useLayoutEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    const fit = () => {
+      el.querySelectorAll<HTMLElement>(":scope > [data-group]").forEach((g) => widths.current.set(g.dataset.group!, g.offsetWidth + 6));
+      const available = el.clientWidth - 48; // room for the More button
+      let used = 0;
+      const keep = new Set<string>();
+      for (const g of [...props.groups].sort((a, b) => a.priority - b.priority)) {
+        const w = widths.current.get(g.id) ?? 90;
+        if (used + w <= available) {
+          keep.add(g.id);
+          used += w;
+        }
+      }
+      const next = props.groups.filter((g) => !keep.has(g.id)).map((g) => g.id);
+      setCollapsed((prev) => (prev.length === next.length && prev.every((id, k) => id === next[k]) ? prev : next));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+
+  const hidden = props.groups.filter((g) => collapsed.includes(g.id));
+  return (
+    <div className="tb-row" ref={host}>
+      {props.groups.map((g) => (
+        <div key={g.id} data-group={g.id} className={`tb-group${collapsed.includes(g.id) ? " tb-collapsed" : ""}`} role="group" aria-label={g.label}>
+          {g.node}
+        </div>
+      ))}
+      {hidden.length > 0 && (
+        <Popover label="More formatting" panelLabel="More formatting" align="end" triggerClassName="tb-more" trigger={<IconMore />} testId="tb-more" className="tb-more-host">
+          {() => (
+            <div className="tb-overflow">
+              {hidden.map((g) => (
+                <div key={g.id} className="tb-overflow-group" role="group" aria-label={`${g.label} (more)`}>
+                  <span className="tb-overflow-label">{g.label}</span>
+                  <div className="tb-group">{g.node}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Popover>
+      )}
     </div>
   );
 }
@@ -330,7 +477,7 @@ function AltText(props: { editor: Editor; initial: string }) {
 }
 
 function items_(root: HTMLElement | null): HTMLElement[] {
-  return root ? Array.from(root.querySelectorAll<HTMLElement>("[data-toolbar-item]:not(:disabled)")) : [];
+  return root ? Array.from(root.querySelectorAll<HTMLElement>("[data-toolbar-item]:not(:disabled)")).filter((el) => !el.closest(".tb-collapsed")) : [];
 }
 
 function LinkForm(props: { editor: Editor; initial: string; hasLink: boolean; onClose: () => void }) {

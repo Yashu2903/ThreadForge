@@ -329,7 +329,13 @@ describe("the files panel and AI settings", () => {
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.getByText(/Failed · Too many pages of a file could not be read\./)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analyze now" })).toBeEnabled(); // only the failed file offers it
-    expect(screen.getAllByRole("button", { name: /Inspect/ })).toHaveLength(2);
+    // the other actions are in each file's menu
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Actions for scan.pdf" }));
+    const items = within(screen.getByRole("menu", { name: "Actions for scan.pdf" })).getAllByRole("menuitem").map((i) => i.textContent);
+    expect(items).toEqual(expect.arrayContaining(["Inspect extracted text", "Replace with a new version…", "Remove"]));
+    expect(items).not.toContain("Cancel analysis"); // nothing is running
+    await user.keyboard("{Escape}");
     expect(screen.getByLabelText("Upload a file")).toBeInTheDocument();
     const viewerServer = serverWith({ role: "viewer", sources: [source("a", "ops.pdf", "ready")] });
     const v = await loadedStore(viewerServer);

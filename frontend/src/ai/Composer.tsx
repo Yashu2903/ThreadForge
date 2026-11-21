@@ -22,6 +22,8 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../api";
+import { Menu } from "../ui/Popover";
+import { IconPaperclip, IconSend } from "../ui/icons";
 import type { BlockSelection, RangeSelection } from "../DocumentEditor";
 import { type AiSnapshot, type AiStore, type SendBody, unavailableReason } from "./store";
 import { ERROR_TEXT, type EstimateReply, type SourceItem } from "./types";
@@ -94,6 +96,9 @@ export function Composer(props: {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const requestId = useRef(crypto.randomUUID());
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [attaching, setAttaching] = useState(false);
+  const attachInput = useRef<HTMLInputElement>(null);
 
   const blocked = unavailableReason(snap, ctx.role);
   const viewer = ctx.role === "viewer";
@@ -287,6 +292,23 @@ export function Composer(props: {
     }
   }
 
+  const canUpload = (ctx.role === "owner" || ctx.role === "editor") && Boolean(snap.sources?.can_upload);
+  /** Upload from the composer: the file joins the room's files like any other upload. It is NOT chosen for a request on its own:
+   *  what a request uses stays an explicit choice in "Files" below. */
+  async function attach(file: File) {
+    setAttaching(true);
+    setError(null);
+    try {
+      await store.uploadFile(file);
+      if (!ai && !viewer && !blocked) chooseAi();
+      setFilesOpen(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? (ERROR_TEXT[err.code] ?? err.message) : "Could not upload the file.");
+    } finally {
+      setAttaching(false);
+    }
+  }
+
   const noTarget = editing && !editTarget();
   const draftNeedsFiles = drafting && picked.length === 0;
   // with no document open, only a draft is possible (it is anchored on the room, not on a document)
@@ -389,7 +411,7 @@ export function Composer(props: {
               A draft is written from the files you pick. It waits as a card for review; only the room owner can publish it as a document.
             </p>
           )}
-          <details>
+          <details open={filesOpen} onToggle={(e) => setFilesOpen((e.currentTarget as HTMLDetailsElement).open)}>
             <summary>Files ({picked.length} chosen)</summary>
             {sources.length === 0 && <p className="muted">No files in this room yet. Upload one in the Files panel.</p>}
             {picked.length === 0 && sources.length > 0 && <p className="muted">Nothing is chosen. Pick the files this request may use.</p>}
@@ -506,13 +528,51 @@ export function Composer(props: {
         </div>
       )}
       <div className="composer-actions">
+        {!viewer && (
+          <>
+            <Menu
+              label="Attach"
+              align="start"
+              triggerClassName="icon-button attach-button"
+              testId="attach"
+              disabled={attaching}
+              trigger={<IconPaperclip size={18} />}
+              items={[
+                { id: "upload", label: attaching ? "Uploading…" : "Upload a new file…", hidden: !canUpload, disabled: attaching, onSelect: () => attachInput.current?.click() },
+                {
+                  id: "choose",
+                  label: sources.length === 0 ? "Choose existing files (none yet)" : "Choose existing files",
+                  disabled: Boolean(blocked) || disabledAi,
+                  onSelect: () => {
+                    if (!ai) chooseAi();
+                    setFilesOpen(true);
+                  },
+                },
+              ]}
+            />
+            <input
+              ref={attachInput}
+              type="file"
+              className="sr-only"
+              tabIndex={-1}
+              accept=".pdf,.docx,.txt,.md"
+              aria-label="Attach a new file"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void attach(f);
+              }}
+            />
+          </>
+        )}
         {!ai && (
           <button type="button" disabled={disabledAi || viewer} title={blocked ?? "Ask the AI"} onClick={chooseAi}>
             Ask AI
           </button>
         )}
+        <span className="spacer" />
         <button type="submit" className="primary" disabled={busy || !text.trim() || (ai && (disabledAi || needsOpenDocument || (useBlocks && !selection) || noTarget || draftNeedsFiles))}>
-          {ai ? (editing ? "Ask for an edit" : drafting ? "Ask for a draft" : "Send to AI") : "Send"}
+          <IconSend size={16} /> {ai ? (editing ? "Ask for an edit" : drafting ? "Ask for a draft" : "Send to AI") : "Send"}
         </button>
       </div>
     </form>

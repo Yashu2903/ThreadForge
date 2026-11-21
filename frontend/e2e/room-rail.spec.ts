@@ -103,8 +103,13 @@ test.describe("room rail and layout", () => {
       await page.goto(roomUrl(roomA));
       await expect(page.getByRole("heading", { name: "Alpha plan", exact: true })).toBeVisible();
       await expect(surface(page)).toBeVisible();
-      await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
       await expect(page.getByRole("toolbar", { name: "Formatting" })).toBeVisible();
+      // up to 900px the document and the chat are two tabs (both stay mounted); wider, they sit side by side
+      if (width <= 900) {
+        await expect(page.getByRole("textbox", { name: "Message" })).toBeHidden();
+        await page.getByRole("tab", { name: "Chat" }).click();
+      }
+      await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(0);
       await page.screenshot({ path: `test-results/room-layout-${width}.png`, fullPage: false });

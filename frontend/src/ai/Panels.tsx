@@ -3,9 +3,11 @@
  * usage). Controls that have no backend behind them are not shown: there is no Drive picker, no image
  * generation, no per-source privacy toggle in this phase.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog } from "../components/Dialog";
 import { ApiError } from "../api";
+import { Menu, Popover, Tip } from "../ui/Popover";
+import { IconFile, IconFilePdf, IconFileText, IconInfo, IconMore, IconPlus, IconRefresh } from "../ui/icons";
 import { type AiSnapshot, type AiStore, unavailableReason } from "./store";
 import { ERROR_TEXT, type AnalysisInfo, type Passage, type SourceItem } from "./types";
 
@@ -24,11 +26,25 @@ function fail(err: unknown): string {
   return "Could not reach the server.";
 }
 
+function fileIcon(name: string, kind?: string) {
+  const ext = (kind ?? name.split(".").pop() ?? "").toLowerCase();
+  if (ext === "pdf") return <IconFilePdf size={16} />;
+  if (ext === "docx") return <IconFile size={16} />;
+  return <IconFileText size={16} />;
+}
+
+/**
+ * The room's files, as compact rows in the sidebar: a file-type icon, the name (it truncates, the full name is in the tooltip), the
+ * processing state in small text, one quick action when it applies (Analyze now), and everything else in a menu (Inspect, Download,
+ * Replace, Cancel analysis, Remove). Which actions exist still depends on the person's role and the file's state; the server decides.
+ * Uploading is a "+" in the header (the composer's attach control uploads too).
+ */
 export function SourcePanel(props: { store: AiStore; snap: AiSnapshot; role: string | null; documentId: string | null; userId: string }) {
   const { store, snap, role } = props;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [inspect, setInspect] = useState<SourceItem | null>(null);
+  const replaceInputs = useRef(new Map<string, HTMLInputElement>());
   const list = snap.sources;
   const canEdit = role === "owner" || role === "editor";
   const aiBlocked = unavailableReason(snap, role);
@@ -46,100 +62,120 @@ export function SourcePanel(props: { store: AiStore; snap: AiSnapshot; role: str
   }
 
   return (
-    <section className="files" aria-label="Files">
-      <h2>Files</h2>
-      {list === null && <p className="muted">Loading…</p>}
-      {list && list.sources.length === 0 && <p className="muted">No files yet.</p>}
-      <ul className="source-list">
+    <section className="files side-section" aria-label="Files">
+      <header className="side-heading">
+        <h2 className="category">Files</h2>
+        {list && (
+          <Popover label="About files" panelLabel="About files" align="end" triggerClassName="icon-button" trigger={<IconInfo size={16} />}>
+            {() => (
+              <div className="info-popover">
+                <p>PDF, Word (.docx), text and Markdown, up to {Math.round(list.limits.max_upload_bytes / 1048576)} MB.</p>
+                <p>Uploading does not analyze a file or send anything to an AI provider. A file is analyzed when you ask the AI about it or choose “Analyze now”.</p>
+              </div>
+            )}
+          </Popover>
+        )}
+        {canEdit && list?.can_upload && (
+          <Tip label="Upload a file" side="bottom">
+            <label className="icon-button upload-button">
+              <IconPlus size={16} />
+              <input
+                type="file"
+                className="sr-only"
+                accept=".pdf,.docx,.txt,.md"
+                aria-label="Upload a file"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void run(() => store.uploadFile(f));
+                }}
+              />
+            </label>
+          </Tip>
+        )}
+      </header>
+      {list === null && <p className="muted small side-empty">Loading…</p>}
+      {list && list.sources.length === 0 && <p className="muted small side-empty">No files yet.{canEdit && list.can_upload ? " Upload one with +." : ""}</p>}
+      <ul className="source-list compact-list">
         {list?.sources.map((s) => {
           const v = s.current_version;
           const mine = s.created_by === props.userId;
+          const state = v?.analysis_state ?? "";
+          const running = ["queued", "extracting", "indexing"].includes(state);
+          const canAnalyze = !!v && canEdit && ["not_analyzed", "failed"].includes(state);
+          const canRemove = role === "owner" || (role === "editor" && mine);
+          const statusText = v ? `${STATE_TEXT[state]}${v.error_code ? ` · ${ERROR_TEXT[v.error_code] ?? v.error_code}` : ""}` : "";
           return (
-            <li key={s.id}>
-              <strong title={s.display_name}>{s.display_name}</strong>
-              {v && (
-                <span className={`badge state-${v.analysis_state}`}>
-                  {STATE_TEXT[v.analysis_state]}
-                  {v.error_code ? ` · ${ERROR_TEXT[v.error_code] ?? v.error_code}` : ""}
-                </span>
-              )}
-              <div className="row-actions">
-                {v && canEdit && ["not_analyzed", "failed"].includes(v.analysis_state) && (
+            <li key={s.id} className="source-row">
+              <span className="file-icon">{fileIcon(s.display_name, v?.kind)}</span>
+              <span className="source-text">
+                <strong title={s.display_name}>{s.display_name}</strong>
+                {v && <small className={`status-text state-${state}`}>{statusText}</small>}
+              </span>
+              {canAnalyze && (
+                <Tip label={aiBlocked ?? "Analyze this file now"} side="bottom">
                   <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Analyze now"
                     disabled={busy || !props.documentId || Boolean(aiBlocked)}
-                    title={aiBlocked ?? "Analyze this file now"}
-                    onClick={() => void run(() => store.analyzeNow(s.id, v.id, props.documentId!))}
+                    onClick={() => void run(() => store.analyzeNow(s.id, v!.id, props.documentId!))}
                   >
-                    Analyze now
+                    <IconRefresh size={16} />
                   </button>
-                )}
-                {v && canEdit && ["queued", "extracting", "indexing"].includes(v.analysis_state) && (
-                  <button disabled={busy} onClick={() => void run(() => store.cancelAnalysis(s.id, v.id))}>
-                    Cancel analysis
-                  </button>
-                )}
-                {v && canEdit && (
-                  <button onClick={() => setInspect(s)} aria-label={`Inspect ${s.display_name}`}>
-                    Inspect
-                  </button>
-                )}
-                {list.can_download && v && (
-                  <a className="button" href={`/rooms/${store.roomId}/sources/${s.id}/versions/${v.id}/download`}>
-                    Download
-                  </a>
-                )}
-                {canEdit && (
-                  <label className="button">
-                    Replace
-                    <input
-                      type="file"
-                      className="sr-only"
-                      accept=".pdf,.docx,.txt,.md"
-                      aria-label={`Replace ${s.display_name}`}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = "";
-                        if (f) void run(() => store.uploadFile(f, s.id));
-                      }}
-                    />
-                  </label>
-                )}
-                {(role === "owner" || (role === "editor" && mine)) && (
-                  <button
-                    disabled={busy}
-                    onClick={() => {
-                      if (window.confirm(`Remove “${s.display_name}”? Its text and images are deleted now. Published answers keep their text.`)) {
-                        void run(() => store.removeSource(s.id));
-                      }
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+                </Tip>
+              )}
+              {v && (canEdit || list.can_download || canRemove) && (
+                <Menu
+                  label={`Actions for ${s.display_name}`}
+                  align="end"
+                  triggerClassName="icon-button row-menu"
+                  trigger={<IconMore size={16} />}
+                  items={[
+                    { id: "inspect", label: "Inspect extracted text", hidden: !canEdit, onSelect: () => setInspect(s) },
+                    { id: "cancel", label: "Cancel analysis", hidden: !(canEdit && running), disabled: busy, onSelect: () => void run(() => store.cancelAnalysis(s.id, v.id)) },
+                    { id: "download", label: "Download", hidden: !list.can_download, onSelect: () => window.location.assign(`/rooms/${store.roomId}/sources/${s.id}/versions/${v.id}/download`) },
+                    { id: "replace", label: "Replace with a new version…", hidden: !canEdit, onSelect: () => replaceInputs.current.get(s.id)?.click() },
+                    {
+                      id: "remove",
+                      label: "Remove",
+                      danger: true,
+                      separatorBefore: true,
+                      hidden: !canRemove,
+                      disabled: busy,
+                      onSelect: () => {
+                        if (window.confirm(`Remove “${s.display_name}”? Its text and images are deleted now. Published answers keep their text.`)) {
+                          void run(() => store.removeSource(s.id));
+                        }
+                      },
+                    },
+                  ]}
+                />
+              )}
+              {canEdit && (
+                <input
+                  ref={(el) => {
+                    if (el) replaceInputs.current.set(s.id, el);
+                    else replaceInputs.current.delete(s.id);
+                  }}
+                  type="file"
+                  className="sr-only"
+                  tabIndex={-1}
+                  accept=".pdf,.docx,.txt,.md"
+                  aria-label={`Replace ${s.display_name}`}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void run(() => store.uploadFile(f, s.id));
+                  }}
+                />
+              )}
             </li>
           );
         })}
       </ul>
-      {canEdit && list?.can_upload && (
-        <label className="button primary">
-          Upload a file
-          <input
-            type="file"
-            className="sr-only"
-            accept=".pdf,.docx,.txt,.md"
-            aria-label="Upload a file"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) void run(() => store.uploadFile(f));
-            }}
-          />
-        </label>
-      )}
-      {list && <p className="muted small">PDF, Word (.docx), text and Markdown, up to {Math.round(list.limits.max_upload_bytes / 1048576)} MB. Uploading does not analyze a file or send anything to an AI provider.</p>}
       {error && (
-        <p className="error" role="alert">
+        <p className="error small" role="alert">
           {error}
         </p>
       )}

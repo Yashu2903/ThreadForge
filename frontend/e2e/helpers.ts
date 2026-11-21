@@ -68,6 +68,27 @@ export class AsUser {
     if (status !== 201) throw new Error(`create document failed: ${status} ${JSON.stringify(body)}`);
     return body;
   }
+  /** Upload a small text file the way the page does: intent, content, finalize. Returns the source id. */
+  async uploadSource(roomId: string, filename: string, text: string): Promise<string> {
+    const body = Buffer.from(text);
+    const intent = await this.send<{ id: string }>("POST", `/rooms/${roomId}/source-uploads`, {
+      client_request_id: crypto.randomUUID(),
+      filename,
+      byte_size: body.length,
+      media_type: "text/markdown",
+    });
+    if (intent.status >= 300) throw new Error(`upload intent failed: ${intent.status} ${JSON.stringify(intent.body)}`);
+    const id = intent.body.id;
+    const put = await this.ctx.fetch(`/rooms/${roomId}/source-uploads/${id}/content`, {
+      method: "PUT",
+      data: body,
+      headers: { "X-CSRF-Token": await this.token(), "Content-Type": "application/octet-stream" },
+    });
+    if (!put.ok()) throw new Error(`upload content failed: ${put.status()}`);
+    const done = await this.send("POST", `/rooms/${roomId}/source-uploads/${id}/finalize`, undefined);
+    if (done.status >= 300) throw new Error(`upload finalize failed: ${done.status} ${JSON.stringify(done.body)}`);
+    return id;
+  }
   async dispose(): Promise<void> {
     await this.ctx.dispose();
   }

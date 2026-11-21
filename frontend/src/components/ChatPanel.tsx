@@ -7,6 +7,7 @@ import { ProposalCard } from "../ai/Proposal";
 import type { AiSnapshot, AiStore } from "../ai/store";
 import type { BlockSelection, RangeSelection } from "../DocumentEditor";
 import { useClientState } from "../useRoom";
+import { IconClose } from "../ui/icons";
 import { colourFor, initialOf } from "./RoomRail";
 
 export interface ChatAi {
@@ -29,7 +30,7 @@ export interface ChatAi {
  * (and to owners/editors who can write the document); a published answer shows to EVERY member,
  * viewers included. Everything the model wrote is shown as text.
  */
-export function ChatPanel(props: { client: RoomClient; userId: string; ai: ChatAi }) {
+export function ChatPanel(props: { client: RoomClient; userId: string; ai: ChatAi; onHide?: () => void }) {
   const state = useClientState(props.client);
   const { ai } = props;
   const [chatSelection, setChatSelection] = useState<string[]>([]);
@@ -59,10 +60,19 @@ export function ChatPanel(props: { client: RoomClient; userId: string; ai: ChatA
 
   return (
     <aside className="chat" aria-label="Chat">
-      <h2>Chat</h2>
-      <p className="muted" role="status">
-        {state.status === "live" ? "Live" : state.status === "terminal" ? "Disconnected" : "Connecting…"}
-      </p>
+      <header className="chat-header">
+        <h2>Chat</h2>
+        <span className={`connection ${state.status}`} role="status">
+          <span className="presence-dot" aria-hidden="true" />
+          {state.status === "live" ? "Live" : state.status === "terminal" ? "Disconnected" : "Connecting…"}
+        </span>
+        <span className="spacer" />
+        {props.onHide && (
+          <button type="button" className="icon-button chat-hide" aria-label="Hide chat" onClick={props.onHide}>
+            <IconClose />
+          </button>
+        )}
+      </header>
       <div className="messages" role="log" aria-live="polite" aria-label="Messages">
         {messages.map((m, index) => {
           const kind = m.kind ?? "user";

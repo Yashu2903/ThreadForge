@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import { type PMJson, blockHash, textHash } from "@threadforge/editor-schema";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import type { Api } from "./api";
 import { recordFrom, recoveryStore } from "./collab/recovery";
 import { CollabSession, collabUrl } from "./collab/session";
@@ -117,6 +118,8 @@ export function DocumentEditor(props: {
   mobile: boolean;
   /** the room client's current idea of this person's role (it can change while the editor is open) */
   roleCanEdit: boolean;
+  /** where the small sync indicator goes (the document header); inline when there is none */
+  statusSlot?: HTMLElement | null;
   onLive: (handle: LiveHandle | null) => void;
   onAtRisk: (unsynced: number) => void;
 }) {
@@ -200,28 +203,34 @@ export function DocumentEditor(props: {
 
   return (
     <div className="doc-editor">
-      <div className="save-bar">
-        <span
-          role="status"
-          aria-live="polite"
-          className={`save-status s-${snap?.kind ?? "connecting"}`}
-          data-testid="sync-status"
-          title={
-            snap?.kind === "synced"
-              ? "The server has received everything you typed. It is stored in the database within a few seconds."
-              : snap?.kind === "offline"
-                ? "You are offline. Changes stay in this tab and are sent when the connection returns. Closing the tab loses them."
-                : undefined
-          }
-        >
-          {snap?.label ?? "Connecting…"}
-        </span>
-        {atRisk > 0 && snap?.kind !== "access-lost" && (
-          <span className="muted" data-testid="at-risk">
-            {atRisk} {atRisk === 1 ? "change is" : "changes are"} not on the server yet
+      {(() => {
+        const bar = (
+          <span className="save-bar">
+            <span
+              role="status"
+              aria-live="polite"
+              className={`save-status s-${snap?.kind ?? "connecting"}`}
+              data-testid="sync-status"
+              title={
+                snap?.kind === "synced"
+                  ? "The server has received everything you typed. It is stored in the database within a few seconds."
+                  : snap?.kind === "offline"
+                    ? "You are offline. Changes stay in this tab and are sent when the connection returns. Closing the tab loses them."
+                    : undefined
+              }
+            >
+              <span className="presence-dot" aria-hidden="true" />
+              {snap?.label ?? "Connecting…"}
+            </span>
+            {atRisk > 0 && snap?.kind !== "access-lost" && (
+              <span className="muted small" data-testid="at-risk">
+                {atRisk} {atRisk === 1 ? "change is" : "changes are"} not on the server yet
+              </span>
+            )}
           </span>
-        )}
-      </div>
+        );
+        return props.statusSlot ? createPortal(bar, props.statusSlot) : bar;
+      })()}
 
       {snap?.demoted && snap.kind !== "access-lost" && (
         <div className="conflict" role="alert" data-testid="demoted">
@@ -295,6 +304,7 @@ export function DocumentEditor(props: {
           {font}
         </p>
       )}
+      <div className="paper-scroll">
       {session && (
         <TiptapEditor
           key={session.options.documentName}
@@ -316,6 +326,7 @@ export function DocumentEditor(props: {
           onLinkRequest={() => setLinkOpen(true)}
         />
       )}
+      </div>
     </div>
   );
 }
