@@ -82,7 +82,9 @@ def noise_scan_pdf(pages: int = 1) -> bytes:
 
 
 def diagram_png(size=(640, 420), labels=("Client", "API", "Worker", "Database")) -> bytes:
-    """A small architecture diagram: labelled boxes joined by arrows (not decorative, not blank)."""
+    """A small architecture diagram: labelled boxes joined by PLAIN LINES (not decorative, not blank). The lines carry no arrowhead, so
+    the picture shows which boxes are joined and their left-to-right placement, not the direction of any relation (checked by looking at
+    the image, 2026-11-20; the output bytes are unchanged)."""
     image = Image.new("RGB", size, "white")
     draw = ImageDraw.Draw(image)
     font = _font(22)

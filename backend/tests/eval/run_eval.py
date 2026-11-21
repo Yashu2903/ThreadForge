@@ -3,6 +3,7 @@
     cd backend
     uv run --env-file ../.env python -m tests.eval.run_eval proposal      # the gate
     uv run --env-file ../.env python -m tests.eval.run_eval answer
+    QUALITY_SPLIT=dev uv run --env-file ../.env python -m tests.eval.run_eval quality
 
 Why a runner: a shell wrapper such as `pytest ...; echo done` (or a trailing logging command) reports the status of its LAST
 command, so a failed evaluation can look like a success, and the reverse. Here the evaluator is the only thing whose status
@@ -30,6 +31,7 @@ RESULTS = Path(__file__).parent / "results"
 TARGETS = {
     "proposal": "tests/eval/test_proposal_eval.py",
     "answer": "tests/eval/test_eval.py",
+    "quality": "tests/eval/test_quality_eval.py",  # QUALITY_SPLIT=dev|heldout|all is read from the environment
 }
 MEANING = {
     0: "passed",

@@ -40,7 +40,15 @@ from tests.analysis_helpers import World
 from tests.eval import corpus, manifest
 from tests.eval.metrics import failed_calls, mean, percentile, share
 from tests.eval.proposals import GOLD, PGold
-from tests.eval.test_eval import MODE, build, cost_lines, failure_lines, ledger_of
+from tests.eval.test_eval import (
+    MODE,
+    build,
+    citation_origins,
+    cost_lines,
+    failure_lines,
+    ledger_of,
+    manifest_of,
+)
 from tests.helpers import rows
 
 RESULTS = Path(__file__).parent / "results"
@@ -163,7 +171,41 @@ async def run_item(world: World, item: PGold, uploaded: dict[str, dict]) -> dict
     metrics = result["coverage"].get("validation") or {}
     stats = result["answer"].get("stats", {})
     claims = stats.get("claims", 0)
+    # everything a reviewer needs to judge this proposal without the database: the instruction and target, the context the model was
+    # given and how much of the document it read, the proposal as stored (target blocks before, operations, base hashes), the
+    # citations and what each of them opens to (the original text, read through the same route a person uses)
+    origins = await citation_origins(world, rid, result["citations"])
+    data = await manifest_of(world, rid)
     return record | {
+        "sources": list(item.sources),
+        "target": {"blocks": list(item.blocks), "range": item.range_, "insert_at": item.insert_at},
+        "result": {
+            "answer": result["answer"],
+            "citations": result["citations"],
+            "coverage": result["coverage"],
+            "models": result["models"],
+        },
+        "citation_origins": origins,
+        "proposal": {
+            "kind": proposal["kind"],
+            "state": proposal["state"],
+            "scope": proposal["scope"],
+            "base_hashes": proposal["base_hashes"],
+            "captured_counter": proposal["captured_counter"],
+            "before_content": proposal["before_content"],
+            "operations": proposal["operations"],
+        },
+        "manifest": {
+            "prompt_template": data.get("prompt_template"),
+            "sources": data.get("sources"),
+            "document": {k: v for k, v in (data.get("document") or {}).items() if k != "blocks"},
+            "exclusions": data.get("exclusions"),
+        },
+        "review_flags": [
+            {"op": c["op"], "flags": c.get("review_flags", [])}
+            for c in proposal["preview"].get("changes", [])
+            if c.get("review_flags")
+        ],
         "published": True,
         "outcome": "published",
         "first_try_valid": bool(metrics.get("first_try_valid")),

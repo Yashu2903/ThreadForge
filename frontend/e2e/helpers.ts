@@ -45,6 +45,11 @@ export class AsUser {
     if (!res.ok()) throw new Error(`GET ${path} -> ${res.status()}: ${await res.text()}`);
     return (await res.json()) as T;
   }
+  /** A GET whose status is the answer (an access check), never an exception. */
+  async getStatus<T = any>(path: string): Promise<{ status: number; body: T | null }> {
+    const res = await this.ctx.get(path);
+    return { status: res.status(), body: (await res.json().catch(() => null)) as T | null };
+  }
   async send<T = any>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, data: unknown): Promise<{ status: number; body: T }> {
     const res = await this.ctx.fetch(path, { method, data, headers: { "X-CSRF-Token": await this.token() } });
     return { status: res.status(), body: (await res.json().catch(() => null)) as T };

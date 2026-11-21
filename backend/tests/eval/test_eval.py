@@ -43,6 +43,7 @@ from tests.analysis_helpers import (
 )
 from tests.doc_helpers import room_with_doc
 from tests.eval import corpus, evidence, manifest
+from tests.eval.checks import draws_order, order_disclosed
 from tests.eval.corpus import GOLD, Gold
 from tests.eval.metrics import (
     METRIC_VERSIONS,
@@ -385,6 +386,19 @@ async def run_item(world: EvalWorld, item: Gold, uploaded: dict[str, dict]) -> d
         if item.document
         else None,
         "diagram_published": bool(diagrams) if item.expect_diagram else None,
+        # GROUNDING, separate from the render check below: a diagram that draws directed relations should say, in its own words, that
+        # the sources do not state them. This reads what the output SAID (assumptions, gaps, chat text); it cannot tell whether it is true.
+        "diagram_draws_order": any(draws_order(b.get("mermaid", "")) for b in diagrams)
+        if item.expect_diagram
+        else None,
+        "diagram_order_disclosed": (
+            order_disclosed(
+                [a for b in diagrams for a in (b.get("assumptions") or [])],
+                published["answer"].get("evidence_gaps", []),
+            )
+            if item.expect_diagram and diagrams
+            else None
+        ),
         "diagram_renders": (
             bool(diagrams) and all(b.get("render_status") == "ok" for b in diagrams)
             if item.expect_diagram
@@ -545,6 +559,8 @@ def build_report(
         f"| Schema-valid answers without a repair call | {fmt(share([r.get('no_repair') for r in pub]), True)} | {model_note} |",
         f"| Diagram requests that published a diagram | {fmt(share([r.get('diagram_published') for r in pub]), True)} | {model_note} |",
         f"| Diagrams that render (Mermaid parses) | {fmt(share([r.get('diagram_renders') for r in pub]), True)} | {model_note} |",
+        f"| Diagrams that draw directed relations: say they are assumed (what the output SAID; not a check of truth) | "
+        f"{ratio_of([r.get('diagram_order_disclosed') for r in pub if r.get('diagram_draws_order')])} | {model_note} |",
         f"| Figure questions that cite a figure | {fmt(share([r.get('figure_cited') for r in pub]), True)} | {model_note} |",
         f"| Summaries/comparisons with full section coverage | {fmt(share([r.get('coverage_full') for r in pub]), True)} | measured (server-computed coverage) |",
         f"| Latency p50 / p95 per request (s) | {fmt(percentile(latencies, 50))} / {fmt(percentile(latencies, 95))} | "
